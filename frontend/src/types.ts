@@ -56,5 +56,10 @@ export type MediaAsset = {
   };
   is_archived?: boolean;
   pixelate_bystanders?: boolean;
+  duration?: number;
+  frame_rate?: number;
+  event_id?: string;
+  event_title?: string;
+  cluster_radius_km?: number;
   created_at: string;
 };

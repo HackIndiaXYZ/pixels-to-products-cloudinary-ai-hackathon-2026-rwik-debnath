@@ -36,8 +36,37 @@ PressWire is an automated intake, audit, and broadcast syndication engine engine
 5. **Wire Lucene Search Terminal**:
    - Direct querying of Cloudinary Search API across tags, approval status, and urgency levels.
 
-6. **Production Readiness & Deployment Audit**:
-   - See [docs/production-readiness-audit.md](docs/production-readiness-audit.md) for full analysis comparing Model A (Mid-Market / Agile Web Newsrooms) vs Model B (Tier-1 Enterprise Conglomerates).
+6. **Cloudinary Hackathon Judging Rubric & API Checklist**:
+
+| Cloudinary API / Primitive | Exact Transformation / Parameter | Purpose in PressWire | Code Location |
+| :--- | :--- | :--- | :--- |
+| **Upload API** | `faces: true`, `image_metadata: true` | Auto-detect faces & extract raw hardware EXIF payload at intake. | `intake_service.py` |
+| **Explicit API** | `face_coordinates=[[x, y, w, h], ...]` | Override coordinate matrix with only bystander faces (excluding public figures). | `redaction_service.py` |
+| **Privacy Redaction** | `e_pixelate_faces:10` / `e_blur_faces` | Edge-level pixelation without re-encoding original high-res masters. | `packaging_service.py` |
+| **16:9 Linear Broadcast** | `c_fill,ar_16:9,g_auto:subject` + `l_text:...` | Smart subject crop with dynamic lower-third breaking news chyron overlay. | `packaging_service.py` |
+| **9:16 Social Story** | `c_pad,ar_9:16,b_auto:predominant,g_auto:subject` | Vertical frame preserving full context with predominant color background blur. | `packaging_service.py` |
+| **1:1 Wire Micro-Card** | `c_fill,ar_1:1,g_auto:faces,f_auto,q_auto` | Responsive square newsfeed thumbnail with WebP/AVIF auto-format delivery. | `packaging_service.py` |
+| **Autonomous Video Reel** | `c_fill,ar_16:9,so_0,du_6` | Instant dynamic 6-second highlight clip without local video editing tools. | `packaging_service.py` |
+| **Search API** | `expression="tags:presswire AND status:approved"` | Sub-second Lucene filtering across beats and urgency levels. | `search_service.py` |
+
+7. **Production Readiness & B2B Station Architecture**:
+   - See [docs/production-readiness-audit.md](docs/production-readiness-audit.md) for full analysis comparing Model A (B2B SaaS for Broadcasters) vs Model B (Tier-1 Enterprise Conglomerates).
+
+---
+
+## ⚡ 60-Second Judge Demo Script
+
+1. **Step 1: Open Brand Home (`/`)**:
+   - View the autonomous newsroom value proposition, dynamic transformation preview cards with 1-click **"Open Raw CDN URL"** links, and B2B Station Pricing.
+2. **Step 2: Submit Breaking Footage (`/submit`)**:
+   - Test field reporter intake: pick media, sign the mandatory **Irrevocable Broadcast Copyright Waiver**, capture GPS, and click submit.
+3. **Step 3: Launch Editorial Desk (`/desk`)**:
+   - See the submission arrive on the wire queue in real time.
+   - Inspect hardware EXIF forensics ($\Delta t$ capture vs upload discrepancy, camera model, GPS).
+   - In the **Selective Face Triage Canvas**, click a bystander bounding box to toggle between **Redacted (Civilian)** and **Exempt (Public Figure)**.
+   - Notice the Cloudinary Explicit API updates coordinates live with **zero duplicate storage files created**.
+4. **Step 4: Inspect Syndication Deliverables**:
+   - In the Broadcast Hub, click **"Open Raw Cloudinary URL ↗"** on any format (16:9 linear TV, 9:16 reel, 1:1 card) to verify the live transformation running on Cloudinary's edge CDN in a new browser tab.
 
 ---
 

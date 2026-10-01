@@ -277,3 +277,109 @@ def test_search_query_with_archived():
     assert not any(a["public_id"] == tid for a in res_false.json())
 
 
+def test_spatiotemporal_clustering():
+    from app.services.intake_service import IntakeService, WIRE_STORE
+    from app.models.schemas import MediaAssetResponse, TelemetryData, ModerationResult
+
+    now = datetime.datetime.utcnow()
+    id_a = "presswire/test_cluster_a"
+    WIRE_STORE[id_a] = MediaAssetResponse(
+        public_id=id_a,
+        format="jpg",
+        resource_type="image",
+        width=1200,
+        height=800,
+        bytes=50000,
+        secure_url="https://res.cloudinary.com/demo/image/upload/sample.jpg",
+        telemetry=TelemetryData(
+            has_gps=True,
+            gps_latitude=37.7842,
+            gps_longitude=-122.4071
+        ),
+        moderation=ModerationResult(),
+        headline="FIRE ALARM ON 4TH ST",
+        event_id="evt_cluster_test_101",
+        event_title="4th Street Commercial Fire",
+        review_status="approved",
+        created_at=now.isoformat()
+    )
+
+    cluster_id, cluster_title = IntakeService._find_spatiotemporal_cluster(
+        lat=37.7850,
+        lon=-122.4080,
+        upload_time=now + datetime.timedelta(minutes=10),
+        default_headline="Smoke visible near subway"
+    )
+
+    assert cluster_id == "evt_cluster_test_101"
+    assert cluster_title == "4th Street Commercial Fire"
+
+
+def test_cluster_radius_adjustment():
+    from app.services.intake_service import WIRE_STORE
+    from app.models.schemas import MediaAssetResponse, TelemetryData, ModerationResult
+    from fastapi.testclient import TestClient
+    from app.main import app
+    import datetime
+
+    client = TestClient(app)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    id_anchor = "presswire/test_radius_anchor"
+    id_near = "presswire/test_radius_near"
+
+    WIRE_STORE[id_anchor] = MediaAssetResponse(
+        public_id=id_anchor,
+        format="jpg",
+        resource_type="image",
+        width=1200,
+        height=800,
+        bytes=50000,
+        secure_url="https://res.cloudinary.com/demo/image/upload/sample.jpg",
+        telemetry=TelemetryData(
+            has_gps=True,
+            gps_latitude=37.7840,
+            gps_longitude=-122.4070
+        ),
+        moderation=ModerationResult(),
+        headline="ANCHOR PROTEST EVENT",
+        event_id="evt_radius_test",
+        event_title="Downtown Protest",
+        cluster_radius_km=1.5,
+        review_status="approved",
+        created_at=now.isoformat()
+    )
+
+    WIRE_STORE[id_near] = MediaAssetResponse(
+        public_id=id_near,
+        format="jpg",
+        resource_type="image",
+        width=1200,
+        height=800,
+        bytes=50000,
+        secure_url="https://res.cloudinary.com/demo/image/upload/sample2.jpg",
+        telemetry=TelemetryData(
+            has_gps=True,
+            gps_latitude=37.7845,
+            gps_longitude=-122.4075
+        ),
+        moderation=ModerationResult(),
+        headline="NEARBY RALLY ANGLE",
+        event_id="evt_radius_test",
+        event_title="Downtown Protest",
+        cluster_radius_km=1.5,
+        review_status="approved",
+        created_at=now.isoformat()
+    )
+
+    # Adjust cluster radius via metadata endpoint
+    res = client.post("/api/v1/editorial/metadata", json={
+        "public_id": id_anchor,
+        "cluster_radius_km": 3.0
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["cluster_radius_km"] == 3.0
+    assert WIRE_STORE[id_near].cluster_radius_km == 3.0
+
+
+

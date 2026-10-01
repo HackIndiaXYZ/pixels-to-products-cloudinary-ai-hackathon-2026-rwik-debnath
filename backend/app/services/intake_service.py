@@ -1,6 +1,7 @@
 import datetime
+import math
 import uuid
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 import cloudinary.uploader
 from app.core.config import settings
 from app.models.schemas import MediaAssetResponse, FaceCoordinate, TelemetryData, ModerationResult
@@ -10,6 +11,54 @@ from app.services.packaging_service import PackagingService
 WIRE_STORE: Dict[str, MediaAssetResponse] = {}
 
 class IntakeService:
+    @staticmethod
+    def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Computes great-circle distance between two GPS coordinates in kilometers."""
+        R = 6371.0 # Earth's radius in km
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = (math.sin(dlat / 2) ** 2 +
+             math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+             math.sin(dlon / 2) ** 2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return R * c
+
+    @classmethod
+    def _find_spatiotemporal_cluster(
+        cls,
+        lat: Optional[float],
+        lon: Optional[float],
+        upload_time: datetime.datetime,
+        default_headline: str
+    ) -> Tuple[str, str]:
+        """
+        Scans WIRE_STORE to find an active breaking event within 1.5 km and 1 hour.
+        Returns (event_id, event_title).
+        """
+        if lat is not None and lon is not None:
+            for asset in WIRE_STORE.values():
+                if not asset.telemetry or not asset.telemetry.has_gps:
+                    continue
+                a_lat = asset.telemetry.gps_latitude
+                a_lon = asset.telemetry.gps_longitude
+                if a_lat is None or a_lon is None:
+                    continue
+
+                dist_km = cls._haversine_km(lat, lon, a_lat, a_lon)
+                try:
+                    asset_dt = datetime.datetime.fromisoformat(asset.created_at)
+                    time_delta_sec = abs((upload_time - asset_dt).total_seconds())
+                except Exception:
+                    time_delta_sec = 0
+
+                # Spatial threshold: 1.5 km (~1 mile); Temporal threshold: 1 hour (3600s)
+                if dist_km <= 1.5 and time_delta_sec <= 3600:
+                    cluster_id = asset.event_id or f"evt_{asset.public_id.split('/')[-1]}"
+                    cluster_title = asset.event_title or asset.headline or default_headline
+                    return cluster_id, cluster_title
+
+        new_id = f"evt_{upload_time.strftime('%Y%m%d')}_{uuid.uuid4().hex[:6]}"
+        return new_id, default_headline
     @staticmethod
     def _parse_telemetry(raw_metadata: Dict[str, Any], upload_time: datetime.datetime) -> TelemetryData:
         """Parses raw EXIF/IPTC tags into structured newsroom telemetry."""
@@ -171,6 +220,14 @@ class IntakeService:
             resource_type=resource_type
         )
 
+        # Determine Spatio-Temporal Event Cluster
+        event_id, event_title = cls._find_spatiotemporal_cluster(
+            lat=telemetry.gps_latitude,
+            lon=telemetry.gps_longitude,
+            upload_time=now,
+            default_headline=headline
+        )
+
         asset = MediaAssetResponse(
             public_id=res["public_id"],
             asset_id=res.get("asset_id"),
@@ -188,6 +245,10 @@ class IntakeService:
             urgency=urgency,
             headline=headline,
             syndication_urls=syndication_urls,
+            duration=float(res["duration"]) if res.get("duration") is not None else None,
+            frame_rate=float(res["frame_rate"]) if res.get("frame_rate") is not None else None,
+            event_id=event_id,
+            event_title=event_title,
             created_at=now.isoformat()
         )
 

@@ -12,6 +12,9 @@ import {
   CircleAlert,
   X,
   ChevronDown,
+  Download,
+  Copy,
+  Layers,
 } from 'lucide-react';
 import {
   CATEGORY_LIST,
@@ -32,6 +35,16 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   const [headline, setHeadline] = useState(asset.headline || 'Breaking News');
   const [incidentType, setIncidentType] = useState(asset.incident_type || 'uncategorized');
   const [urgency, setUrgency] = useState<'breaking' | 'standard'>((asset.urgency as 'breaking' | 'standard') || 'breaking');
+  const [eventTitle, setEventTitle] = useState(asset.event_title || '');
+  const [clusterRadius, setClusterRadius] = useState<number>(asset.cluster_radius_km ?? 1.5);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopy = (key: string, text?: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
 
   // News Beat Dropdown State
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -41,7 +54,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     setHeadline(asset.headline || 'Breaking News');
     setIncidentType(asset.incident_type || 'uncategorized');
     setUrgency((asset.urgency as 'breaking' | 'standard') || 'breaking');
-  }, [asset.public_id, asset.headline, asset.incident_type, asset.urgency]);
+    setEventTitle(asset.event_title || '');
+    setClusterRadius(asset.cluster_radius_km ?? 1.5);
+  }, [asset.public_id, asset.headline, asset.incident_type, asset.urgency, asset.event_title, asset.cluster_radius_km]);
 
   // Click outside and Escape handler for Beat Dropdown
   useEffect(() => {
@@ -67,16 +82,21 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   const isMetadataDirty =
     headline !== (asset.headline || 'Breaking News') ||
     incidentType !== (asset.incident_type || 'uncategorized') ||
-    urgency !== ((asset.urgency as 'breaking' | 'standard') || 'breaking');
+    urgency !== ((asset.urgency as 'breaking' | 'standard') || 'breaking') ||
+    eventTitle !== (asset.event_title || '');
 
   const persistStoryMetadata = async (
     newHeadline?: string,
     newIncidentType?: string,
-    newUrgency?: 'breaking' | 'standard'
+    newUrgency?: 'breaking' | 'standard',
+    newEventTitle?: string,
+    newRadius?: number
   ) => {
     const finalHeadline = (newHeadline !== undefined ? newHeadline : headline).trim() || 'Breaking News';
     const finalIncidentType = newIncidentType !== undefined ? newIncidentType : incidentType;
     const finalUrgency = newUrgency !== undefined ? newUrgency : urgency;
+    const finalEventTitle = (newEventTitle !== undefined ? newEventTitle : eventTitle).trim();
+    const finalRadius = newRadius !== undefined ? newRadius : clusterRadius;
 
     try {
       const res = await fetch('/api/v1/editorial/metadata', {
@@ -87,6 +107,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
           headline: finalHeadline,
           incident_type: finalIncidentType,
           urgency: finalUrgency,
+          event_id: asset.event_id,
+          event_title: finalEventTitle,
+          cluster_radius_km: finalRadius,
         }),
       });
       if (res.ok) {
@@ -98,6 +121,20 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     }
   };
 
+  const handleRadiusChange = (val: number) => {
+    setClusterRadius(val);
+    if (onUpdateAsset) {
+      onUpdateAsset({
+        ...asset,
+        cluster_radius_km: val,
+      });
+    }
+  };
+
+  const handleRadiusCommit = (val: number) => {
+    persistStoryMetadata(headline, incidentType, urgency, eventTitle, val);
+  };
+
   const handleSaveMetadata = () => {
     if (onUpdateAsset) {
       onUpdateAsset({
@@ -105,9 +142,11 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
         headline,
         incident_type: incidentType,
         urgency,
+        event_title: eventTitle,
+        cluster_radius_km: clusterRadius,
       });
     }
-    persistStoryMetadata(headline, incidentType, urgency);
+    persistStoryMetadata(headline, incidentType, urgency, eventTitle, clusterRadius);
   };
 
   const handleSelectCategory = (catId: string) => {
@@ -119,7 +158,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
         incident_type: catId,
       });
     }
-    persistStoryMetadata(headline, catId, urgency);
+    persistStoryMetadata(headline, catId, urgency, eventTitle);
   };
 
   const handleToggleUrgency = (newUrgency: 'breaking' | 'standard') => {
@@ -130,7 +169,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
         urgency: newUrgency,
       });
     }
-    persistStoryMetadata(headline, incidentType, newUrgency);
+    persistStoryMetadata(headline, incidentType, newUrgency, eventTitle);
   };
 
   const activeCat = getCategoryMeta(incidentType);
@@ -141,8 +180,20 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     width: asset.width,
     height: asset.height,
     bytes: asset.bytes,
+    duration: asset.duration,
+    frame_rate: asset.frame_rate,
     created_at: asset.created_at,
   };
+
+  const masterUrl =
+    asset.syndication_urls?.clean_master ||
+    asset.syndication_urls?.broadcast_16_9_clean ||
+    asset.syndication_urls?.broadcast_16_9 ||
+    asset.secure_url;
+
+  const masterDownloadUrl = masterUrl && masterUrl.includes('/upload/')
+    ? masterUrl.replace('/upload/', '/upload/fl_attachment/')
+    : masterUrl;
 
   const timeDeltaMinutes = telemetry.time_delta_seconds
     ? (telemetry.time_delta_seconds / 60).toFixed(1)
@@ -196,7 +247,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
       </div>
 
       {/* 2. Scrollable Body */}
-      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5 min-h-0">
+      <div className="flex-1 overflow-y-auto modern-scrollbar px-5 py-5 space-y-5 min-h-0">
         {/* Section 0: Story Properties */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -223,7 +274,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 }
               }}
               placeholder="Enter broadcast headline..."
-              className="w-full bg-slate-50/80 border border-slate-200/90 hover:border-slate-300 focus:bg-white rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+              className="w-full bg-slate-50/70 border border-slate-200/80 hover:border-slate-300 focus:bg-white rounded-xl px-3.5 py-2 text-[13px] font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
             />
           </div>
 
@@ -321,22 +372,125 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Autonomous Event Package Cluster */}
+          {asset.event_id && (
+            <div className="bg-slate-50/60 border border-slate-200/80 rounded-xl p-2.5 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center space-x-1.5 min-w-0">
+                  <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="text-[11px] font-semibold text-slate-800 truncate" title={eventTitle || headline}>
+                    {eventTitle || headline}
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 shrink-0 ml-2">
+                  #{asset.event_id.replace(/^evt_/, '')}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/50 text-xs">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+                  Radius
+                </span>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="10.0"
+                    step="0.1"
+                    value={clusterRadius}
+                    onChange={(e) => handleRadiusChange(parseFloat(e.target.value) || 0.1)}
+                    onMouseUp={(e) => handleRadiusCommit(parseFloat((e.target as HTMLInputElement).value) || 0.1)}
+                    onTouchEnd={(e) => handleRadiusCommit(parseFloat((e.target as HTMLInputElement).value) || 0.1)}
+                    className="w-24 sm:w-28 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 transition"
+                    title="Drag to adjust cluster radius"
+                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="number"
+                      min="0.1"
+                      max="10.0"
+                      step="0.1"
+                      value={clusterRadius}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          const clamped = Math.min(10.0, Math.max(0.1, val));
+                          handleRadiusChange(clamped);
+                        }
+                      }}
+                      onBlur={() => handleRadiusCommit(clusterRadius)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                      }}
+                      className="w-16 h-6 bg-white border border-slate-200/90 focus:border-blue-500 rounded-md text-left pl-2 pr-5 text-[11px] font-mono font-semibold text-slate-800 focus:outline-none transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-2xs"
+                      title="Cluster radius in km"
+                    />
+                    <span className="absolute right-1.5 text-[9px] font-mono font-medium text-slate-400 pointer-events-none">
+                      km
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Section 1: Provenance & Audit Specification Grid */}
-        <div className="space-y-2 pt-2 border-t border-slate-100">
+        <div className="space-y-2.5 pt-2 border-t border-slate-100">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Provenance & Telemetry
             </span>
           </div>
 
-          <div className="bg-slate-50/60 border border-slate-200/80 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
+          {/* Compliance & Trust Verification Strip */}
+          <div className="grid grid-cols-3 gap-1.5">
+            <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-lg px-2 py-1.5 text-center">
+              <div className="flex items-center justify-center space-x-1 text-emerald-700">
+                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                <span className="text-[10px] font-bold">C2PA</span>
+              </div>
+              <span className="text-[9px] text-emerald-600/90 font-medium block">Hardware Proof</span>
+            </div>
+
+            <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-lg px-2 py-1.5 text-center">
+              <div className="flex items-center justify-center space-x-1 text-emerald-700">
+                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                <span className="text-[10px] font-bold">Rights</span>
+              </div>
+              <span className="text-[9px] text-emerald-600/90 font-medium block">Irrevocable</span>
+            </div>
+
+            <div className={`border rounded-lg px-2 py-1.5 text-center ${
+              moderation.status === 'approved'
+                ? 'bg-emerald-50/60 border-emerald-200/60'
+                : 'bg-rose-50/60 border-rose-200/60'
+            }`}>
+              <div className={`flex items-center justify-center space-x-1 ${
+                moderation.status === 'approved' ? 'text-emerald-700' : 'text-rose-700'
+              }`}>
+                {moderation.status === 'approved' ? (
+                  <CircleCheck className="w-3 h-3 text-emerald-600" />
+                ) : (
+                  <CircleAlert className="w-3 h-3 text-rose-600" />
+                )}
+                <span className="text-[10px] font-bold">Safety</span>
+              </div>
+              <span className={`text-[9px] font-medium block ${
+                moderation.status === 'approved' ? 'text-emerald-600/90' : 'text-rose-600 font-bold'
+              }`}>
+                {moderation.status === 'approved' ? 'Clean Feed' : moderation.status}
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-slate-50/50 border border-slate-200/80 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
             {/* Camera / Device */}
-            <div className="flex items-center justify-between px-3 py-2.5">
+            <div className="flex items-center justify-between px-3 py-2">
               <div className="flex items-center space-x-2 text-slate-500 text-[11px]">
                 <Camera className="w-3.5 h-3.5 text-slate-400" />
-                <span>Camera / Device</span>
+                <span>Sensor / Device</span>
               </div>
               <div className="flex items-center space-x-1.5">
                 <span className="font-semibold text-slate-800 text-[11px] truncate max-w-[190px]">
@@ -346,10 +500,10 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
             </div>
 
             {/* Capture Delta */}
-            <div className="flex items-center justify-between px-3 py-2.5">
+            <div className="flex items-center justify-between px-3 py-2">
               <div className="flex items-center space-x-2 text-slate-500 text-[11px]">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                <span>Capture Delta</span>
+                <span>Capture Timestamp</span>
               </div>
               <div className="flex items-center space-x-1.5">
                 {telemetry.time_delta_seconds && telemetry.time_delta_seconds > 7200 ? (
@@ -365,44 +519,11 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
               </div>
             </div>
 
-            {/* Broadcast Rights Waiver */}
-            <div className="flex items-center justify-between px-3 py-2.5">
-              <div className="flex items-center space-x-2 text-slate-500 text-[11px]">
-                <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-                <span>Broadcast Rights</span>
-              </div>
-              <div className="flex items-center space-x-1.5">
-                <span
-                  className="font-semibold text-emerald-600 text-[11px]"
-                  title={`Waiver Signed • Submitter IP: ${telemetry.submitter_ip || 'Verified'}`}
-                >
-                  Irrevocable License
-                </span>
-              </div>
-            </div>
-
-            {/* Content Safety */}
-            <div className="flex items-center justify-between px-3 py-2.5">
-              <div className="flex items-center space-x-2 text-slate-500 text-[11px]">
-                <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-                <span>Content Safety</span>
-              </div>
-              <span
-                className={`font-semibold text-[11px] ${
-                  moderation.status === 'approved'
-                    ? 'text-emerald-600'
-                    : 'text-rose-600'
-                }`}
-              >
-                {moderation.status === 'approved' ? 'Passed (Clean)' : moderation.status}
-              </span>
-            </div>
-
             {/* Incident Location */}
-            <div className="flex items-center justify-between px-3 py-2.5">
+            <div className="flex items-center justify-between px-3 py-2">
               <div className="flex items-center space-x-2 text-slate-500 text-[11px]">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                <span>Incident Site</span>
+                <span>GPS Coordinates</span>
               </div>
               <div className="flex items-center space-x-1.5 font-mono text-[11px]">
                 <span className="text-slate-800 font-medium">
@@ -423,12 +544,82 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Section 2: Playout & Master Deliverables */}
+        <div className="space-y-2.5 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Broadcast Playout
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {/* 1-Click Master Download Package */}
+            <a
+              href={masterDownloadUrl}
+              download
+              className="w-full h-9 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 border border-slate-200/90 hover:border-slate-300 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-2xs cursor-pointer active:scale-98"
+              title="Download full-resolution redacted master for broadcast playout server"
+            >
+              <Download className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span className="leading-none">Download Master Package</span>
+              <span className="text-[10px] text-slate-400 font-mono font-medium uppercase leading-none">
+                ({fileSpecs.format})
+              </span>
+            </a>
+
+            {/* Quick Syndication URLs Grid (16:9 TV, 9:16 Reel, 1:1 Wire) */}
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleCopy('16_9', asset.syndication_urls?.broadcast_16_9)}
+                className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
+                title="Copy 16:9 Linear Broadcast feed URL"
+              >
+                <span className="truncate">16:9 TV</span>
+                {copiedKey === '16_9' ? (
+                  <Check className="w-3 h-3 text-emerald-600 shrink-0 ml-1" />
+                ) : (
+                  <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCopy('9_16', asset.syndication_urls?.social_9_16)}
+                className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
+                title="Copy 9:16 Vertical Reel URL"
+              >
+                <span className="truncate">9:16 Reel</span>
+                {copiedKey === '9_16' ? (
+                  <Check className="w-3 h-3 text-emerald-600 shrink-0 ml-1" />
+                ) : (
+                  <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCopy('1_1', asset.syndication_urls?.feed_1_1)}
+                className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
+                title="Copy 1:1 Wire Index Card URL"
+              >
+                <span className="truncate">1:1 Wire</span>
+                {copiedKey === '1_1' ? (
+                  <Check className="w-3 h-3 text-emerald-600 shrink-0 ml-1" />
+                ) : (
+                  <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 3. Pinned Footer (Technical Media Specs & UTC Timestamp) */}
       {fileSpecs && (
         <div className="shrink-0 px-5 py-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between text-[11px] font-mono text-slate-500">
-          <div className="flex items-center space-x-1.5">
+          <div className="flex items-center space-x-1.5 truncate mr-2">
             {fileSpecs.width && fileSpecs.height && (
               <span>{fileSpecs.width} × {fileSpecs.height}</span>
             )}
@@ -444,9 +635,15 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 <span>{(fileSpecs.bytes / (1024 * 1024)).toFixed(1)} MB</span>
               </>
             )}
+            {fileSpecs.duration && (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="text-slate-700 font-semibold">{fileSpecs.duration.toFixed(1)}s{fileSpecs.frame_rate ? ` (${Math.round(fileSpecs.frame_rate)}fps)` : ''}</span>
+              </>
+            )}
           </div>
 
-          <div className="flex items-center space-x-1.5 font-semibold text-slate-600">
+          <div className="flex items-center space-x-1.5 font-semibold text-slate-600 shrink-0">
             <span className="text-slate-400 font-normal">Wire Ingest</span>
             <span className="text-slate-300 font-normal">•</span>
             {fileSpecs.created_at && (

@@ -15,21 +15,13 @@ import {
   ArrowUpDown,
   ChevronDown,
   SlidersHorizontal,
-  Users,
-  ShieldAlert,
   Video,
+  Layers,
+  Minus,
+  ShieldAlert,
 } from 'lucide-react';
 import { CATEGORY_LIST, getCategoryMeta } from '../../utils/categories';
 import { WireContextMenu } from './WireContextMenu';
-
-const BEAT_BORDER_MAP: Record<string, string> = {
-  public_safety: 'border-l-amber-500',
-  severe_weather: 'border-l-sky-500',
-  politics_civic: 'border-l-purple-500',
-  transit: 'border-l-blue-500',
-  metro_local: 'border-l-emerald-500',
-  uncategorized: 'border-l-slate-400',
-};
 
 type SortOption = 'newest' | 'oldest' | 'urgency' | 'faces';
 
@@ -44,8 +36,6 @@ interface WireQueueProps {
   assets: MediaAsset[];
   selectedId: string | null;
   onSelect: (asset: MediaAsset) => void;
-  onRefresh?: () => void;
-  isRefreshing?: boolean;
   onDeleteSingle?: (public_id: string) => void;
   onDeleteBatch?: (public_ids: string[]) => void;
   onArchiveToggle?: (public_id: string, is_archived: boolean) => void;
@@ -60,8 +50,6 @@ export const WireQueue: React.FC<WireQueueProps> = ({
   assets,
   selectedId,
   onSelect,
-  onRefresh,
-  isRefreshing = false,
   onDeleteSingle,
   onDeleteBatch,
   onArchiveToggle,
@@ -77,6 +65,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
   const [selectedBeat, setSelectedBeat] = useState<string>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'breaking'>('all');
   const [formatFilter, setFormatFilter] = useState<'all' | 'video' | 'image'>('all');
+  const [viewMode, setViewMode] = useState<'stream' | 'packages'>('stream');
 
   // Popover menus
   const [isSortOpen, setIsSortOpen] = useState(false);
@@ -149,6 +138,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
       const q = search.toLowerCase().trim();
       const matchesSearch =
         (asset.headline && asset.headline.toLowerCase().includes(q)) ||
+        (asset.event_title && asset.event_title.toLowerCase().includes(q)) ||
         asset.public_id.toLowerCase().includes(q) ||
         (asset.incident_type && asset.incident_type.toLowerCase().includes(q)) ||
         (asset.telemetry?.model && asset.telemetry.model.toLowerCase().includes(q));
@@ -176,6 +166,17 @@ export const WireQueue: React.FC<WireQueueProps> = ({
     return true;
   });
 
+  // Count takes/angles per event cluster across live queue
+  const eventCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    assets.forEach((a) => {
+      if (a.event_id) {
+        counts[a.event_id] = (counts[a.event_id] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [assets]);
+
   // 3. Sort
   filteredAssets.sort((a, b) => {
     if (sortOption === 'newest') {
@@ -199,6 +200,24 @@ export const WireQueue: React.FC<WireQueueProps> = ({
     return 0;
   });
 
+  // Group assets into Story Packages
+  const storyPackages = React.useMemo(() => {
+    const groups: { [key: string]: { event_id: string; event_title: string; incident_type: string; assets: MediaAsset[] } } = {};
+    filteredAssets.forEach((a) => {
+      const key = a.event_id || a.public_id;
+      if (!groups[key]) {
+        groups[key] = {
+          event_id: key,
+          event_title: a.event_title || a.headline || 'Breaking Incident',
+          incident_type: a.incident_type,
+          assets: [],
+        };
+      }
+      groups[key].assets.push(a);
+    });
+    return Object.values(groups);
+  }, [filteredAssets]);
+
   const activeBeatMeta = selectedBeat !== 'all' ? getCategoryMeta(selectedBeat) : null;
   const allFilteredIds = filteredAssets.map((a) => a.public_id);
   const isAllSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedIds.includes(id));
@@ -220,13 +239,27 @@ export const WireQueue: React.FC<WireQueueProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea') return;
+
       if (e.key === 'Escape' && selectedIds.length > 0) {
         setSelectedIds([]);
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'j' || e.key === 'k') {
+        if (!filteredAssets.length) return;
+        e.preventDefault();
+        const currentIndex = filteredAssets.findIndex((a) => a.public_id === selectedId);
+        if (e.key === 'ArrowDown' || e.key === 'j') {
+          const nextIndex = currentIndex < filteredAssets.length - 1 ? currentIndex + 1 : 0;
+          onSelect(filteredAssets[nextIndex]);
+        } else {
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : filteredAssets.length - 1;
+          onSelect(filteredAssets[prevIndex]);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds.length]);
+  }, [selectedIds.length, filteredAssets, selectedId, onSelect]);
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -247,6 +280,239 @@ export const WireQueue: React.FC<WireQueueProps> = ({
     }
   };
 
+  const renderAssetCard = (asset: MediaAsset, isNestedInPackage = false, angleIndex?: number) => {
+    const isSelected = selectedId === asset.public_id;
+    const isChecked = selectedIds.includes(asset.public_id);
+    const thumbUrl =
+      asset.resource_type === 'video'
+        ? asset.secure_url?.includes('/video/upload/')
+          ? asset.secure_url.replace('/video/upload/', '/video/upload/so_0,c_fill,ar_1:1,w_120,h_120/').replace(/\.(mp4|mov|webm)$/i, '.jpg')
+          : asset.syndication_urls?.feed_1_1 && !asset.syndication_urls.feed_1_1.endsWith('.mp4')
+          ? asset.syndication_urls.feed_1_1
+          : asset.secure_url?.replace(/\.(mp4|mov|webm)$/i, '.jpg')
+        : asset.secure_url || asset.syndication_urls?.feed_1_1;
+    const cat = getCategoryMeta(asset.incident_type);
+    const siblingCount = asset.event_id ? (eventCounts[asset.event_id] || 0) : 0;
+
+    return (
+      <div
+        key={asset.public_id}
+        onClick={(e) => {
+          if (selectedIds.length > 0) {
+            handleToggleItem(asset.public_id, e);
+          } else {
+            onSelect(asset);
+          }
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            asset,
+          });
+        }}
+        className={`group min-h-[64px] shrink-0 p-2.5 rounded-xl border cursor-pointer transition-all duration-100 flex items-center space-x-3 relative overflow-hidden select-none box-border ${
+          isChecked
+            ? 'bg-blue-50/90 border-blue-500 shadow-2xs ring-1 ring-blue-500/30'
+            : isSelected
+            ? 'bg-blue-50/50 border-blue-400 shadow-2xs ring-1 ring-blue-400/20'
+            : isNestedInPackage
+            ? 'bg-white border-slate-200/70 hover:bg-slate-50/80 hover:border-slate-300 shadow-2xs'
+            : 'bg-white border-slate-200/80 hover:bg-slate-50/80 hover:border-slate-300 shadow-2xs'
+        }`}
+      >
+        {/* Media Thumbnail */}
+        <div className="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-slate-900 border border-slate-200/80 shadow-2xs flex items-center justify-center">
+          {thumbUrl ? (
+            <img
+              src={thumbUrl}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                const fallback = e.currentTarget.parentElement?.querySelector('.thumb-fallback');
+                if (fallback) (fallback as HTMLElement).style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <div
+            className={`thumb-fallback w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-slate-400 ${
+              thumbUrl ? 'hidden' : ''
+            }`}
+          >
+            {asset.resource_type === 'video' ? <Film className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
+          </div>
+
+          {/* Clean Selection Checkbox (visible on hover or when checked) */}
+          <div
+            onClick={(e) => handleToggleItem(asset.public_id, e)}
+            className={`absolute top-1 left-1 transition-opacity duration-150 cursor-pointer ${
+              isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            }`}
+            title={isChecked ? 'Deselect asset' : 'Select asset'}
+          >
+            <div
+              className={`w-4 h-4 rounded-full flex items-center justify-center transition-colors ${
+                isChecked
+                  ? 'bg-blue-600 text-white shadow-xs ring-1.5 ring-white'
+                  : 'bg-black/60 hover:bg-black/85 text-white backdrop-blur-[2px] ring-1 ring-white/70'
+              }`}
+            >
+              {isChecked ? (
+                <Check className="w-2.5 h-2.5 stroke-[3]" />
+              ) : (
+                <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+              )}
+            </div>
+          </div>
+
+          {/* Video format badge on thumbnail */}
+          {asset.resource_type === 'video' && !isChecked && (
+            <div className="absolute bottom-0.5 right-0.5 bg-black/75 backdrop-blur-[2px] px-1 py-0.2 rounded text-[8px] text-white flex items-center space-x-0.5">
+              <Video className="w-2.5 h-2.5 text-blue-400" />
+            </div>
+          )}
+        </div>
+
+        {/* Minimalist Editorial Card Body */}
+        <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+          {/* Headline with optional Take Tag */}
+          <div className="flex items-center space-x-1.5 pr-2">
+            {isNestedInPackage && angleIndex !== undefined && (
+              <span className="shrink-0 text-[10px] font-bold text-slate-400 font-mono leading-none">
+                #{angleIndex + 1}
+              </span>
+            )}
+            <p
+              className="text-xs font-semibold text-slate-900 leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors"
+              title={asset.headline || asset.public_id}
+            >
+              {(asset.headline || asset.public_id).replace(/^(breaking|urgent|alert)[\s:–—-]+/i, '')}
+            </p>
+          </div>
+
+          {/* Clean, Focused Metadata Row */}
+          <div className="flex items-center space-x-1.5 min-w-0 text-[11px] mt-1.5 h-5">
+            <span className={`font-semibold shrink-0 text-[11px] leading-none ${cat.textColor || 'text-slate-600'}`}>
+              {cat.shortLabel || cat.label}
+            </span>
+            <span className="text-slate-300 font-normal text-[11px] leading-none select-none">·</span>
+            <span className="text-slate-500 font-medium shrink-0 text-[11px] leading-none">
+              {new Date(asset.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+            </span>
+
+            {/* In stream mode: Multi-angle sibling indicator if > 1 angle exists */}
+            {!isNestedInPackage && siblingCount > 1 && (
+              <>
+                <span className="text-slate-300 font-normal text-[11px] leading-none select-none">·</span>
+                <span
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 shrink-0 leading-none"
+                  title={`Grouped with ${siblingCount} angles under ${asset.event_title || 'event package'}`}
+                >
+                  <Layers className="w-2.5 h-2.5 text-slate-400 shrink-0 stroke-[2.2]" />
+                  <span>{siblingCount}</span>
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right-Hand Indicator Column: Breaking Urgency (Top) & Review Status (Bottom) */}
+        <div className="self-stretch flex flex-col justify-between items-center py-1 w-3.5 shrink-0 select-none">
+          {/* Top: Breaking Urgency */}
+          <div className="h-4 flex items-center justify-center">
+            {asset.urgency === 'breaking' && (
+              <span
+                className="flex items-center justify-center group-hover:opacity-0 transition-opacity"
+                title="Breaking Wire Event"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600" />
+                </span>
+              </span>
+            )}
+          </div>
+
+          {/* Bottom: Triage / Quarantine Status */}
+          <div className="h-4 flex items-center justify-center">
+            {asset.review_status === 'quarantined' ? (
+              <span
+                className="flex items-center justify-center text-rose-600"
+                title="Quarantined: Flagged by Content Safety"
+              >
+                <ShieldAlert className="w-2.5 h-2.5 stroke-[2.2]" />
+              </span>
+            ) : asset.review_status === 'action_required' ? (
+              <span
+                className="flex items-center justify-center text-amber-500"
+                title="Needs Triage: Privacy Redaction or Editorial Review Required"
+              >
+                <AlertCircle className="w-2.5 h-2.5 stroke-[2.2]" />
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Floating Top-Right Hover Quick Actions */}
+        <div
+          className={`absolute top-2 right-2 flex items-center space-x-1 transition-opacity duration-150 z-20 ${
+            selectedIds.length > 0 ? 'invisible pointer-events-none' : 'opacity-0 group-hover:opacity-100'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {activeTab !== 'archive' ? (
+            onArchiveToggle && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onArchiveToggle(asset.public_id, true);
+                }}
+                className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-md transition cursor-pointer bg-white/95 shadow-2xs border border-slate-200/80"
+                title="Move to Cleared Archive"
+              >
+                <Archive className="w-3 h-3" />
+              </button>
+            )
+          ) : (
+            onArchiveToggle && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onArchiveToggle(asset.public_id, false);
+                }}
+                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition cursor-pointer bg-white/95 shadow-2xs border border-slate-200/80"
+                title="Restore to Live Inbound Buffer"
+              >
+                <ArchiveRestore className="w-3 h-3" />
+              </button>
+            )
+          )}
+
+          {onDeleteSingle && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (window.confirm('Delete this asset from wire and Cloudinary?')) {
+                  onDeleteSingle(asset.public_id);
+                }
+              }}
+              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition cursor-pointer bg-white/95 shadow-2xs border border-slate-200/80"
+              title="Delete asset permanently"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       onDragOver={(e) => {
@@ -259,7 +525,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
         }
       }}
       onDrop={handleDrop}
-      className={`bg-white border rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col h-full min-h-[580px] overflow-hidden relative ${
+      className={`bg-white border rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col h-full min-h-0 overflow-hidden relative ${
         isDraggingOver ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-xl' : 'border-slate-200/80'
       }`}
     >
@@ -289,14 +555,6 @@ export const WireQueue: React.FC<WireQueueProps> = ({
           <div className="flex items-center space-x-2 min-w-0">
             {selectedIds.length > 0 ? (
               <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={handleToggleSelectAll}
-                  className="w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer shrink-0 bg-blue-600 border-blue-600 text-white shadow-2xs"
-                  title="Deselect all (Esc)"
-                >
-                  <Check className="w-2.5 h-2.5 stroke-[3.5]" />
-                </button>
                 <span className="text-xs font-semibold text-slate-800 truncate">
                   {selectedIds.length} selected
                 </span>
@@ -375,28 +633,34 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                 </button>
               </>
             ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={handleToggleSelectAll}
-                  className="px-2 py-1 text-[11px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-md transition cursor-pointer"
-                  title="Select all items for batch actions"
-                >
-                  Select All
-                </button>
-
-                {onRefresh && (
+              <div className="flex items-center space-x-1.5">
+                <div className="flex items-center p-0.5 bg-slate-100/90 rounded-lg text-[10px] font-semibold border border-slate-200/60 h-6">
                   <button
                     type="button"
-                    onClick={onRefresh}
-                    disabled={isRefreshing}
-                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer active:scale-90"
-                    title="Refresh Wire Feed"
+                    onClick={() => setViewMode('stream')}
+                    className={`px-2 h-full rounded transition cursor-pointer ${
+                      viewMode === 'stream'
+                        ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                    title="Flat chronological stream"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
+                    Stream
                   </button>
-                )}
-              </>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('packages')}
+                    className={`px-2 h-full rounded transition cursor-pointer ${
+                      viewMode === 'packages'
+                        ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                    title="Group by Breaking Story Packages"
+                  >
+                    Packages
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -425,8 +689,28 @@ export const WireQueue: React.FC<WireQueueProps> = ({
 
         {/* Tier 3: Unified Amazon Marketplace Sort & Filter Action Row */}
         <div className="flex items-center justify-between text-xs select-none relative">
-          {/* Left: Sort Dropdown */}
-          <div className="relative" ref={sortRef}>
+          {/* Left: Select All Checkbox & Sort Dropdown */}
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={handleToggleSelectAll}
+              className={`w-4 h-4 rounded-[3px] border flex items-center justify-center transition cursor-pointer shrink-0 relative before:absolute before:-inset-1.5 ${
+                isAllSelected
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-2xs'
+                  : selectedIds.length > 0
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-2xs'
+                  : 'bg-white hover:bg-slate-50 border-slate-300 hover:border-slate-400 shadow-2xs'
+              }`}
+              title={isAllSelected ? 'Deselect all (Esc)' : 'Select all wire items'}
+            >
+              {isAllSelected ? (
+                <Check className="w-3 h-3 stroke-[3]" />
+              ) : selectedIds.length > 0 ? (
+                <Minus className="w-3 h-3 stroke-[3]" />
+              ) : null}
+            </button>
+
+            <div className="relative" ref={sortRef}>
             <button
               type="button"
               onClick={() => {
@@ -468,6 +752,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
               </div>
             )}
           </div>
+        </div>
 
           {/* Right: Amazon-Style Filter Button & Popover */}
           <div className="relative" ref={filterRef}>
@@ -728,7 +1013,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
 
       {/* Scrollable Stream of Cards */}
       <div
-        className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0"
+        className="flex-1 overflow-y-auto modern-scrollbar p-2 space-y-2 min-h-0"
         style={{ scrollbarGutter: 'stable' }}
       >
         {filteredAssets.length === 0 ? (
@@ -740,9 +1025,9 @@ export const WireQueue: React.FC<WireQueueProps> = ({
             <p className="text-[11px] text-slate-400 mt-1">
               {activeFilterCount > 0
                 ? 'Try resetting your filter or search criteria'
-                : 'Drop media files here or submit via top bar'}
+                : 'Drop media files here or submit via mobile tip line'}
             </p>
-            {activeFilterCount > 0 && (
+            {activeFilterCount > 0 ? (
               <button
                 type="button"
                 onClick={handleResetFilters}
@@ -750,229 +1035,65 @@ export const WireQueue: React.FC<WireQueueProps> = ({
               >
                 Reset Filters
               </button>
+            ) : activeTab !== 'archive' && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-3 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer inline-flex items-center space-x-1.5"
+              >
+                <UploadCloud className="w-3.5 h-3.5 text-slate-500" />
+                <span>Import Local Media</span>
+              </button>
             )}
           </div>
-        ) : (
-          filteredAssets.map((asset) => {
-            const isSelected = selectedId === asset.public_id;
-            const isChecked = selectedIds.includes(asset.public_id);
-            const thumbUrl =
-              asset.resource_type === 'video'
-                ? asset.secure_url?.includes('/video/upload/')
-                  ? asset.secure_url.replace('/video/upload/', '/video/upload/so_0,c_fill,ar_1:1,w_120,h_120/').replace(/\.(mp4|mov|webm)$/i, '.jpg')
-                  : asset.syndication_urls?.feed_1_1 && !asset.syndication_urls.feed_1_1.endsWith('.mp4')
-                  ? asset.syndication_urls.feed_1_1
-                  : asset.secure_url?.replace(/\.(mp4|mov|webm)$/i, '.jpg')
-                : asset.secure_url || asset.syndication_urls?.feed_1_1;
-            const cat = getCategoryMeta(asset.incident_type);
-
-            return (
-              <div
-                key={asset.public_id}
-                onClick={(e) => {
-                  if (selectedIds.length > 0) {
-                    handleToggleItem(asset.public_id, e);
-                  } else {
-                    onSelect(asset);
-                  }
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setContextMenu({
-                    x: e.clientX,
-                    y: e.clientY,
-                    asset,
-                  });
-                }}
-                className={`group min-h-[66px] shrink-0 p-2.5 rounded-xl border cursor-pointer transition-colors duration-100 flex items-center space-x-3 relative overflow-hidden select-none box-border ${
-                  isChecked
-                    ? 'bg-blue-50/90 border-blue-500 shadow-2xs ring-1 ring-blue-500/30'
-                    : isSelected
-                    ? 'bg-blue-50/50 border-blue-400 shadow-2xs ring-1 ring-blue-400/20'
-                    : 'bg-white border-slate-200/80 hover:bg-slate-50/80 hover:border-slate-300 shadow-2xs'
-                } border-l-[3.5px] ${BEAT_BORDER_MAP[cat.id] || 'border-l-slate-400'}`}
-              >
-                {/* Media Thumbnail */}
-                <div className="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-slate-900 border border-slate-200/80 shadow-2xs flex items-center justify-center">
-                  {thumbUrl ? (
-                    <img
-                      src={thumbUrl}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        const fallback = e.currentTarget.parentElement?.querySelector('.thumb-fallback');
-                        if (fallback) (fallback as HTMLElement).style.display = 'flex';
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className={`thumb-fallback w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-slate-400 ${
-                      thumbUrl ? 'hidden' : ''
-                    }`}
-                  >
-                    {asset.resource_type === 'video' ? <Film className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
-                  </div>
-
-                  {/* Clean Selection Checkbox (visible on hover or when checked) */}
-                  <div
-                    onClick={(e) => handleToggleItem(asset.public_id, e)}
-                    className={`absolute top-1 left-1 transition-opacity duration-150 cursor-pointer ${
-                      isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                    }`}
-                    title={isChecked ? 'Deselect asset' : 'Select asset'}
-                  >
-                    <div
-                      className={`w-4 h-4 rounded-full flex items-center justify-center transition-colors ${
-                        isChecked
-                          ? 'bg-blue-600 text-white shadow-xs ring-1.5 ring-white'
-                          : 'bg-black/60 hover:bg-black/85 text-white backdrop-blur-[2px] ring-1 ring-white/70'
-                      }`}
-                    >
-                      {isChecked ? (
-                        <Check className="w-2.5 h-2.5 stroke-[3]" />
-                      ) : (
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Video format badge on thumbnail */}
-                  {asset.resource_type === 'video' && !isChecked && (
-                    <div className="absolute bottom-0.5 right-0.5 bg-black/75 backdrop-blur-[2px] px-1 py-0.2 rounded text-[8px] text-white flex items-center space-x-0.5">
-                      <Video className="w-2.5 h-2.5 text-blue-400" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Clean, Non-Crammed Editorial Card Body */}
-                <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                  {/* Headline */}
-                  <p
-                    className="text-xs font-semibold text-slate-900 leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors pr-6"
-                    title={asset.headline || asset.public_id}
-                  >
-                    {asset.headline || asset.public_id}
-                  </p>
-
-                  {/* Clean, Focused Metadata Row */}
-                  <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-slate-400 mt-1 min-w-0">
-                    <span className="font-mono text-slate-400 shrink-0">
-                      {new Date(asset.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                    </span>
-
-                    <span className="text-slate-300 shrink-0">·</span>
-
-                    <div
-                      className="flex items-center space-x-1 truncate text-slate-600 font-medium shrink-0"
-                      title={`Desk: ${cat.label}`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cat.dotColor}`} />
-                      <span className="truncate">{cat.label}</span>
-                    </div>
-
-                    {asset.urgency === 'breaking' && (
-                      <span className="font-semibold text-rose-600 shrink-0">
-                        Breaking
-                      </span>
-                    )}
-
-                    {asset.review_status === 'action_required' && asset.faces && asset.faces.length > 0 && (
-                      <span
-                        className="inline-flex items-center space-x-0.5 text-amber-600 font-medium shrink-0"
-                        title={`${asset.faces.length} detected face(s) requiring review`}
-                      >
-                        <Users className="w-2.5 h-2.5 shrink-0" />
-                        <span>{asset.faces.length} to review</span>
-                      </span>
-                    )}
-
-                    {asset.telemetry?.time_delta_seconds && asset.telemetry.time_delta_seconds > 7200 && (
-                      <span
-                        className="inline-flex items-center space-x-0.5 text-amber-600 font-medium shrink-0"
-                        title={`Stale footage warning: captured ${Math.round(asset.telemetry.time_delta_seconds / 60)}m ago (>2h threshold)`}
-                      >
-                        <AlertCircle className="w-2.5 h-2.5 shrink-0" />
-                        <span>Stale</span>
-                      </span>
-                    )}
-
-                    {asset.review_status === 'quarantined' && (
-                      <span
-                        className="inline-flex items-center space-x-0.5 text-rose-600 font-semibold shrink-0"
-                        title="Quarantined"
-                      >
-                        <ShieldAlert className="w-2.5 h-2.5 shrink-0" />
-                        <span>Quarantined</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Floating Top-Right Hover Quick Actions (Never squishes text) */}
+        ) : viewMode === 'packages' ? (
+          <div className="space-y-3">
+            {storyPackages.map((pkg) => {
+              const cat = getCategoryMeta(pkg.incident_type);
+              const isAnySelected = pkg.assets.some((a) => a.public_id === selectedId);
+              return (
                 <div
-                  className={`absolute top-2 right-2 flex items-center space-x-1 transition-opacity duration-150 z-20 ${
-                    selectedIds.length > 0 ? 'invisible pointer-events-none' : 'opacity-0 group-hover:opacity-100'
+                  key={pkg.event_id}
+                  className={`rounded-2xl border transition-all duration-150 overflow-hidden ${
+                    isAnySelected
+                      ? 'bg-blue-50/20 border-blue-300 ring-1 ring-blue-300/30'
+                      : 'bg-slate-50/40 border-slate-200/90 hover:border-slate-300'
                   }`}
-                  onClick={(e) => e.stopPropagation()}
                 >
-                  {activeTab !== 'archive' ? (
-                    onArchiveToggle && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onArchiveToggle(asset.public_id, true);
-                        }}
-                        className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-md transition cursor-pointer bg-white/95 shadow-2xs border border-slate-200/80"
-                        title="Move to Cleared Archive"
-                      >
-                        <Archive className="w-3 h-3" />
-                      </button>
-                    )
-                  ) : (
-                    onArchiveToggle && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onArchiveToggle(asset.public_id, false);
-                        }}
-                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition cursor-pointer bg-white/95 shadow-2xs border border-slate-200/80"
-                        title="Restore to Live Inbound Buffer"
-                      >
-                        <ArchiveRestore className="w-3 h-3" />
-                      </button>
-                    )
-                  )}
+                  {/* Incident Dossier Header */}
+                  <div className="px-3 py-2 bg-slate-100/70 border-b border-slate-200/60 flex items-center justify-between">
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${cat.dotColor}`} />
+                      <span className="text-xs font-bold text-slate-900 truncate" title={pkg.event_title}>
+                        {pkg.event_title}
+                      </span>
+                    </div>
 
-                  {onDeleteSingle && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm('Delete this asset from wire and Cloudinary?')) {
-                          onDeleteSingle(asset.public_id);
-                        }
-                      }}
-                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition cursor-pointer bg-white/95 shadow-2xs border border-slate-200/80"
-                      title="Delete asset permanently"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
+                    <div className="flex items-center space-x-1 shrink-0 ml-2 text-slate-500 text-xs font-semibold">
+                      <Layers className="w-3 h-3 text-slate-400 stroke-[2.2]" />
+                      <span>{pkg.assets.length}</span>
+                    </div>
+                  </div>
+
+                  {/* Child Takes */}
+                  <div className="p-1.5 space-y-1.5">
+                    {pkg.assets.map((asset, idx) => renderAssetCard(asset, true, idx))}
+                  </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
+        ) : (
+          filteredAssets.map((asset) => renderAssetCard(asset, false))
         )}
       </div>
 
       {/* Pinned Footer Status Bar */}
       <div className="shrink-0 px-3 py-2 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between text-[11px] text-slate-500 font-medium select-none">
         <span className="text-[10px] text-slate-600 font-medium">
-          {filteredAssets.length} of {activeTab === 'archive' ? archiveAssets.length : liveAssets.length} stories
+          {viewMode === 'packages'
+            ? `${storyPackages.length} story packages · ${filteredAssets.length} stories`
+            : `${filteredAssets.length} of ${activeTab === 'archive' ? archiveAssets.length : liveAssets.length} stories`}
         </span>
         <span className="text-[10px] font-mono text-slate-400">Live wire synced</span>
       </div>

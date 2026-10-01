@@ -13,20 +13,92 @@
   }
 }
 
-/* Custom crisp scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+@keyframes phraseFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
+.animate-phrase-in {
+  animation: phraseFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Modern Linear / Apple-style floating dynamic scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #E2E8F0;
+  background: rgba(148, 163, 184, 0.4);
   border-radius: 9999px;
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #CBD5E1;
+  background: rgba(71, 85, 105, 0.8);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Firefox / standard scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+/* Dynamic container-aware scrollbar */
+.modern-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+
+.modern-scrollbar:hover {
+  scrollbar-color: rgba(100, 116, 139, 0.7) transparent;
+}
+
+.modern-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.modern-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+.modern-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(30, 41, 59, 0.9);
+}
+
+.modern-scrollbar::-webkit-scrollbar-thumb:active {
+  background: #0f172a;
 }
 
 /* Elegant light map styling */

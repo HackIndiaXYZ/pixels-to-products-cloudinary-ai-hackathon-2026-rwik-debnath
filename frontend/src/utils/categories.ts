@@ -1,8 +1,10 @@
 export interface CategoryMeta {
   id: string;
   label: string;
+  shortLabel?: string;
   badgeStyle: string;
   dotColor: string;
+  textColor?: string;
   color: string;
   isCustom?: boolean;
 }
@@ -20,6 +22,8 @@ export const FIXED_BEATS: Record<string, CategoryMeta> = {
   public_safety: {
     id: 'public_safety',
     label: 'Public Safety',
+    shortLabel: 'Safety',
+    textColor: 'text-amber-800',
     badgeStyle: 'bg-amber-50 text-amber-700 border-amber-200/80',
     dotColor: 'bg-amber-500',
     color: '#d97706',
@@ -27,6 +31,8 @@ export const FIXED_BEATS: Record<string, CategoryMeta> = {
   severe_weather: {
     id: 'severe_weather',
     label: 'Severe Weather',
+    shortLabel: 'Weather',
+    textColor: 'text-sky-700',
     badgeStyle: 'bg-sky-50 text-sky-700 border-sky-200/80',
     dotColor: 'bg-sky-500',
     color: '#0284c7',
@@ -34,6 +40,8 @@ export const FIXED_BEATS: Record<string, CategoryMeta> = {
   politics_civic: {
     id: 'politics_civic',
     label: 'Politics & Civic',
+    shortLabel: 'Politics',
+    textColor: 'text-purple-700',
     badgeStyle: 'bg-purple-50 text-purple-700 border-purple-200/80',
     dotColor: 'bg-purple-500',
     color: '#7c3aed',
@@ -41,6 +49,8 @@ export const FIXED_BEATS: Record<string, CategoryMeta> = {
   transit: {
     id: 'transit',
     label: 'Transit & Infrastructure',
+    shortLabel: 'Transit',
+    textColor: 'text-blue-700',
     badgeStyle: 'bg-blue-50 text-blue-700 border-blue-200/80',
     dotColor: 'bg-blue-500',
     color: '#2563eb',
@@ -48,6 +58,8 @@ export const FIXED_BEATS: Record<string, CategoryMeta> = {
   metro_local: {
     id: 'metro_local',
     label: 'Metro & Local',
+    shortLabel: 'Metro',
+    textColor: 'text-emerald-700',
     badgeStyle: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
     dotColor: 'bg-emerald-500',
     color: '#059669',
@@ -55,6 +67,8 @@ export const FIXED_BEATS: Record<string, CategoryMeta> = {
   uncategorized: {
     id: 'uncategorized',
     label: 'General Wire',
+    shortLabel: 'Wire',
+    textColor: 'text-slate-600',
     badgeStyle: 'bg-slate-100 text-slate-600 border-slate-200/80',
     dotColor: 'bg-slate-400',
     color: '#64748b',

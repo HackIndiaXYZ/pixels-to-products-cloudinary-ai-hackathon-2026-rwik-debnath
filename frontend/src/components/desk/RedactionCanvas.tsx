@@ -1,9 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { MediaAsset, FaceCoordinate } from '../../types';
-import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy, Download, Video, Eye, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy, Download, Video, Eye, ShieldAlert, ShieldCheck, ChevronDown, Layers } from 'lucide-react';
 
 interface RedactionCanvasProps {
   asset: MediaAsset;
+  allAssets?: MediaAsset[];
+  onSelectAsset?: (asset: MediaAsset) => void;
   onUpdateSuccess: (updatedAsset: MediaAsset) => void;
   onDeleteAsset?: (public_id: string) => void;
   onToggleInspector?: () => void;
@@ -12,6 +14,8 @@ interface RedactionCanvasProps {
 
 export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   asset,
+  allAssets,
+  onSelectAsset,
   onUpdateSuccess,
   onDeleteAsset: _onDeleteAsset,
   onToggleInspector,
@@ -20,6 +24,11 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+
+  const siblingAngles = React.useMemo(() => {
+    if (!asset.event_id || !allAssets) return [];
+    return allAssets.filter((a) => a.event_id === asset.event_id && !a.is_archived);
+  }, [asset.event_id, allAssets]);
 
   const [activePreviewMode, setActivePreviewMode] = useState<'canvas' | 'tv_16_9' | 'reel_9_16' | 'feed_1_1' | 'highlight_6s'>('canvas');
   const [faces, setFaces] = useState<FaceCoordinate[]>(asset.faces || []);
@@ -64,6 +73,27 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
 
   const currentAssetIdRef = useRef<string>(asset.public_id);
   const totalDetectedFacesRef = useRef<number>(asset.faces?.length || 0);
+
+  const [isAngleDropdownOpen, setIsAngleDropdownOpen] = useState(false);
+  const angleDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isAngleDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (angleDropdownRef.current && !angleDropdownRef.current.contains(e.target as Node)) {
+        setIsAngleDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsAngleDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAngleDropdownOpen]);
 
   useEffect(() => {
     if (currentAssetIdRef.current !== asset.public_id) {
@@ -217,6 +247,29 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       } else if ((e.key === 'Backspace' || e.key === 'Delete') && selectedFaceIndex !== null && !isDrawingMode) {
         e.preventDefault();
         handleDeleteFace(selectedFaceIndex);
+      } else if ((e.key === 'i' || e.key === 'I') && onToggleInspector && !isDrawingMode) {
+        e.preventDefault();
+        onToggleInspector();
+      } else if (e.key === '1' && !isDrawingMode) {
+        e.preventDefault();
+        setActivePreviewMode('canvas');
+        setShowDiffSlider(false);
+      } else if (e.key === '2' && !isDrawingMode) {
+        e.preventDefault();
+        setActivePreviewMode('tv_16_9');
+        setShowDiffSlider(false);
+      } else if (e.key === '3' && !isDrawingMode) {
+        e.preventDefault();
+        setActivePreviewMode('reel_9_16');
+        setShowDiffSlider(false);
+      } else if (e.key === '4' && !isDrawingMode) {
+        e.preventDefault();
+        setActivePreviewMode('feed_1_1');
+        setShowDiffSlider(false);
+      } else if (e.key === '5' && !isDrawingMode && asset.resource_type === 'video' && asset.syndication_urls?.video_highlight_6s) {
+        e.preventDefault();
+        setActivePreviewMode('highlight_6s');
+        setShowDiffSlider(false);
       }
     };
 
@@ -233,7 +286,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedFaceIndex, isDrawingMode]);
+  }, [selectedFaceIndex, isDrawingMode, onToggleInspector, asset.resource_type, asset.syndication_urls]);
 
   // Global click-to-deselect listener: clicking anywhere outside an active box deselects it
   useEffect(() => {
@@ -612,6 +665,74 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
         </div>
       </div>
 
+      {/* Multi-Angle Coverage Strip for Clustered Events */}
+      {siblingAngles.length > 1 && (
+        <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50/90 border border-slate-200/80 rounded-xl text-xs select-none">
+          <div className="flex items-center space-x-1.5 truncate mr-2 min-w-0">
+            <span className="text-xs font-semibold text-slate-800 truncate leading-none">
+              {asset.event_title || asset.headline}
+            </span>
+            <span className="text-slate-300 font-normal text-xs leading-none select-none">·</span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 shrink-0 leading-none">
+              <Layers className="w-2.5 h-2.5 text-slate-400 shrink-0 stroke-[2.2]" />
+              <span>{siblingAngles.length}</span>
+            </span>
+          </div>
+
+          <div className="relative shrink-0" ref={angleDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsAngleDropdownOpen((prev) => !prev)}
+              className="h-6 px-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/90 rounded-lg text-[11px] font-medium flex items-center space-x-1.5 transition cursor-pointer shadow-2xs"
+              title="Switch camera angle"
+            >
+              <span>Angle {Math.max(1, siblingAngles.findIndex((s) => s.public_id === asset.public_id) + 1)}</span>
+              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isAngleDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isAngleDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1 w-64 max-h-60 overflow-y-auto modern-scrollbar bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1 space-y-0.5 animate-in fade-in zoom-in-95 duration-100">
+                {siblingAngles.map((sibling, idx) => {
+                  const isActive = sibling.public_id === asset.public_id;
+                  return (
+                    <button
+                      key={sibling.public_id}
+                      type="button"
+                      onClick={() => {
+                        if (onSelectAsset) onSelectAsset(sibling);
+                        setIsAngleDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition text-left ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-900 font-semibold'
+                          : 'hover:bg-slate-100 text-slate-700 font-medium'
+                      }`}
+                    >
+                      <div
+                        className="flex items-center space-x-1.5 truncate min-w-0 pr-2 py-0.5"
+                        title={sibling.headline || `Angle ${idx + 1}`}
+                      >
+                        <span className="font-mono text-[10px] text-slate-400 font-semibold shrink-0 w-3.5 text-right">
+                          {idx + 1}.
+                        </span>
+                        <span className="truncate text-[11px] leading-snug">
+                          {sibling.headline || `Angle ${idx + 1}`}
+                        </span>
+                      </div>
+                      <div className="flex items-center shrink-0">
+                        <span className="text-[10px] text-slate-400 capitalize">
+                          {sibling.resource_type === 'video' ? 'Video' : 'Photo'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Viewport */}
       <div
         ref={viewportRef}
@@ -622,7 +743,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
           backgroundSize: '20px 20px',
           backgroundPosition: `${pan.x}px ${pan.y}px`,
         }}
-        className={`relative mx-auto rounded-2xl overflow-hidden border border-slate-200 shadow-[inset_0_2px_8px_rgba(0,0,0,0.03)] flex justify-center items-center flex-1 min-h-[520px] w-full select-none ${
+        className={`relative mx-auto rounded-2xl overflow-hidden border border-slate-200 shadow-[inset_0_2px_8px_rgba(0,0,0,0.03)] flex justify-center items-center flex-1 min-h-[260px] w-full select-none ${
           isPanning
             ? 'cursor-grabbing'
             : isSpacePressed

@@ -14,7 +14,7 @@ from app.models.schemas import (
 )
 from app.services.redaction_service import RedactionService
 from app.services.packaging_service import PackagingService
-from app.services.intake_service import WIRE_STORE
+from app.services.intake_service import WIRE_STORE, IntakeService
 
 router = APIRouter()
 
@@ -149,6 +149,43 @@ async def update_metadata(req: MetadataUpdateRequest):
         asset.incident_type = cleaned_cat or "uncategorized"
     if req.urgency is not None:
         asset.urgency = req.urgency.strip().lower() or "breaking"
+    if req.event_id is not None:
+        asset.event_id = req.event_id
+    if req.event_title is not None:
+        new_title = req.event_title.strip()
+        asset.event_title = new_title
+        if asset.event_id:
+            for s_asset in WIRE_STORE.values():
+                if s_asset.event_id == asset.event_id:
+                    s_asset.event_title = new_title
+    if req.cluster_radius_km is not None:
+        asset.cluster_radius_km = req.cluster_radius_km
+        if asset.event_id:
+            for s_asset in WIRE_STORE.values():
+                if s_asset.event_id == asset.event_id:
+                    s_asset.cluster_radius_km = req.cluster_radius_km
+
+            # If asset has GPS, dynamically evaluate clustering within WIRE_STORE
+            if (asset.telemetry and asset.telemetry.has_gps and
+                asset.telemetry.gps_latitude is not None and asset.telemetry.gps_longitude is not None):
+                anchor_lat = asset.telemetry.gps_latitude
+                anchor_lon = asset.telemetry.gps_longitude
+                for other in list(WIRE_STORE.values()):
+                    if other.public_id == asset.public_id:
+                        continue
+                    if (other.telemetry and other.telemetry.has_gps and
+                        other.telemetry.gps_latitude is not None and other.telemetry.gps_longitude is not None):
+                        dist = IntakeService._haversine_km(
+                            anchor_lat, anchor_lon,
+                            other.telemetry.gps_latitude, other.telemetry.gps_longitude
+                        )
+                        if dist <= req.cluster_radius_km:
+                            other.event_id = asset.event_id
+                            other.event_title = asset.event_title
+                            other.cluster_radius_km = req.cluster_radius_km
+                        elif other.event_id == asset.event_id and dist > req.cluster_radius_km:
+                            other.event_id = f"evt_{other.public_id.split('/')[-1]}"
+                            other.event_title = other.headline
 
     # Re-generate broadcast packaging URLs with updated headline
     asset.syndication_urls = PackagingService.generate_broadcast_urls(

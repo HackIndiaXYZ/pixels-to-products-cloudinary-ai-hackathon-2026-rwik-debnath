@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { MediaAsset } from '../../types';
-import { Tv, Smartphone, LayoutGrid, Film, Copy, Check } from 'lucide-react';
+import { Tv, Smartphone, LayoutGrid, Film, Copy, Check, ExternalLink } from 'lucide-react';
 
 interface BroadcastHubProps {
   asset: MediaAsset;
@@ -75,14 +75,25 @@ export const BroadcastHub: React.FC<BroadcastHubProps> = ({ asset }) => {
             </p>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 flex items-center space-x-2">
             <button
               onClick={() => handleCopy('16_9', urls.broadcast_16_9)}
-              className="w-full py-2 px-3 bg-white hover:bg-slate-100 text-xs font-medium text-slate-700 rounded-lg flex items-center justify-center space-x-1.5 transition border border-slate-200 shadow-xs cursor-pointer active:scale-98"
+              className="flex-1 py-2 px-2.5 bg-white hover:bg-slate-100 text-xs font-medium text-slate-700 rounded-lg flex items-center justify-center space-x-1.5 transition border border-slate-200 shadow-xs cursor-pointer active:scale-98"
             >
               {copiedKey === '16_9' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
-              <span>{copiedKey === '16_9' ? 'Copied CDN Link' : 'Copy 16:9 Edge URL'}</span>
+              <span>{copiedKey === '16_9' ? 'Copied' : 'Copy 16:9'}</span>
             </button>
+            {urls.broadcast_16_9 && (
+              <a
+                href={urls.broadcast_16_9}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open raw Cloudinary CDN URL in new tab"
+                className="p-2 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-lg border border-slate-200 shadow-xs transition flex items-center justify-center cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
         </div>
 
@@ -116,14 +127,25 @@ export const BroadcastHub: React.FC<BroadcastHubProps> = ({ asset }) => {
             </p>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 flex items-center space-x-2">
             <button
               onClick={() => handleCopy('9_16', urls.social_9_16)}
-              className="w-full py-2 px-3 bg-white hover:bg-slate-100 text-xs font-medium text-slate-700 rounded-lg flex items-center justify-center space-x-1.5 transition border border-slate-200 shadow-xs cursor-pointer active:scale-98"
+              className="flex-1 py-2 px-2.5 bg-white hover:bg-slate-100 text-xs font-medium text-slate-700 rounded-lg flex items-center justify-center space-x-1.5 transition border border-slate-200 shadow-xs cursor-pointer active:scale-98"
             >
               {copiedKey === '9_16' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
-              <span>{copiedKey === '9_16' ? 'Copied CDN Link' : 'Copy 9:16 Edge URL'}</span>
+              <span>{copiedKey === '9_16' ? 'Copied' : 'Copy 9:16'}</span>
             </button>
+            {urls.social_9_16 && (
+              <a
+                href={urls.social_9_16}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open raw Cloudinary CDN URL in new tab"
+                className="p-2 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-lg border border-slate-200 shadow-xs transition flex items-center justify-center cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
         </div>
 
@@ -157,14 +179,25 @@ export const BroadcastHub: React.FC<BroadcastHubProps> = ({ asset }) => {
             </p>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 flex items-center space-x-2">
             <button
               onClick={() => handleCopy('1_1', urls.feed_1_1)}
-              className="w-full py-2 px-3 bg-white hover:bg-slate-100 text-xs font-medium text-slate-700 rounded-lg flex items-center justify-center space-x-1.5 transition border border-slate-200 shadow-xs cursor-pointer active:scale-98"
+              className="flex-1 py-2 px-2.5 bg-white hover:bg-slate-100 text-xs font-medium text-slate-700 rounded-lg flex items-center justify-center space-x-1.5 transition border border-slate-200 shadow-xs cursor-pointer active:scale-98"
             >
               {copiedKey === '1_1' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
-              <span>{copiedKey === '1_1' ? 'Copied CDN Link' : 'Copy 1:1 Edge URL'}</span>
+              <span>{copiedKey === '1_1' ? 'Copied' : 'Copy 1:1'}</span>
             </button>
+            {urls.feed_1_1 && (
+              <a
+                href={urls.feed_1_1}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open raw Cloudinary CDN URL in new tab"
+                className="p-2 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-lg border border-slate-200 shadow-xs transition flex items-center justify-center cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -188,7 +221,7 @@ export const BroadcastHub: React.FC<BroadcastHubProps> = ({ asset }) => {
             className="w-full max-h-60 rounded-lg bg-black border border-slate-200"
           />
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end space-x-2">
             <button
               onClick={() => handleCopy('video_reel', urls.video_highlight_6s)}
               className="py-2 px-4 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition cursor-pointer shadow-xs"
@@ -196,6 +229,15 @@ export const BroadcastHub: React.FC<BroadcastHubProps> = ({ asset }) => {
               {copiedKey === 'video_reel' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               <span>Copy Highlight Video URL</span>
             </button>
+            <a
+              href={urls.video_highlight_6s}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open raw Cloudinary video URL in new tab"
+              className="p-2 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-lg border border-slate-200 shadow-xs transition flex items-center justify-center cursor-pointer"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
           </div>
         </div>
       )}

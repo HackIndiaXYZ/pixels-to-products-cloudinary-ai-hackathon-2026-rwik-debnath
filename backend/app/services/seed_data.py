@@ -62,6 +62,8 @@ async def seed_initial_assets():
         urgency="breaking",
         headline="Press Briefing: Mayor Announces Transit Plan",
         syndication_urls=urls_1,
+        event_id="evt_city_hall_briefing",
+        event_title="Mayor Announces Transit Plan",
         created_at=now.isoformat()
     )
 
@@ -107,6 +109,8 @@ async def seed_initial_assets():
         urgency="breaking",
         headline="Breaking: Crowds Gather for Climate Rally",
         syndication_urls=urls_2,
+        event_id="evt_market_st_rally",
+        event_title="Downtown Climate Demonstration",
         created_at=(now - datetime.timedelta(minutes=2)).isoformat()
     )
 
@@ -148,6 +152,8 @@ async def seed_initial_assets():
         urgency="breaking",
         headline="Urgent: Smoke Haze Reported over Ridgeway",
         syndication_urls=urls_3,
+        event_id="evt_ridgeway_wildfire",
+        event_title="Ridgeway Smoke Haze Incident",
         created_at=(now - datetime.timedelta(minutes=5)).isoformat()
     )
 
@@ -189,6 +195,8 @@ async def seed_initial_assets():
         urgency="standard",
         headline="Citizen Tip: Commuter Congestion Near Bay Bridge",
         syndication_urls=urls_4,
+        event_id="evt_bay_bridge_traffic",
+        event_title="Bay Bridge Traffic Congestion",
         created_at=(now - datetime.timedelta(minutes=1)).isoformat()
     )
 
@@ -233,7 +241,57 @@ async def seed_initial_assets():
         headline="Transit Alert: Multi-Vehicle Collision on I-80",
         syndication_urls=urls_5,
         pixelate_bystanders=True,
+        duration=14.2,
+        frame_rate=30.0,
+        event_id="evt_i80_collision",
+        event_title="I-80 Multi-Vehicle Collision",
         created_at=(now - datetime.timedelta(minutes=4)).isoformat()
+    )
+
+    # Asset 6: Downtown Protest March (Angle 2 from Citizen Eyewitness)
+    asset_6_id = "presswire/sample_protest_rally_alt"
+    urls_6 = PackagingService.generate_broadcast_urls(
+        public_id=asset_6_id,
+        headline="Eyewitness Take: Demonstrators Marching West on Market",
+        subheadline="Market & 4th St",
+        pixelate_bystanders=True
+    )
+    asset_6 = MediaAssetResponse(
+        public_id=asset_6_id,
+        asset_id="asset_demo_06",
+        format="jpg",
+        resource_type="image",
+        width=1200,
+        height=800,
+        bytes=1620400,
+        secure_url="https://images.unsplash.com/photo-1574786198875-49f5d09fe2d5?auto=format&fit=crop&w=1200&q=80",
+        faces=[
+            FaceCoordinate(id="face_0", x=480, y=260, w=170, h=180, is_redacted=True, label="Civilian Demonstrator")
+        ],
+        telemetry=TelemetryData(
+            make="Google",
+            model="Pixel 8 Pro",
+            software="Android 14",
+            capture_time=(now - datetime.timedelta(minutes=5)).strftime("%Y:%m:%d %H:%M:%S"),
+            upload_time=now.isoformat(),
+            time_delta_seconds=300,
+            gps_latitude=37.7893,
+            gps_longitude=-122.4018,
+            gps_altitude=16.0,
+            has_gps=True,
+            waiver_signed=True,
+            waiver_timestamp=(now - datetime.timedelta(minutes=5)).isoformat(),
+            submitter_ip="192.168.1.135"
+        ),
+        moderation=ModerationResult(status="approved", categories=[]),
+        review_status="action_required",
+        incident_type="protest",
+        urgency="breaking",
+        headline="Eyewitness Take: Demonstrators Marching West on Market",
+        syndication_urls=urls_6,
+        event_id="evt_market_st_rally",
+        event_title="Downtown Climate Demonstration",
+        created_at=(now - datetime.timedelta(minutes=3)).isoformat()
     )
 
     WIRE_STORE[asset_1.public_id] = asset_1
@@ -241,3 +299,4 @@ async def seed_initial_assets():
     WIRE_STORE[asset_3.public_id] = asset_3
     WIRE_STORE[asset_4.public_id] = asset_4
     WIRE_STORE[asset_5.public_id] = asset_5
+    WIRE_STORE[asset_6.public_id] = asset_6

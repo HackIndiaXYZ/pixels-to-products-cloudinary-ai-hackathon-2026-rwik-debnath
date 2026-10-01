@@ -50,6 +50,11 @@ class MediaAssetResponse(BaseModel):
     syndication_urls: Dict[str, str] = {}
     pixelate_bystanders: bool = True
     is_archived: bool = False
+    duration: Optional[float] = None
+    frame_rate: Optional[float] = None
+    event_id: Optional[str] = None
+    event_title: Optional[str] = None
+    cluster_radius_km: Optional[float] = 1.5
     created_at: str
 
 class RedactionUpdateRequest(BaseModel):
@@ -99,3 +104,6 @@ class MetadataUpdateRequest(BaseModel):
     headline: Optional[str] = None
     incident_type: Optional[str] = None
     urgency: Optional[str] = None
+    event_id: Optional[str] = None
+    event_title: Optional[str] = None
+    cluster_radius_km: Optional[float] = None
