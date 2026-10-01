@@ -303,7 +303,6 @@ export const WireQueue: React.FC<WireQueueProps> = ({
               </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
                   {activeTab === 'archive' ? 'Wire Archive' : 'Live Wire'}
                 </span>

@@ -584,9 +584,6 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             >
               <Info className={`w-3.5 h-3.5 ${isInspectorOpen ? 'text-blue-600' : 'text-slate-500'}`} />
               <span className="hidden sm:inline">Details</span>
-              {asset.telemetry?.has_gps && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="GPS Verified" />
-              )}
             </button>
           )}
         </div>
