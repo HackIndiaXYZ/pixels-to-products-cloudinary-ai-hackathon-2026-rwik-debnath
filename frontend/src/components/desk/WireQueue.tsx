@@ -881,6 +881,19 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                       </>
                     )}
 
+                    {asset.telemetry?.time_delta_seconds && asset.telemetry.time_delta_seconds > 7200 && (
+                      <>
+                        <span className="text-slate-300 shrink-0">·</span>
+                        <span
+                          className="inline-flex items-center space-x-0.5 text-amber-600 font-medium text-[9px] bg-amber-50 px-1 py-0.2 rounded border border-amber-200/60 shrink-0"
+                          title={`Stale footage warning: captured ${Math.round(asset.telemetry.time_delta_seconds / 60)}m ago (>2h threshold)`}
+                        >
+                          <AlertCircle className="w-2.5 h-2.5 shrink-0" />
+                          <span>Stale</span>
+                        </span>
+                      </>
+                    )}
+
                     {asset.review_status === 'quarantined' && (
                       <>
                         <span className="text-slate-300 shrink-0">·</span>

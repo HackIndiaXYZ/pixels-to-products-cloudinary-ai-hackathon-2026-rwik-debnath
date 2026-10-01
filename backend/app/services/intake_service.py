@@ -58,13 +58,16 @@ class IntakeService:
         headline: str = "BREAKING NEWS: SCENE EYEWITNESS REPORT",
         simulated_lat: Optional[float] = None,
         simulated_lng: Optional[float] = None,
-        resource_type: str = "image"
+        resource_type: str = "image",
+        waiver_signed: bool = True,
+        submitter_ip: Optional[str] = "127.0.0.1"
     ) -> MediaAssetResponse:
         """
         Uploads incoming citizen submission to Cloudinary with:
         - faces=True (detect bounding boxes)
         - image_metadata=True (EXIF/GPS)
         - moderation="webpurify" or perception_point
+        - legal broadcast waiver logging
         """
         now = datetime.datetime.utcnow()
         if not incident_type or not incident_type.strip():
@@ -79,12 +82,14 @@ class IntakeService:
             "public_id": public_id,
             "resource_type": resource_type,
             "image_metadata": True,
-            "faces": True,
+            "faces": True if resource_type != "video" else False,
             "tags": ["presswire", incident_type, urgency],
             "context": {
                 "incident_type": incident_type,
                 "urgency": urgency,
-                "headline": headline
+                "headline": headline,
+                "waiver_signed": str(waiver_signed),
+                "submitter_ip": submitter_ip or "127.0.0.1"
             }
         }
 
@@ -102,7 +107,7 @@ class IntakeService:
                 "height": 1080,
                 "bytes": len(file_bytes),
                 "secure_url": f"https://res.cloudinary.com/demo/{resource_type}/upload/{public_id}.jpg",
-                "faces": [[400, 250, 180, 180], [920, 280, 190, 190]], # Demo detected faces
+                "faces": [] if resource_type == "video" else [[400, 250, 180, 180], [920, 280, 190, 190]], # Demo detected faces for photos only
                 "image_metadata": {
                     "Make": "Apple",
                     "Model": "iPhone 15 Pro",
@@ -111,8 +116,8 @@ class IntakeService:
                 "moderation": [{"status": "approved"}]
             }
 
-        # Extract faces
-        raw_faces = res.get("faces", [])
+        # Extract faces (photos only)
+        raw_faces = [] if resource_type == "video" else res.get("faces", [])
         faces_list = []
         for idx, f in enumerate(raw_faces):
             # Cloudinary returns [x, y, w, h]
@@ -129,6 +134,9 @@ class IntakeService:
         # Extract telemetry
         raw_meta = res.get("image_metadata", {})
         telemetry = cls._parse_telemetry(raw_meta, now)
+        telemetry.waiver_signed = waiver_signed
+        telemetry.waiver_timestamp = now.isoformat()
+        telemetry.submitter_ip = submitter_ip or "127.0.0.1"
         if simulated_lat is not None and simulated_lng is not None and not telemetry.has_gps:
             telemetry.gps_latitude = simulated_lat
             telemetry.gps_longitude = simulated_lng

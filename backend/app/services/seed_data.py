@@ -51,7 +51,10 @@ async def seed_initial_assets():
             gps_latitude=37.7793,
             gps_longitude=-122.4192,
             gps_altitude=28.5,
-            has_gps=True
+            has_gps=True,
+            waiver_signed=True,
+            waiver_timestamp=(now - datetime.timedelta(minutes=8)).isoformat(),
+            submitter_ip="192.168.1.104"
         ),
         moderation=ModerationResult(status="approved", categories=[]),
         review_status="approved",
@@ -93,7 +96,10 @@ async def seed_initial_assets():
             gps_latitude=37.7891,
             gps_longitude=-122.4014,
             gps_altitude=15.0,
-            has_gps=True
+            has_gps=True,
+            waiver_signed=True,
+            waiver_timestamp=(now - datetime.timedelta(minutes=3)).isoformat(),
+            submitter_ip="192.168.1.108"
         ),
         moderation=ModerationResult(status="approved", categories=[]),
         review_status="action_required",
@@ -131,7 +137,10 @@ async def seed_initial_assets():
             time_delta_seconds=1320,
             gps_latitude=37.8715,
             gps_longitude=-122.2730,
-            has_gps=True
+            has_gps=True,
+            waiver_signed=True,
+            waiver_timestamp=(now - datetime.timedelta(minutes=22)).isoformat(),
+            submitter_ip="192.168.1.112"
         ),
         moderation=ModerationResult(status="approved", categories=[]),
         review_status="approved",
@@ -142,7 +151,7 @@ async def seed_initial_assets():
         created_at=(now - datetime.timedelta(minutes=5)).isoformat()
     )
 
-    # Asset 4: Uncategorized Citizen Submission (Requires Classification & Triage)
+    # Asset 4: Uncategorized Citizen Submission (Stale Footage Warning >2h test)
     asset_4_id = "presswire/sample_citizen_tip"
     urls_4 = PackagingService.generate_broadcast_urls(
         public_id=asset_4_id,
@@ -164,12 +173,15 @@ async def seed_initial_assets():
             make="Samsung",
             model="Galaxy S24 Ultra",
             software="Android 14",
-            capture_time=(now - datetime.timedelta(minutes=15)).strftime("%Y:%m:%d %H:%M:%S"),
+            capture_time=(now - datetime.timedelta(hours=3, minutes=15)).strftime("%Y:%m:%d %H:%M:%S"),
             upload_time=now.isoformat(),
-            time_delta_seconds=900,
+            time_delta_seconds=11700, # 3h 15m > 2h threshold
             gps_latitude=37.7983,
             gps_longitude=-122.3778,
-            has_gps=True
+            has_gps=True,
+            waiver_signed=True,
+            waiver_timestamp=(now - datetime.timedelta(minutes=15)).isoformat(),
+            submitter_ip="192.168.1.115"
         ),
         moderation=ModerationResult(status="approved", categories=[]),
         review_status="action_required",
@@ -208,7 +220,10 @@ async def seed_initial_assets():
             time_delta_seconds=240,
             gps_latitude=37.8270,
             gps_longitude=-122.2913,
-            has_gps=True
+            has_gps=True,
+            waiver_signed=True,
+            waiver_timestamp=(now - datetime.timedelta(minutes=4)).isoformat(),
+            submitter_ip="192.168.1.120"
         ),
         moderation=ModerationResult(status="approved", categories=[]),
         review_status="approved",

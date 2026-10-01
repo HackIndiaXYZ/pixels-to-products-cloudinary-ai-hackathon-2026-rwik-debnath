@@ -21,6 +21,9 @@ class TelemetryData(BaseModel):
     gps_longitude: Optional[float] = None
     gps_altitude: Optional[float] = None
     has_gps: bool = False
+    waiver_signed: bool = True
+    waiver_timestamp: Optional[str] = None
+    submitter_ip: Optional[str] = None
 
 class ModerationResult(BaseModel):
     status: str = "approved"  # "approved", "action_required", "quarantined"

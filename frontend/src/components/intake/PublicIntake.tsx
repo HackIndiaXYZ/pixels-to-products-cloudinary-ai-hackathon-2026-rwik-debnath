@@ -39,6 +39,7 @@ export const PublicIntake: React.FC<PublicIntakeProps> = ({ onUploadSuccess }) =
       formData.append('headline', headline);
       formData.append('incident_type', incidentType);
       formData.append('urgency', urgency);
+      formData.append('waiver_signed', hasAgreedWaiver ? 'true' : 'false');
 
       if (useGps) {
         formData.append('lat', '37.7793');

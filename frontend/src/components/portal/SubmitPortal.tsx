@@ -115,6 +115,7 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({ onUploadSuccess, onN
       formData.append('headline', headline.trim() || 'EYEWITNESS FIELD SUBMISSION');
       formData.append('incident_type', incidentType);
       formData.append('urgency', urgency);
+      formData.append('waiver_signed', hasAgreedWaiver ? 'true' : 'false');
 
       if (coords) {
         formData.append('lat', coords.lat.toString());

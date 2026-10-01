@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { MediaAsset, FaceCoordinate } from '../../types';
-import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy, Video } from 'lucide-react';
+import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy, Video, Download } from 'lucide-react';
 
 interface RedactionCanvasProps {
   asset: MediaAsset;
@@ -485,6 +485,35 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               })()}
             </>
           )}
+
+          {/* 1-Click Master Download (Playout Alternative / Bandwidth Safeguard) */}
+          {(() => {
+            const currentModeUrl =
+              activePreviewMode === 'tv_16_9'
+                ? (asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.broadcast_16_9 || asset.secure_url)
+                : activePreviewMode === 'reel_9_16'
+                ? (asset.syndication_urls?.social_9_16 || asset.secure_url)
+                : activePreviewMode === 'highlight_6s'
+                ? (asset.syndication_urls?.video_highlight_6s || asset.secure_url)
+                : (asset.syndication_urls?.clean_master || asset.syndication_urls?.broadcast_16_9 || asset.secure_url);
+            const downloadUrl = currentModeUrl && currentModeUrl.includes('/upload/')
+              ? currentModeUrl.replace('/upload/', '/upload/fl_attachment/')
+              : currentModeUrl;
+
+            return (
+              downloadUrl && (
+                <a
+                  href={downloadUrl}
+                  download
+                  className="h-9 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold rounded-xl shadow-2xs transition flex items-center space-x-1.5 cursor-pointer whitespace-nowrap active:scale-95"
+                  title="1-Click Master Download (Direct airplay broadcast master)"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="hidden md:inline">Download Master</span>
+                </a>
+              )
+            );
+          })()}
 
           <button
             onClick={handleApplyRedactions}

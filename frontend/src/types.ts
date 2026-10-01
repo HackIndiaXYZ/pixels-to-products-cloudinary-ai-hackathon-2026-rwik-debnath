@@ -19,6 +19,9 @@ export type TelemetryData = {
   gps_longitude?: number;
   gps_altitude?: number;
   has_gps: boolean;
+  waiver_signed?: boolean;
+  waiver_timestamp?: string;
+  submitter_ip?: string;
 };
 
 export type ModerationResult = {
