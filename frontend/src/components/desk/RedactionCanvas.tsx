@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { MediaAsset, FaceCoordinate } from '../../types';
-import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Trash2, Info } from 'lucide-react';
+import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy } from 'lucide-react';
 
 interface RedactionCanvasProps {
   asset: MediaAsset;
@@ -13,7 +13,7 @@ interface RedactionCanvasProps {
 export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   asset,
   onUpdateSuccess,
-  onDeleteAsset,
+  onDeleteAsset: _onDeleteAsset,
   onToggleInspector,
   isInspectorOpen = false,
 }) => {
@@ -26,7 +26,6 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   const [showDiffSlider, setShowDiffSlider] = useState(false);
   const [sliderPosition, setSliderPosition] = useState(50);
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Pan & Zoom Engine State (Figma / Photoshop style)
   const [zoom, setZoom] = useState<number>(1.0);
@@ -258,12 +257,17 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             is_redacted: true, // Default to Redacted Civilian
             label: `Redaction #${faces.length + 1}`,
           };
-          setFaces((prev) => [...prev, newBox]);
+          const newFaces = [...faces, newBox];
+          setFaces(newFaces);
+          syncFacesToBackend(newFaces);
         }
         setDrawStart(null);
         setDrawCurrent(null);
       }
       if (dragFace) {
+        if (dragFace.hasMoved) {
+          syncFacesToBackend(faces);
+        }
         setDragFace(null);
       }
     };
@@ -276,76 +280,102 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
     };
-  }, [isDrawingMode, drawStart, drawCurrent, dragFace, isPanning, scaleX, scaleY, refWidth, refHeight, faces.length]);
+  }, [isDrawingMode, drawStart, drawCurrent, dragFace, isPanning, scaleX, scaleY, refWidth, refHeight, faces]);
 
-  const handleDeleteFace = (index: number) => {
-    setFaces((prev) => prev.filter((_, i) => i !== index));
-    setSelectedFaceIndex((prev) => {
-      if (prev === null) return null;
-      if (prev === index) return null;
-      if (prev > index) return prev - 1;
-      return prev;
-    });
-  };
+  const syncFacesToBackend = async (
+    newFaces: FaceCoordinate[],
+    newStatus?: 'approved' | 'action_required' | 'quarantined'
+  ) => {
+    const targetStatus: 'approved' | 'action_required' | 'quarantined' =
+      newStatus || (newFaces.length === 0 ? 'approved' : asset.review_status);
+    const bystanderCoordinates = newFaces.map((f) => [f.x, f.y, f.w, f.h]);
 
-  const handleApplyRedactions = async () => {
-    setSaving(true);
+    // 1. Instant optimistic update to parent asset state (queue cards, review indicators, details)
+    const optimisticallyUpdated: MediaAsset = {
+      ...asset,
+      faces: newFaces,
+      review_status: targetStatus,
+    };
+    onUpdateSuccess(optimisticallyUpdated);
+
+    // 2. Persist immediately to backend & Cloudinary explicit API
     try {
-      const bystanderCoordinates = faces.map((f) => [f.x, f.y, f.w, f.h]);
-
       const res = await fetch('/api/v1/editorial/redact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           public_id: asset.public_id,
           face_coordinates: bystanderCoordinates,
-          faces: faces.map((f) => ({ ...f, is_redacted: true })),
+          faces: newFaces,
           headline: asset.headline || 'Breaking News',
           incident_type: asset.incident_type || 'uncategorized',
           urgency: asset.urgency || 'breaking',
-          review_status: 'approved',
+          review_status: targetStatus,
         }),
       });
-
-      if (!res.ok) throw new Error('Failed to update face coordinates');
-      const updatedAsset: MediaAsset = await res.json();
-      onUpdateSuccess(updatedAsset);
+      if (res.ok) {
+        const serverAsset: MediaAsset = await res.json();
+        onUpdateSuccess(serverAsset);
+      }
     } catch (err) {
-      console.error('Error applying redactions:', err);
+      console.error('Failed to sync face changes to backend:', err);
+    }
+  };
+
+  const handleDeleteFace = (index: number) => {
+    const newFaces = faces.filter((_, i) => i !== index);
+    setFaces(newFaces);
+    setSelectedFaceIndex((prev) => {
+      if (prev === null) return null;
+      if (prev === index) return null;
+      if (prev > index) return prev - 1;
+      return prev;
+    });
+    syncFacesToBackend(newFaces);
+  };
+
+  const handleApplyRedactions = async () => {
+    setSaving(true);
+    try {
+      await syncFacesToBackend(faces, 'approved');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteClick = () => {
-    if (confirmDelete) {
-      onDeleteAsset?.(asset.public_id);
-      setConfirmDelete(false);
-    } else {
-      setConfirmDelete(true);
-      setTimeout(() => setConfirmDelete(false), 3000);
-    }
+  const [copiedPreviewKey, setCopiedPreviewKey] = useState<string | null>(null);
+
+  const handleCopyUrl = (key: string, url?: string) => {
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    setCopiedPreviewKey(key);
+    setTimeout(() => setCopiedPreviewKey(null), 2000);
   };
 
   return (
     <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col h-full space-y-3.5">
-      {/* Top Studio Control Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-        {/* Mode Selector */}
-        <div className="flex items-center space-x-1 bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/60 shadow-2xs text-xs font-semibold h-9">
+      {/* Sleek Single-Tier Broadcast Strip */}
+      <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 min-w-0">
+        {/* Left: 4 Perspectives in Segmented Pill */}
+        <div className="flex items-center space-x-1 bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/60 shadow-2xs text-xs font-semibold h-9 shrink-0">
           <button
             onClick={() => {
               setActivePreviewMode('canvas');
               setShowDiffSlider(false);
             }}
-            className={`px-3 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 ${
+            className={`px-3 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 whitespace-nowrap ${
               activePreviewMode === 'canvas' && !showDiffSlider
                 ? 'bg-white text-slate-900 shadow-2xs'
                 : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
             }`}
           >
             <Crosshair className="w-3.5 h-3.5 text-blue-600" />
-            <span>Interactive Triage</span>
+            <span>Triage</span>
+            {faces.length > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 text-[10px] font-mono font-bold leading-none">
+                {faces.length}
+              </span>
+            )}
           </button>
 
           <button
@@ -354,7 +384,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               setShowDiffSlider(false);
               setIsDrawingMode(false);
             }}
-            className={`px-3 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 ${
+            className={`px-3 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 whitespace-nowrap ${
               activePreviewMode === 'tv_16_9' && !showDiffSlider
                 ? 'bg-white text-slate-900 shadow-2xs'
                 : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
@@ -370,73 +400,72 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               setShowDiffSlider(false);
               setIsDrawingMode(false);
             }}
-            className={`px-3 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 ${
+            className={`px-3 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 whitespace-nowrap ${
               activePreviewMode === 'reel_9_16' && !showDiffSlider
                 ? 'bg-white text-slate-900 shadow-2xs'
                 : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
             }`}
           >
             <Smartphone className="w-3.5 h-3.5 text-slate-500" />
-            <span>9:16 Social Reel</span>
+            <span>9:16 Reel</span>
           </button>
+
           <button
             onClick={() => {
               setActivePreviewMode('feed_1_1');
               setShowDiffSlider(false);
               setIsDrawingMode(false);
             }}
-            className={`px-3 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 ${
+            className={`px-3 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 whitespace-nowrap ${
               activePreviewMode === 'feed_1_1'
                 ? 'bg-white text-slate-900 shadow-2xs'
                 : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
             }`}
           >
             <LayoutGrid className="w-3.5 h-3.5 text-slate-500" />
-            <span>1:1 Wire Card</span>
+            <span>1:1 Wire</span>
           </button>
         </div>
 
-        {/* Story Headline Breadcrumb (Active story indicator) */}
-        <div className="hidden lg:flex items-center space-x-2 text-xs font-semibold text-slate-800 max-w-sm xl:max-w-md truncate px-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
-          <span className="truncate">{asset.headline || asset.public_id}</span>
-        </div>
-
-        {/* Studio Actions & Redaction Status */}
-        <div className="flex items-center space-x-3 shrink-0 self-center">
-          <div className="flex items-center space-x-1.5 text-xs text-slate-500 font-medium select-none px-1 h-9">
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                faces.length > 0 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'
-              }`}
-            />
-            <span>
-              <strong className="font-semibold text-slate-800">{faces.length}</strong>{' '}
-              {faces.length === 1 ? 'Redacted' : 'Redacted'}
-            </span>
-          </div>
-
-          {/* Quick Discard Button */}
-          {onDeleteAsset && (
-            <button
-              type="button"
-              onClick={handleDeleteClick}
-              className={`h-9 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95 ${
-                confirmDelete
-                  ? 'bg-rose-600 text-white border-rose-600 shadow-xs animate-pulse'
-                  : 'bg-white hover:bg-rose-50 text-slate-500 hover:text-rose-600 border-slate-200/80 hover:border-rose-200 shadow-2xs'
-              }`}
-              title="Discard this media asset from the wire"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{confirmDelete ? 'Confirm Discard?' : 'Discard'}</span>
-            </button>
+        {/* Right: Primary Editorial Actions */}
+        <div className="flex items-center space-x-2 shrink-0">
+          {activePreviewMode !== 'canvas' && (
+            <>
+              {(() => {
+                const currentModeUrl =
+                  activePreviewMode === 'tv_16_9'
+                    ? asset.syndication_urls?.broadcast_16_9
+                    : activePreviewMode === 'reel_9_16'
+                    ? asset.syndication_urls?.social_9_16
+                    : asset.syndication_urls?.feed_1_1;
+                return (
+                  currentModeUrl && (
+                    <button
+                      onClick={() => handleCopyUrl(activePreviewMode, currentModeUrl)}
+                      className="h-9 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl shadow-2xs transition flex items-center space-x-1.5 cursor-pointer whitespace-nowrap active:scale-95"
+                    >
+                      {copiedPreviewKey === activePreviewMode ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-emerald-700">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Copy Edge URL</span>
+                        </>
+                      )}
+                    </button>
+                  )
+                );
+              })()}
+            </>
           )}
 
           <button
             onClick={handleApplyRedactions}
             disabled={saving}
-            className="h-9 px-4 text-white text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center space-x-1.5 active:scale-95 disabled:opacity-50 cursor-pointer bg-blue-600 hover:bg-blue-500 shadow-blue-500/25"
+            className="h-9 px-4 text-white text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center space-x-1.5 active:scale-95 disabled:opacity-50 cursor-pointer bg-blue-600 hover:bg-blue-500 shadow-blue-500/25 whitespace-nowrap"
           >
             {saving ? (
               <span>Applying...</span>
@@ -448,21 +477,19 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             )}
           </button>
 
-          {/* Provenance & Export Drawer Trigger */}
           {onToggleInspector && (
             <button
               type="button"
               onClick={onToggleInspector}
-              className={`h-9 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95 ${
+              className={`h-9 px-3 rounded-xl text-xs font-semibold border transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap active:scale-95 ${
                 isInspectorOpen
                   ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-xs'
                   : 'bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border-slate-200/80 shadow-2xs'
               }`}
-              title="Toggle Story Properties, Provenance & Broadcast Packages (Shortcut: I)"
+              title="Story Provenance, Telemetry & Export (Shortcut: I)"
             >
               <Info className={`w-3.5 h-3.5 ${isInspectorOpen ? 'text-blue-600' : 'text-slate-500'}`} />
-              <span className="hidden sm:inline">Details & Export</span>
-              <span className="sm:hidden">Info</span>
+              <span className="hidden sm:inline">Details</span>
               {asset.telemetry?.has_gps && (
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="GPS Verified" />
               )}
@@ -493,7 +520,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             : 'cursor-default'
         }`}
       >
-        {/* Floating Canvas Micro-Dock (Translucent Glassmorphism) */}
+        {/* Floating Canvas Micro-Dock in Edit Zone */}
         {activePreviewMode === 'canvas' && (
           <div className="absolute top-3.5 right-3.5 z-40 flex items-center space-x-1 bg-white/90 backdrop-blur-md border border-slate-200/90 p-1 rounded-xl shadow-lg shadow-slate-900/5 select-none">
             {/* Add Box Tool */}
@@ -586,6 +613,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             </div>
           </div>
         )}
+
         {/* Mode A: Standard Interactive Face Triage */}
         {!showDiffSlider && activePreviewMode === 'canvas' && (
           <div className="relative w-full h-full flex justify-center items-center p-2 select-none overflow-hidden">
@@ -697,14 +725,14 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                           e.stopPropagation();
                           handleDeleteFace(idx);
                         }}
-                        title="Exempt from blur (Public Figure)"
-                        className={`w-5 h-5 rounded-full bg-slate-900/90 hover:bg-emerald-600 text-white flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md hover:scale-115 active:scale-95 shrink-0 z-30 ${
+                        title="Delete redaction box (Shortcut: Backspace/Delete)"
+                        className={`w-6 h-6 rounded-full bg-slate-900/90 hover:bg-rose-600 text-white flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md hover:scale-110 active:scale-95 shrink-0 z-30 ${
                           isHovered || isSelected
-                            ? 'opacity-100 scale-100'
+                            ? 'opacity-100 scale-100 pointer-events-auto'
                             : 'opacity-0 scale-90 pointer-events-none'
                         }`}
                       >
-                        <X className="w-3 h-3" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   );

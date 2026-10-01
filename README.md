@@ -37,30 +37,51 @@ PressWire is an automated intake, audit, and broadcast syndication engine engine
    - Direct querying of Cloudinary Search API across tags, approval status, and urgency levels.
 
 6. **Production Readiness & Deployment Audit**:
-   - See [docs/production-readiness-audit.md](file:///home/rwik05/Projects/cloudinary/docs/production-readiness-audit.md) for full analysis comparing Model A (Mid-Market / Agile Web Newsrooms) vs Model B (Tier-1 Enterprise Conglomerates).
+   - See [docs/production-readiness-audit.md](docs/production-readiness-audit.md) for full analysis comparing Model A (Mid-Market / Agile Web Newsrooms) vs Model B (Tier-1 Enterprise Conglomerates).
 
 ---
 
 ## 🚀 Running PressWire
 
-### 1. Backend Setup (FastAPI & Cloudinary)
+### One-Click Development Start
+
+**On Windows (PowerShell):**
+```powershell
+.\start_dev.ps1
+```
+*(Or double-click `start_dev.bat`)*
+
+**On Linux / macOS / Git Bash:**
 ```bash
-# Activate virtual environment
+chmod +x start_dev.sh
+./start_dev.sh
+```
+
+---
+
+### Manual Service Setup
+
+#### 1. Backend Setup (FastAPI & Cloudinary)
+```bash
+# Windows PowerShell:
+python -m venv backend/venv
+.\backend\venv\Scripts\Activate.ps1
+pip install -r backend/requirements.txt
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload --app-dir backend
+
+# Linux / macOS:
+python3 -m venv backend/venv
 source backend/venv/bin/activate
-
-# Set your Cloudinary credentials in .env (or environment)
-cp .env.example .env
-# Edit .env with your Cloudinary credentials
-
-# Run FastAPI backend
+pip install -r backend/requirements.txt
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --app-dir backend
 ```
 Interactive API docs available at `http://localhost:8000/docs`.
 
-### 2. Frontend Setup (React & Tailwind)
+#### 2. Frontend Setup (React & Tailwind)
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 Newsroom portal available at `http://localhost:5173`.
+

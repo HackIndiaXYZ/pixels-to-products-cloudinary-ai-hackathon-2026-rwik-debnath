@@ -55,7 +55,7 @@ async def seed_initial_assets():
         ),
         moderation=ModerationResult(status="approved", categories=[]),
         review_status="approved",
-        incident_type="breaking_news",
+        incident_type="politics_civic",
         urgency="breaking",
         headline="Press Briefing: Mayor Announces Transit Plan",
         syndication_urls=urls_1,

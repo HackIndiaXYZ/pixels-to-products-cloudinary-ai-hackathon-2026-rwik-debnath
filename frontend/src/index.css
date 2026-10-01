@@ -6,6 +6,11 @@
     @apply bg-[#FBFBFC] text-slate-800 antialiased selection:bg-blue-500/20 selection:text-blue-900;
     font-family: -apple-system, BlinkMacSystemFont, 'Inter', -apple-system, sans-serif;
   }
+
+  button:focus,
+  button:focus-visible {
+    outline: none;
+  }
 }
 
 /* Custom crisp scrollbar */

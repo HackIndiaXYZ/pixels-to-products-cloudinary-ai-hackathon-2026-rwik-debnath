@@ -1,0 +1,19 @@
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+# Shell scripts must always use LF
+*.sh text eol=lf
+
+# Windows specific scripts
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.svg text

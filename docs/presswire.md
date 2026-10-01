@@ -261,7 +261,7 @@ Global CDN delivery, automated format conversion (`f_auto`), automated compressi
 
 ## Production Deployment & Operational Safeguards
 
-PressWire is evaluated across two deployment profiles (detailed in [docs/production-readiness-audit.md](file:///home/rwik05/Projects/cloudinary/docs/production-readiness-audit.md)):
+PressWire is evaluated across two deployment profiles (detailed in [docs/production-readiness-audit.md](production-readiness-audit.md)):
 1. **Model A (Mid-Market & Agile Digital Newsrooms)**: Leverages the full-bleed edge-to-edge `/desk` web cockpit, 1-click master downloads for TriCaster / web CMS, and fixed 7-desk IPTC-aligned taxonomy.
 2. **Model B (Enterprise Broadcast Conglomerates)**: Mandates BYOC (Bring Your Own Cloud) to eliminate SaaS egress bandwidth liability, video face tracking (`e_pixelate_faces`), and mandatory copyright release waivers.
 

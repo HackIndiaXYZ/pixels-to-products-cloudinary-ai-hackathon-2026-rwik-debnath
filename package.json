@@ -1,0 +1,13 @@
+{
+  "name": "presswire",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Autonomous newsroom media intake, provenance audit, selective privacy redaction, and broadcast syndication engine.",
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "test:backend": "pytest",
+    "test": "npm run build:frontend"
+  }
+}

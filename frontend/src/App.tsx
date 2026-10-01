@@ -86,7 +86,10 @@ export function App() {
                   prev.public_id !== matching.public_id ||
                   prev.review_status !== matching.review_status ||
                   prev.faces.length !== matching.faces.length ||
-                  prev.is_archived !== matching.is_archived
+                  prev.is_archived !== matching.is_archived ||
+                  prev.urgency !== matching.urgency ||
+                  prev.headline !== matching.headline ||
+                  prev.incident_type !== matching.incident_type
                 ) {
                   return matching;
                 }

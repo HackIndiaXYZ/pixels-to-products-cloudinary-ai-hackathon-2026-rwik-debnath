@@ -17,13 +17,6 @@ export const COLOR_PALETTE = [
 ];
 
 export const FIXED_BEATS: Record<string, CategoryMeta> = {
-  breaking_news: {
-    id: 'breaking_news',
-    label: 'Breaking News',
-    badgeStyle: 'bg-rose-50 text-rose-700 border-rose-200/80',
-    dotColor: 'bg-rose-500',
-    color: '#e11d48',
-  },
   public_safety: {
     id: 'public_safety',
     label: 'Public Safety',
@@ -74,6 +67,7 @@ export const CATEGORY_LIST = Object.values(FIXED_BEATS);
 
 // Legacy aliases mapping to modern fixed news desks
 const BEAT_ALIASES: Record<string, string> = {
+  breaking_news: 'politics_civic',
   wildfire: 'public_safety',
   protest: 'politics_civic',
   traffic: 'transit',

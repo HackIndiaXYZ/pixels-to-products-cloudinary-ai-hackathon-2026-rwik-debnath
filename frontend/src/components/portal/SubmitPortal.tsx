@@ -30,6 +30,7 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({ onUploadSuccess, onN
   const [headline, setHeadline] = useState('');
   const [incidentType, setIncidentType] = useState('breaking_news');
   const [urgency, setUrgency] = useState<'breaking' | 'standard'>('breaking');
+  const [hasAgreedWaiver, setHasAgreedWaiver] = useState(true);
 
   // HTML5 Geolocation state
   const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
@@ -484,6 +485,20 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({ onUploadSuccess, onN
                 </span>
               </div>
 
+              {/* Broadcast Copyright & Legal Release Waiver */}
+              <div className="flex items-start space-x-2.5 p-3 bg-slate-50/90 border border-slate-200/90 rounded-xl text-left">
+                <input
+                  type="checkbox"
+                  id="broadcast-waiver"
+                  checked={hasAgreedWaiver}
+                  onChange={(e) => setHasAgreedWaiver(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer"
+                />
+                <label htmlFor="broadcast-waiver" className="text-[11px] text-slate-600 leading-snug cursor-pointer select-none">
+                  <strong className="text-slate-800 font-semibold">Irrevocable Broadcast Release:</strong> I certify that I am the author of this media and grant PressWire and its syndication partners a perpetual, royalty-free license to broadcast, adapt, and distribute this content across television, digital, and social feeds.
+                </label>
+              </div>
+
               {/* Status Message */}
               {statusMessage && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 font-semibold flex items-center space-x-2">
@@ -495,7 +510,7 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({ onUploadSuccess, onN
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={!file || loading}
+                disabled={!file || loading || !hasAgreedWaiver}
                 className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-98"
               >
                 {loading ? (

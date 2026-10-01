@@ -16,6 +16,7 @@ export const PublicIntake: React.FC<PublicIntakeProps> = ({ onUploadSuccess }) =
   const [loading, setLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [hasAgreedWaiver, setHasAgreedWaiver] = useState(true);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -99,7 +100,7 @@ export const PublicIntake: React.FC<PublicIntakeProps> = ({ onUploadSuccess }) =
             {previewUrl ? (
               <div className="space-y-3">
                 <img src={previewUrl} alt="Preview" className="max-h-52 mx-auto rounded-xl shadow-md object-contain border border-slate-200" />
-                <p className="text-xs text-slate-500 font-medium">{file?.name} ({(file?.size! / (1024 * 1024)).toFixed(2)} MB)</p>
+                <p className="text-xs text-slate-500 font-medium">{file?.name} ({file ? (file.size / (1024 * 1024)).toFixed(2) : 0} MB)</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -189,6 +190,19 @@ export const PublicIntake: React.FC<PublicIntakeProps> = ({ onUploadSuccess }) =
           </label>
         </div>
 
+        <div className="flex items-start space-x-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <input
+            type="checkbox"
+            id="modal-broadcast-waiver"
+            checked={hasAgreedWaiver}
+            onChange={(e) => setHasAgreedWaiver(e.target.checked)}
+            className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer"
+          />
+          <label htmlFor="modal-broadcast-waiver" className="text-[11px] text-slate-600 leading-snug cursor-pointer select-none">
+            <strong className="text-slate-800 font-semibold">Broadcast Rights Release:</strong> I certify ownership and grant PressWire an irrevocable license to broadcast and distribute this footage across linear and digital feeds.
+          </label>
+        </div>
+
         {statusMessage && (
           <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 font-medium">
             {statusMessage}
@@ -197,7 +211,7 @@ export const PublicIntake: React.FC<PublicIntakeProps> = ({ onUploadSuccess }) =
 
         <button
           type="submit"
-          disabled={!file || loading}
+          disabled={!file || loading || !hasAgreedWaiver}
           className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-blue-500/20 transition-all flex items-center justify-center space-x-2 active:scale-98 cursor-pointer"
         >
           {loading ? (
