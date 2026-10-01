@@ -32,10 +32,15 @@ def test_video_packaging_urls():
     urls = PackagingService.generate_broadcast_urls(
         public_id="presswire/test_video",
         headline="STORM INCOMING",
+        pixelate_bystanders=True,
         resource_type="video"
     )
     assert "video_highlight_6s" in urls
     assert "e_preview:duration_6:max_seg_3" in urls["video_highlight_6s"]
+    assert "e_pixelate_faces:10" in urls["video_highlight_6s"]
+    assert "/video/upload/" in urls["broadcast_16_9"]
+    assert "/video/upload/" in urls["social_9_16"]
+    assert "/video/upload/" in urls["clean_master"]
 
 
 def test_delete_asset():

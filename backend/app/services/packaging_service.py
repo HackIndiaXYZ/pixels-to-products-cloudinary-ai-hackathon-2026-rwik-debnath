@@ -50,7 +50,13 @@ class PackagingService:
             },
             {"fetch_format": "auto", "quality": "auto"}
         ]
-        tv_16_9_url, _ = cloudinary_url(public_id, transformation=tv_transformations, cloud_name=cloud_name, secure=True)
+        tv_16_9_url, _ = cloudinary_url(
+            public_id,
+            resource_type=resource_type,
+            transformation=tv_transformations,
+            cloud_name=cloud_name,
+            secure=True
+        )
 
         # 1b. Clean 16:9 Linear Broadcast (Redacted, 16:9 crop, NO lower-third banner - for TV Networks)
         tv_clean_transformations = [
@@ -58,7 +64,13 @@ class PackagingService:
             {"aspect_ratio": "16:9", "crop": "fill", "gravity": "auto:subject"},
             {"fetch_format": "auto", "quality": "auto"}
         ]
-        tv_16_9_clean_url, _ = cloudinary_url(public_id, transformation=tv_clean_transformations, cloud_name=cloud_name, secure=True)
+        tv_16_9_clean_url, _ = cloudinary_url(
+            public_id,
+            resource_type=resource_type,
+            transformation=tv_clean_transformations,
+            cloud_name=cloud_name,
+            secure=True
+        )
 
         # 2. 9:16 Vertical Social Story / Reel with Context Blur Fill
         social_transformations = [
@@ -71,19 +83,34 @@ class PackagingService:
             },
             {"fetch_format": "auto", "quality": "auto"}
         ]
-        social_9_16_url, _ = cloudinary_url(public_id, transformation=social_transformations, cloud_name=cloud_name, secure=True)
+        social_9_16_url, _ = cloudinary_url(
+            public_id,
+            resource_type=resource_type,
+            transformation=social_transformations,
+            cloud_name=cloud_name,
+            secure=True
+        )
 
         # 3. 1:1 Fast-Loading Wire Index Card / Micro-Thumbnail
+        # For video, generate a fast image poster frame so wire lists load instantaneously
         feed_transformations = [
             *redaction_trans,
             {"aspect_ratio": "1:1", "crop": "fill", "gravity": "auto:subject"},
             {"fetch_format": "auto", "quality": "auto"}
         ]
-        feed_1_1_url, _ = cloudinary_url(public_id, transformation=feed_transformations, cloud_name=cloud_name, secure=True)
+        feed_1_1_url, _ = cloudinary_url(
+            public_id,
+            resource_type=resource_type,
+            format="jpg" if resource_type == "video" else None,
+            transformation=feed_transformations,
+            cloud_name=cloud_name,
+            secure=True
+        )
 
         # 4. Clean Master Delivery (Raw subject crop without banner)
         clean_master_url, _ = cloudinary_url(
             public_id,
+            resource_type=resource_type,
             transformation=[*redaction_trans, {"fetch_format": "auto", "quality": "auto"}],
             cloud_name=cloud_name,
             secure=True
@@ -97,12 +124,13 @@ class PackagingService:
             "clean_master": clean_master_url
         }
 
-        # 5. Video Highlight Reel (6 seconds with key segments)
+        # 5. Video Highlight Reel (6 seconds with key segments & face tracking)
         if resource_type == "video":
             video_preview_url, _ = cloudinary_url(
                 public_id,
                 resource_type="video",
                 transformation=[
+                    *redaction_trans,
                     {"effect": "preview:duration_6:max_seg_3"},
                     {"fetch_format": "auto", "quality": "auto"}
                 ],

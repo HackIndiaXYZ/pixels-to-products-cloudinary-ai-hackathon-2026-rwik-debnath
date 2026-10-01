@@ -180,7 +180,47 @@ async def seed_initial_assets():
         created_at=(now - datetime.timedelta(minutes=1)).isoformat()
     )
 
+    # Asset 5: Breaking Video Ingest (Mobile Footage with Video Highlight & Tracking)
+    asset_5_id = "presswire/sample_transit_video"
+    urls_5 = PackagingService.generate_broadcast_urls(
+        public_id=asset_5_id,
+        headline="Transit Alert: Multi-Vehicle Collision on I-80",
+        subheadline="Traffic Bureau Live Feed",
+        pixelate_bystanders=True,
+        resource_type="video"
+    )
+    asset_5 = MediaAssetResponse(
+        public_id=asset_5_id,
+        asset_id="asset_demo_05",
+        format="mp4",
+        resource_type="video",
+        width=1920,
+        height=1080,
+        bytes=4850200,
+        secure_url="https://res.cloudinary.com/demo/video/upload/dog.mp4",
+        faces=[],
+        telemetry=TelemetryData(
+            make="Apple",
+            model="iPhone 15 Pro",
+            software="iOS 17.5",
+            capture_time=(now - datetime.timedelta(minutes=4)).strftime("%Y:%m:%d %H:%M:%S"),
+            upload_time=now.isoformat(),
+            time_delta_seconds=240,
+            gps_latitude=37.8270,
+            gps_longitude=-122.2913,
+            has_gps=True
+        ),
+        moderation=ModerationResult(status="approved", categories=[]),
+        review_status="approved",
+        incident_type="transit",
+        urgency="breaking",
+        headline="Transit Alert: Multi-Vehicle Collision on I-80",
+        syndication_urls=urls_5,
+        created_at=(now - datetime.timedelta(minutes=4)).isoformat()
+    )
+
     WIRE_STORE[asset_1.public_id] = asset_1
     WIRE_STORE[asset_2.public_id] = asset_2
     WIRE_STORE[asset_3.public_id] = asset_3
     WIRE_STORE[asset_4.public_id] = asset_4
+    WIRE_STORE[asset_5.public_id] = asset_5

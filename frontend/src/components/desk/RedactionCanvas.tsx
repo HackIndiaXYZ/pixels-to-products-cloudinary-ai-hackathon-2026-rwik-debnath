@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { MediaAsset, FaceCoordinate } from '../../types';
-import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy } from 'lucide-react';
+import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy, Video } from 'lucide-react';
 
 interface RedactionCanvasProps {
   asset: MediaAsset;
@@ -21,7 +21,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   const imgRef = useRef<HTMLImageElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  const [activePreviewMode, setActivePreviewMode] = useState<'canvas' | 'tv_16_9' | 'reel_9_16' | 'feed_1_1'>('canvas');
+  const [activePreviewMode, setActivePreviewMode] = useState<'canvas' | 'tv_16_9' | 'reel_9_16' | 'feed_1_1' | 'highlight_6s'>('canvas');
   const [faces, setFaces] = useState<FaceCoordinate[]>(asset.faces || []);
   const [showDiffSlider, setShowDiffSlider] = useState(false);
   const [sliderPosition, setSliderPosition] = useState(50);
@@ -75,8 +75,11 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       setHoveredFaceIndex(null);
       setZoom(1.0);
       setPan({ x: 0, y: 0 });
+      if (asset.resource_type === 'video') {
+        setDisplayDims({ width: 0, height: 0, naturalWidth: asset.width || 1920, naturalHeight: asset.height || 1080 });
+      }
     }
-  }, [asset.public_id]);
+  }, [asset.public_id, asset.resource_type, asset.width, asset.height, asset.faces]);
 
   const handleImageLoad = () => {
     if (imgRef.current) {
@@ -136,6 +139,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   }, [activePreviewMode]);
 
   const handleContainerMouseDown = (e: React.MouseEvent) => {
+    if (asset.resource_type === 'video') return;
     if (isDrawingMode) {
       e.preventDefault();
       const { x, y } = getNaturalCoords(e);
@@ -371,7 +375,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
           >
             <Crosshair className="w-3.5 h-3.5 text-blue-600" />
             <span>Triage</span>
-            {faces.length > 0 && (
+            {asset.resource_type !== 'video' && faces.length > 0 && (
               <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 text-[10px] font-mono font-bold leading-none">
                 {faces.length}
               </span>
@@ -425,6 +429,24 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             <LayoutGrid className="w-3.5 h-3.5 text-slate-500" />
             <span>1:1 Wire</span>
           </button>
+
+          {asset.resource_type === 'video' && asset.syndication_urls?.video_highlight_6s && (
+            <button
+              onClick={() => {
+                setActivePreviewMode('highlight_6s');
+                setShowDiffSlider(false);
+                setIsDrawingMode(false);
+              }}
+              className={`px-3 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 whitespace-nowrap ${
+                activePreviewMode === 'highlight_6s' && !showDiffSlider
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
+              }`}
+            >
+              <Video className="w-3.5 h-3.5 text-blue-600" />
+              <span>6s Highlight</span>
+            </button>
+          )}
         </div>
 
         {/* Right: Primary Editorial Actions */}
@@ -434,9 +456,11 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               {(() => {
                 const currentModeUrl =
                   activePreviewMode === 'tv_16_9'
-                    ? asset.syndication_urls?.broadcast_16_9
+                    ? (asset.syndication_urls?.broadcast_16_9 || asset.syndication_urls?.broadcast_16_9_clean)
                     : activePreviewMode === 'reel_9_16'
                     ? asset.syndication_urls?.social_9_16
+                    : activePreviewMode === 'highlight_6s'
+                    ? asset.syndication_urls?.video_highlight_6s
                     : asset.syndication_urls?.feed_1_1;
                 return (
                   currentModeUrl && (
@@ -520,29 +544,40 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             : 'cursor-default'
         }`}
       >
+        {/* Video AI Face Tracking Telemetry Badge */}
+        {asset.resource_type === 'video' && activePreviewMode === 'canvas' && (
+          <div className="absolute top-3.5 left-3.5 z-40 flex items-center space-x-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 shadow-lg text-white">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-semibold text-[11px] tracking-wide">Automated AI Face Tracking</span>
+            <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">(e_pixelate_faces)</span>
+          </div>
+        )}
+
         {/* Floating Canvas Micro-Dock in Edit Zone */}
         {activePreviewMode === 'canvas' && (
           <div className="absolute top-3.5 right-3.5 z-40 flex items-center space-x-1 bg-white/90 backdrop-blur-md border border-slate-200/90 p-1 rounded-xl shadow-lg shadow-slate-900/5 select-none">
-            {/* Add Box Tool */}
-            <div className="relative group flex items-center justify-center">
-              <button
-                type="button"
-                onClick={() => {
-                  if (showDiffSlider) setShowDiffSlider(false);
-                  setIsDrawingMode(!isDrawingMode);
-                }}
-                className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
-                  isDrawingMode
-                    ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-2xs'
-                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/90'
-                }`}
-              >
-                <Plus className={`w-4 h-4 transition-transform duration-150 ${isDrawingMode ? 'rotate-45' : ''}`} />
-              </button>
-              <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-medium rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                {isDrawingMode ? 'Exit Drawing (Esc)' : 'Add Redaction Box'}
+            {/* Add Box Tool (Photos Only) */}
+            {asset.resource_type !== 'video' && (
+              <div className="relative group flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showDiffSlider) setShowDiffSlider(false);
+                    setIsDrawingMode(!isDrawingMode);
+                  }}
+                  className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
+                    isDrawingMode
+                      ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-2xs'
+                      : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/90'
+                  }`}
+                >
+                  <Plus className={`w-4 h-4 transition-transform duration-150 ${isDrawingMode ? 'rotate-45' : ''}`} />
+                </button>
+                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-medium rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                  {isDrawingMode ? 'Exit Drawing (Esc)' : 'Add Redaction Box'}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Split Diff Comparison Tool */}
             <div className="relative group flex items-center justify-center">
@@ -632,17 +667,29 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                 onMouseDown={handleContainerMouseDown}
                 className={`relative inline-block ${isDrawingMode ? 'cursor-crosshair' : ''}`}
               >
-                <img
-                  ref={imgRef}
-                  src={asset.secure_url}
-                  alt="Subject Triage"
-                  onLoad={handleImageLoad}
-                  className="max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10"
-                  draggable={false}
-                />
+                {asset.resource_type === 'video' ? (
+                  <video
+                    src={asset.secure_url}
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="max-h-[520px] w-auto object-contain block select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10"
+                  />
+                ) : (
+                  <img
+                    ref={imgRef}
+                    src={asset.secure_url}
+                    alt="Subject Triage"
+                    onLoad={handleImageLoad}
+                    className="max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10"
+                    draggable={false}
+                  />
+                )}
 
-                {/* Drawing in-progress preview rectangle */}
-              {drawStart && drawCurrent && (
+                {/* Drawing in-progress preview rectangle (Photos Only) */}
+              {asset.resource_type !== 'video' && drawStart && drawCurrent && (
                 <div
                   style={{
                     left: `${Math.min(drawStart.x, drawCurrent.x) * scaleX}px`,
@@ -658,8 +705,9 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                 </div>
               )}
 
-              {/* Bounding box layer */}
-              {displayDims.width > 0 &&
+              {/* Bounding box layer (Photos Only) */}
+              {asset.resource_type !== 'video' &&
+                displayDims.width > 0 &&
                 faces.map((f, idx) => {
                   const left = f.x * scaleX;
                   const top = f.y * scaleY;
@@ -790,22 +838,46 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
         {/* Mode C: 16:9 Broadcast Overlay */}
         {!showDiffSlider && activePreviewMode === 'tv_16_9' && (
           <div className="w-full h-full flex flex-col items-center justify-center p-4">
-            <img
-              src={asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.clean_master || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
-              alt="16:9 Broadcast Feed"
-              className="max-h-[500px] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-slate-900/10"
-            />
+            {asset.resource_type === 'video' ? (
+              <video
+                src={asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
+                controls
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="max-h-[500px] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-slate-900/10"
+              />
+            ) : (
+              <img
+                src={asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.clean_master || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
+                alt="16:9 Broadcast Feed"
+                className="max-h-[500px] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-slate-900/10"
+              />
+            )}
           </div>
         )}
 
         {/* Mode D: 9:16 Social Reel */}
         {!showDiffSlider && activePreviewMode === 'reel_9_16' && (
           <div className="w-full h-full flex flex-col items-center justify-center p-4">
-            <img
-              src={asset.syndication_urls?.social_9_16 || asset.secure_url}
-              alt="9:16 Social Reel"
-              className="max-h-[500px] w-auto rounded-xl object-contain shadow-2xl ring-1 ring-slate-900/10"
-            />
+            {asset.resource_type === 'video' ? (
+              <video
+                src={asset.syndication_urls?.social_9_16 || asset.secure_url}
+                controls
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="max-h-[500px] w-auto rounded-xl object-contain shadow-2xl ring-1 ring-slate-900/10"
+              />
+            ) : (
+              <img
+                src={asset.syndication_urls?.social_9_16 || asset.secure_url}
+                alt="9:16 Social Reel"
+                className="max-h-[500px] w-auto rounded-xl object-contain shadow-2xl ring-1 ring-slate-900/10"
+              />
+            )}
           </div>
         )}
 
@@ -816,6 +888,21 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               src={asset.syndication_urls?.feed_1_1 || asset.secure_url}
               alt="1:1 Micro Card"
               className="max-h-[480px] aspect-square rounded-xl object-cover shadow-2xl ring-1 ring-slate-900/10"
+            />
+          </div>
+        )}
+
+        {/* Mode F: 6s Highlight Reel */}
+        {!showDiffSlider && activePreviewMode === 'highlight_6s' && asset.syndication_urls?.video_highlight_6s && (
+          <div className="w-full h-full flex flex-col items-center justify-center p-4">
+            <video
+              src={asset.syndication_urls.video_highlight_6s}
+              controls
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="max-h-[500px] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-slate-900/10"
             />
           </div>
         )}

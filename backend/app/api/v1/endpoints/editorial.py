@@ -81,13 +81,14 @@ async def update_redactions(req: RedactionUpdateRequest):
     if req.public_id not in WIRE_STORE:
         raise HTTPException(status_code=404, detail="Asset not found")
 
-    # Update Cloudinary explicit face_coordinates
-    update_res = RedactionService.update_selective_faces(
-        public_id=req.public_id,
-        bystander_coordinates=req.face_coordinates
-    )
-
     asset = WIRE_STORE[req.public_id]
+
+    # Update Cloudinary explicit face_coordinates (only for images; videos use native temporal face tracking)
+    if asset.resource_type != "video":
+        update_res = RedactionService.update_selective_faces(
+            public_id=req.public_id,
+            bystander_coordinates=req.face_coordinates
+        )
     
     # Update stored face states
     if req.faces is not None:
