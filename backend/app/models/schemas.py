@@ -48,6 +48,7 @@ class MediaAssetResponse(BaseModel):
     urgency: str = "breaking"  # "breaking", "standard"
     headline: Optional[str] = "Breaking News"
     syndication_urls: Dict[str, str] = {}
+    pixelate_bystanders: bool = True
     is_archived: bool = False
     created_at: str
 
@@ -62,6 +63,7 @@ class RedactionUpdateRequest(BaseModel):
     incident_type: Optional[str] = None
     urgency: Optional[str] = None
     headline: Optional[str] = None
+    pixelate_bystanders: Optional[bool] = None
 
 
 class SearchQueryRequest(BaseModel):

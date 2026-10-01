@@ -112,11 +112,20 @@ async def update_redactions(req: RedactionUpdateRequest):
     if req.urgency is not None:
         asset.urgency = req.urgency.strip().lower() or "breaking"
 
+    # Determine whether bystanders should be pixelated
+    pixelate_flag = True
+    if req.pixelate_bystanders is not None:
+        pixelate_flag = req.pixelate_bystanders
+    elif asset.resource_type != "video" and len(req.face_coordinates) == 0:
+        pixelate_flag = False
+
+    asset.pixelate_bystanders = pixelate_flag
+
     # Re-generate broadcast packaging URLs with updated headline / bystander count
     asset.syndication_urls = PackagingService.generate_broadcast_urls(
         public_id=asset.public_id,
         headline=asset.headline or "BREAKING NEWS",
-        pixelate_bystanders=True,
+        pixelate_bystanders=pixelate_flag,
         resource_type=asset.resource_type
     )
 

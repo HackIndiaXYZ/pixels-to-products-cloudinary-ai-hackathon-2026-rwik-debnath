@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { MediaAsset, FaceCoordinate } from '../../types';
-import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy, Video, Download } from 'lucide-react';
+import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy, Video, Download, Eye, ShieldAlert } from 'lucide-react';
 
 interface RedactionCanvasProps {
   asset: MediaAsset;
@@ -26,6 +26,9 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   const [showDiffSlider, setShowDiffSlider] = useState(false);
   const [sliderPosition, setSliderPosition] = useState(50);
   const [saving, setSaving] = useState(false);
+  const [isVideoRedacted, setIsVideoRedacted] = useState<boolean>(
+    asset.pixelate_bystanders !== undefined ? asset.pixelate_bystanders : true
+  );
 
   // Pan & Zoom Engine State (Figma / Photoshop style)
   const [zoom, setZoom] = useState<number>(1.0);
@@ -75,11 +78,44 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       setHoveredFaceIndex(null);
       setZoom(1.0);
       setPan({ x: 0, y: 0 });
+      setIsVideoRedacted(asset.pixelate_bystanders !== undefined ? asset.pixelate_bystanders : true);
       if (asset.resource_type === 'video') {
         setDisplayDims({ width: 0, height: 0, naturalWidth: asset.width || 1920, naturalHeight: asset.height || 1080 });
       }
     }
-  }, [asset.public_id, asset.resource_type, asset.width, asset.height, asset.faces]);
+  }, [asset.public_id, asset.resource_type, asset.width, asset.height, asset.faces, asset.pixelate_bystanders]);
+
+  const handleToggleVideoPrivacy = async (shouldBlur: boolean) => {
+    setIsVideoRedacted(shouldBlur);
+    const optimisticallyUpdated: MediaAsset = {
+      ...asset,
+      pixelate_bystanders: shouldBlur,
+    };
+    onUpdateSuccess(optimisticallyUpdated);
+
+    try {
+      const res = await fetch('/api/v1/editorial/redact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          public_id: asset.public_id,
+          face_coordinates: [],
+          faces: [],
+          headline: asset.headline || 'Breaking News',
+          incident_type: asset.incident_type || 'uncategorized',
+          urgency: asset.urgency || 'breaking',
+          review_status: 'approved',
+          pixelate_bystanders: shouldBlur,
+        }),
+      });
+      if (res.ok) {
+        const serverAsset: MediaAsset = await res.json();
+        onUpdateSuccess(serverAsset);
+      }
+    } catch (err) {
+      console.error('Failed to toggle video privacy:', err);
+    }
+  };
 
   const handleImageLoad = () => {
     if (imgRef.current) {
@@ -451,6 +487,38 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
 
         {/* Right: Primary Editorial Actions */}
         <div className="flex items-center space-x-2 shrink-0">
+          {/* Video Privacy Mode Switch (Bystander Mask vs Public Figures) */}
+          {asset.resource_type === 'video' && (
+            <div className="flex items-center space-x-1 bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/60 shadow-2xs text-xs font-semibold h-9 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleToggleVideoPrivacy(true)}
+                className={`px-2.5 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 whitespace-nowrap ${
+                  isVideoRedacted
+                    ? 'bg-white text-rose-700 shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-white/60 font-medium'
+                }`}
+                title="Bystander Protection: AI automatically tracks and pixelates all moving civilian faces"
+              >
+                <ShieldAlert className={`w-3.5 h-3.5 ${isVideoRedacted ? 'text-rose-600' : 'text-slate-400'}`} />
+                <span>Protect Bystanders</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleVideoPrivacy(false)}
+                className={`px-2.5 h-full rounded-lg transition-all cursor-pointer flex items-center space-x-1.5 whitespace-nowrap ${
+                  !isVideoRedacted
+                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-white/60 font-medium'
+                }`}
+                title="Public Figure Exemption: Air crisp unblurred footage for officials, anchors, or press conferences"
+              >
+                <Eye className={`w-3.5 h-3.5 ${!isVideoRedacted ? 'text-blue-600' : 'text-slate-400'}`} />
+                <span>Unblur (Public Figures)</span>
+              </button>
+            </div>
+          )}
+
           {activePreviewMode !== 'canvas' && (
             <>
               {(() => {
@@ -573,12 +641,16 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             : 'cursor-default'
         }`}
       >
-        {/* Video AI Face Tracking Telemetry Badge */}
+        {/* Video Privacy Status Pill */}
         {asset.resource_type === 'video' && activePreviewMode === 'canvas' && (
-          <div className="absolute top-3.5 left-3.5 z-40 flex items-center space-x-2 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 shadow-lg text-white">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-semibold text-[11px] tracking-wide">Automated AI Face Tracking</span>
-            <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">(e_pixelate_faces)</span>
+          <div className="absolute top-3.5 left-3.5 z-30 flex items-center space-x-2 bg-white/95 backdrop-blur-md border border-slate-200/90 px-3 py-1.5 rounded-xl shadow-lg shadow-slate-900/5 select-none text-xs">
+            <span className={`w-2 h-2 rounded-full ${isVideoRedacted ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+            <span className="font-semibold text-slate-800">
+              {isVideoRedacted ? 'AI Face Blur Active' : 'Clean Video Feed'}
+            </span>
+            <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+              {isVideoRedacted ? '· All moving faces masked' : '· Unblurred public figures'}
+            </span>
           </div>
         )}
 
@@ -698,7 +770,12 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               >
                 {asset.resource_type === 'video' ? (
                   <video
-                    src={asset.secure_url}
+                    key={`${asset.public_id}_triage_${isVideoRedacted ? 'redacted' : 'clean'}`}
+                    src={
+                      isVideoRedacted
+                        ? (asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.clean_master || asset.secure_url)
+                        : asset.secure_url
+                    }
                     controls
                     autoPlay
                     loop
@@ -869,6 +946,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
           <div className="w-full h-full flex flex-col items-center justify-center p-4">
             {asset.resource_type === 'video' ? (
               <video
+                key={`${asset.public_id}_tv_${isVideoRedacted ? 'redacted' : 'clean'}`}
                 src={asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
                 controls
                 autoPlay
@@ -892,6 +970,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
           <div className="w-full h-full flex flex-col items-center justify-center p-4">
             {asset.resource_type === 'video' ? (
               <video
+                key={`${asset.public_id}_reel_${isVideoRedacted ? 'redacted' : 'clean'}`}
                 src={asset.syndication_urls?.social_9_16 || asset.secure_url}
                 controls
                 autoPlay

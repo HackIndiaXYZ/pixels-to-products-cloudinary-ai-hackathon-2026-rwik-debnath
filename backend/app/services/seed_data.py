@@ -231,6 +231,7 @@ async def seed_initial_assets():
         urgency="breaking",
         headline="Transit Alert: Multi-Vehicle Collision on I-80",
         syndication_urls=urls_5,
+        pixelate_bystanders=True,
         created_at=(now - datetime.timedelta(minutes=4)).isoformat()
     )
 

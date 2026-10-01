@@ -55,5 +55,6 @@ export type MediaAsset = {
     video_highlight_6s?: string;
   };
   is_archived?: boolean;
+  pixelate_bystanders?: boolean;
   created_at: string;
 };
