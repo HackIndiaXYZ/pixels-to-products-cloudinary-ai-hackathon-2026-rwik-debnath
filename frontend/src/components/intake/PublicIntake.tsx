@@ -76,7 +76,7 @@ export const PublicIntake: React.FC<PublicIntakeProps> = ({ onUploadSuccess }) =
         <div>
           <h2 className="text-base font-semibold text-slate-900 tracking-tight flex items-center space-x-2">
             <span>Citizen & Field Media Intake</span>
-            <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs text-emerald-600 font-semibold">
               Live Gateway
             </span>
           </h2>

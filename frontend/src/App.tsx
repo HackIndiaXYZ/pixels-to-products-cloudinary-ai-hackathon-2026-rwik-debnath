@@ -338,7 +338,7 @@ export function App() {
             >
               <Smartphone className="w-3.5 h-3.5 text-rose-600" />
               <span>Public Tip Line</span>
-              <span className="text-[9px] font-mono bg-rose-50 text-rose-700 px-1 py-0.2 rounded border border-rose-200/60">
+              <span className="text-[10px] font-mono text-rose-600 font-semibold">
                 /submit
               </span>
             </button>

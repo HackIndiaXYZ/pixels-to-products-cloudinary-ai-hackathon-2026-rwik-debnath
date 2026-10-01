@@ -183,7 +183,7 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({ onUploadSuccess, onN
             <div>
               <div className="flex items-center space-x-1.5">
                 <span className="text-sm font-extrabold tracking-tight text-slate-900">PRESSWIRE</span>
-                <span className="text-[10px] font-mono font-bold bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.2 rounded-full uppercase">
+                <span className="text-[10px] font-mono font-bold text-rose-600 uppercase">
                   Tip Line
                 </span>
               </div>
@@ -237,7 +237,7 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({ onUploadSuccess, onN
               </div>
               <div className="flex items-center justify-between text-slate-600">
                 <span>Status</span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                <span className={`text-xs font-semibold ${submittedAsset.review_status === 'approved' ? 'text-emerald-600' : 'text-amber-600'}`}>
                   {submittedAsset.review_status === 'approved' ? 'Approved for Wire' : 'Pending Editorial Triage'}
                 </span>
               </div>

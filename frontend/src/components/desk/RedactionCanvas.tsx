@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { MediaAsset, FaceCoordinate } from '../../types';
-import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy, Video, Eye, ShieldAlert } from 'lucide-react';
+import { Crosshair, Columns2, Plus, X, ZoomIn, ZoomOut, Tv, Smartphone, LayoutGrid, Sparkles, Info, Check, Copy, Download, Video, Eye, ShieldAlert, ShieldCheck } from 'lucide-react';
 
 interface RedactionCanvasProps {
   asset: MediaAsset;
@@ -412,8 +412,8 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             <Crosshair className="w-3.5 h-3.5 text-blue-600" />
             <span>Triage</span>
             {asset.resource_type !== 'video' && faces.length > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 text-[10px] font-mono font-bold leading-none">
-                {faces.length}
+              <span className="ml-1 text-rose-600 font-mono font-bold text-[11px] leading-none">
+                ({faces.length})
               </span>
             )}
           </button>
@@ -530,24 +530,47 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                     : activePreviewMode === 'highlight_6s'
                     ? asset.syndication_urls?.video_highlight_6s
                     : asset.syndication_urls?.feed_1_1;
+
+                const modeLabel =
+                  activePreviewMode === 'tv_16_9'
+                    ? '16:9 Broadcast'
+                    : activePreviewMode === 'reel_9_16'
+                    ? '9:16 Reel'
+                    : activePreviewMode === 'highlight_6s'
+                    ? '6s Highlight'
+                    : '1:1 Wire';
+
+                const downloadUrl = currentModeUrl && currentModeUrl.includes('/upload/')
+                  ? currentModeUrl.replace('/upload/', '/upload/fl_attachment/')
+                  : currentModeUrl;
+
                 return (
                   currentModeUrl && (
-                    <button
-                      onClick={() => handleCopyUrl(activePreviewMode, currentModeUrl)}
-                      className="h-9 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl shadow-2xs transition flex items-center space-x-1.5 cursor-pointer whitespace-nowrap active:scale-95"
-                    >
-                      {copiedPreviewKey === activePreviewMode ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-emerald-700">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Copy Edge URL</span>
-                        </>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyUrl(activePreviewMode, currentModeUrl)}
+                        className="w-9 h-9 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl shadow-2xs transition flex items-center justify-center cursor-pointer active:scale-95"
+                        title={copiedPreviewKey === activePreviewMode ? 'Copied to clipboard!' : `Copy ${modeLabel} URL`}
+                      >
+                        {copiedPreviewKey === activePreviewMode ? (
+                          <Check className="w-4 h-4 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-slate-500 hover:text-slate-700" />
+                        )}
+                      </button>
+
+                      {downloadUrl && (
+                        <a
+                          href={downloadUrl}
+                          download
+                          className="w-9 h-9 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl shadow-2xs transition flex items-center justify-center cursor-pointer active:scale-95"
+                          title={`Direct download ${modeLabel} master`}
+                        >
+                          <Download className="w-4 h-4 text-slate-500 hover:text-slate-700" />
+                        </a>
                       )}
-                    </button>
+                    </div>
                   )
                 );
               })()}
@@ -614,8 +637,8 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
         {/* Video Privacy Status Pill */}
         {asset.resource_type === 'video' && activePreviewMode === 'canvas' && (
           <div className="absolute top-3.5 left-3.5 z-30 flex items-center space-x-2 bg-white/95 backdrop-blur-md border border-slate-200/90 px-3 py-1.5 rounded-xl shadow-lg shadow-slate-900/5 select-none text-xs">
-            <span className={`w-2 h-2 rounded-full ${isVideoRedacted ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
-            <span className="font-semibold text-slate-800">
+            <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${isVideoRedacted ? 'text-rose-600' : 'text-emerald-600'}`} />
+            <span className={`font-semibold ${isVideoRedacted ? 'text-rose-600' : 'text-emerald-600'}`}>
               {isVideoRedacted ? 'AI Face Blur Active' : 'Clean Video Feed'}
             </span>
             <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">

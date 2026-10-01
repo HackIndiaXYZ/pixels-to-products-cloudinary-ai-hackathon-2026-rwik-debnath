@@ -408,7 +408,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search wire by headline, topic, or ID..."
+            placeholder="Search wire stories..."
             className="w-full bg-slate-100/70 hover:bg-slate-100/90 focus:bg-white border border-transparent focus:border-slate-300 rounded-lg pl-7 pr-7 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300 transition"
           />
           {search && (
@@ -624,7 +624,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                       onClick={() => setUrgencyFilter((prev) => (prev === 'breaking' ? 'all' : 'breaking'))}
                       className={`flex-1 py-1 px-2 rounded-lg text-[10.5px] transition cursor-pointer flex items-center justify-center space-x-1 border ${
                         urgencyFilter === 'breaking'
-                          ? 'bg-rose-50 text-rose-700 border-rose-300 font-bold shadow-2xs'
+                          ? 'bg-white text-rose-600 border-slate-300 font-bold shadow-2xs'
                           : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/80 font-medium'
                       }`}
                     >
@@ -637,7 +637,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                       onClick={() => setFormatFilter((prev) => (prev === 'video' ? 'all' : 'video'))}
                       className={`flex-1 py-1 px-2 rounded-lg text-[10.5px] transition cursor-pointer flex items-center justify-center space-x-1 border ${
                         formatFilter === 'video'
-                          ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold shadow-2xs'
+                          ? 'bg-white text-blue-600 border-slate-300 font-bold shadow-2xs'
                           : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/80 font-medium'
                       }`}
                     >
@@ -756,7 +756,14 @@ export const WireQueue: React.FC<WireQueueProps> = ({
           filteredAssets.map((asset) => {
             const isSelected = selectedId === asset.public_id;
             const isChecked = selectedIds.includes(asset.public_id);
-            const thumbUrl = asset.secure_url || asset.syndication_urls?.feed_1_1;
+            const thumbUrl =
+              asset.resource_type === 'video'
+                ? asset.secure_url?.includes('/video/upload/')
+                  ? asset.secure_url.replace('/video/upload/', '/video/upload/so_0,c_fill,ar_1:1,w_120,h_120/').replace(/\.(mp4|mov|webm)$/i, '.jpg')
+                  : asset.syndication_urls?.feed_1_1 && !asset.syndication_urls.feed_1_1.endsWith('.mp4')
+                  ? asset.syndication_urls.feed_1_1
+                  : asset.secure_url?.replace(/\.(mp4|mov|webm)$/i, '.jpg')
+                : asset.secure_url || asset.syndication_urls?.feed_1_1;
             const cat = getCategoryMeta(asset.incident_type);
 
             return (
@@ -793,12 +800,20 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                       alt=""
                       className="w-full h-full object-cover"
                       loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const fallback = e.currentTarget.parentElement?.querySelector('.thumb-fallback');
+                        if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                      }}
                     />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-slate-400">
-                      {asset.resource_type === 'video' ? <Film className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
-                    </div>
-                  )}
+                  ) : null}
+                  <div
+                    className={`thumb-fallback w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-slate-400 ${
+                      thumbUrl ? 'hidden' : ''
+                    }`}
+                  >
+                    {asset.resource_type === 'video' ? <Film className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
+                  </div>
 
                   {/* Clean Selection Checkbox (visible on hover or when checked) */}
                   <div
@@ -841,8 +856,8 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                     {asset.headline || asset.public_id}
                   </p>
 
-                  {/* Clean, Focused Metadata Row: 09:22 · [Dot] Beat · [Breaking] · [Triage Faces] */}
-                  <div className="flex items-center space-x-1.5 text-[10px] text-slate-400 mt-1 min-w-0 flex-wrap">
+                  {/* Clean, Focused Metadata Row */}
+                  <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-slate-400 mt-1 min-w-0">
                     <span className="font-mono text-slate-400 shrink-0">
                       {new Date(asset.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                     </span>
@@ -858,52 +873,39 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                     </div>
 
                     {asset.urgency === 'breaking' && (
-                      <>
-                        <span className="text-slate-300 shrink-0">·</span>
-                        <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200/70 shrink-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
-                          <span>Breaking</span>
-                        </span>
-                      </>
+                      <span className="font-semibold text-rose-600 shrink-0">
+                        Breaking
+                      </span>
                     )}
 
                     {asset.review_status === 'action_required' && asset.faces && asset.faces.length > 0 && (
-                      <>
-                        <span className="text-slate-300 shrink-0">·</span>
-                        <span
-                          className="inline-flex items-center space-x-0.5 text-amber-600 font-medium text-[10px] shrink-0"
-                          title={`${asset.faces.length} detected face(s) requiring review`}
-                        >
-                          <Users className="w-2.5 h-2.5 shrink-0" />
-                          <span>{asset.faces.length} to review</span>
-                        </span>
-                      </>
+                      <span
+                        className="inline-flex items-center space-x-0.5 text-amber-600 font-medium shrink-0"
+                        title={`${asset.faces.length} detected face(s) requiring review`}
+                      >
+                        <Users className="w-2.5 h-2.5 shrink-0" />
+                        <span>{asset.faces.length} to review</span>
+                      </span>
                     )}
 
                     {asset.telemetry?.time_delta_seconds && asset.telemetry.time_delta_seconds > 7200 && (
-                      <>
-                        <span className="text-slate-300 shrink-0">·</span>
-                        <span
-                          className="inline-flex items-center space-x-0.5 text-amber-600 font-medium text-[9px] bg-amber-50 px-1 py-0.2 rounded border border-amber-200/60 shrink-0"
-                          title={`Stale footage warning: captured ${Math.round(asset.telemetry.time_delta_seconds / 60)}m ago (>2h threshold)`}
-                        >
-                          <AlertCircle className="w-2.5 h-2.5 shrink-0" />
-                          <span>Stale</span>
-                        </span>
-                      </>
+                      <span
+                        className="inline-flex items-center space-x-0.5 text-amber-600 font-medium shrink-0"
+                        title={`Stale footage warning: captured ${Math.round(asset.telemetry.time_delta_seconds / 60)}m ago (>2h threshold)`}
+                      >
+                        <AlertCircle className="w-2.5 h-2.5 shrink-0" />
+                        <span>Stale</span>
+                      </span>
                     )}
 
                     {asset.review_status === 'quarantined' && (
-                      <>
-                        <span className="text-slate-300 shrink-0">·</span>
-                        <span
-                          className="inline-flex items-center space-x-0.5 text-rose-600 font-semibold text-[10px] shrink-0"
-                          title="Quarantined"
-                        >
-                          <ShieldAlert className="w-2.5 h-2.5 shrink-0" />
-                          <span>Quarantined</span>
-                        </span>
-                      </>
+                      <span
+                        className="inline-flex items-center space-x-0.5 text-rose-600 font-semibold shrink-0"
+                        title="Quarantined"
+                      >
+                        <ShieldAlert className="w-2.5 h-2.5 shrink-0" />
+                        <span>Quarantined</span>
+                      </span>
                     )}
                   </div>
                 </div>
@@ -969,12 +971,9 @@ export const WireQueue: React.FC<WireQueueProps> = ({
 
       {/* Pinned Footer Status Bar */}
       <div className="shrink-0 px-3 py-2 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between text-[11px] text-slate-500 font-medium select-none">
-        <div className="flex items-center space-x-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-          <span className="text-[10px] text-slate-600 font-medium">
-            {filteredAssets.length} of {activeTab === 'archive' ? archiveAssets.length : liveAssets.length} stories
-          </span>
-        </div>
+        <span className="text-[10px] text-slate-600 font-medium">
+          {filteredAssets.length} of {activeTab === 'archive' ? archiveAssets.length : liveAssets.length} stories
+        </span>
         <span className="text-[10px] font-mono text-slate-400">Live wire synced</span>
       </div>
 

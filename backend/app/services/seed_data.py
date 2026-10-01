@@ -201,6 +201,7 @@ async def seed_initial_assets():
         pixelate_bystanders=True,
         resource_type="video"
     )
+    urls_5["feed_1_1"] = "https://res.cloudinary.com/demo/video/upload/so_0,c_fill,ar_1:1,w_200,h_200/dog.jpg"
     asset_5 = MediaAssetResponse(
         public_id=asset_5_id,
         asset_id="asset_demo_05",

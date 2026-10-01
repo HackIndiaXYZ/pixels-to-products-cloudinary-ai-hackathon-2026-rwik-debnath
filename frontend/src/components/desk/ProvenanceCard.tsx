@@ -7,11 +7,9 @@ import {
   ShieldCheck,
   ShieldAlert,
   ExternalLink,
-  Copy,
   Check,
   CircleCheck,
   CircleAlert,
-  Download,
   X,
   ChevronDown,
 } from 'lucide-react';
@@ -31,7 +29,6 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   onUpdateAsset,
   onClose,
 }) => {
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [headline, setHeadline] = useState(asset.headline || 'Breaking News');
   const [incidentType, setIncidentType] = useState(asset.incident_type || 'uncategorized');
   const [urgency, setUrgency] = useState<'breaking' | 'standard'>((asset.urgency as 'breaking' | 'standard') || 'breaking');
@@ -138,28 +135,13 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
 
   const activeCat = getCategoryMeta(incidentType);
 
-  const { telemetry, moderation, review_status: reviewStatus, syndication_urls: syndicationUrls } = asset;
+  const { telemetry, moderation, review_status: reviewStatus } = asset;
   const fileSpecs = {
     format: asset.format,
     width: asset.width,
     height: asset.height,
     bytes: asset.bytes,
     created_at: asset.created_at,
-  };
-
-  const handleCopy = (key: string, url?: string) => {
-    if (!url) return;
-    navigator.clipboard.writeText(url);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
-
-  const getDownloadUrl = (url?: string) => {
-    if (!url) return undefined;
-    if (url.includes('/upload/')) {
-      return url.replace('/upload/', '/upload/fl_attachment/');
-    }
-    return url;
   };
 
   const timeDeltaMinutes = telemetry.time_delta_seconds
@@ -170,46 +152,6 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   const lng = telemetry.gps_longitude || -122.4194;
   const hasCoords = Boolean(telemetry.has_gps && telemetry.gps_latitude && telemetry.gps_longitude);
 
-  // Consolidated Packages List
-  const packages = [
-    {
-      key: '16_9',
-      aspect: '16:9',
-      name: 'Broadcast Master',
-      specs: '1080p · Linear TV & Web',
-      url: syndicationUrls.broadcast_16_9 || syndicationUrls.broadcast_16_9_clean || syndicationUrls.clean_master,
-      downloadUrl: getDownloadUrl(syndicationUrls.broadcast_16_9 || syndicationUrls.broadcast_16_9_clean || syndicationUrls.clean_master),
-    },
-    {
-      key: '9_16',
-      aspect: '9:16',
-      name: 'Vertical Reel',
-      specs: 'Smart Focus · Reels & Stories',
-      url: syndicationUrls.social_9_16,
-      downloadUrl: getDownloadUrl(syndicationUrls.social_9_16),
-    },
-    {
-      key: '1_1',
-      aspect: '1:1',
-      name: 'Social Square',
-      specs: 'Feed Card · Social syndication',
-      url: syndicationUrls.feed_1_1,
-      downloadUrl: getDownloadUrl(syndicationUrls.feed_1_1),
-    },
-    ...(syndicationUrls.video_highlight_6s
-      ? [
-          {
-            key: 'video_reel',
-            aspect: '6s',
-            name: 'Highlight Reel',
-            specs: 'Autonomous 6s Preview',
-            url: syndicationUrls.video_highlight_6s,
-            downloadUrl: getDownloadUrl(syndicationUrls.video_highlight_6s),
-          },
-        ]
-      : []),
-  ];
-
   return (
     <div className="flex flex-col h-full min-h-0 bg-white select-none">
       {/* 1. Pinned Header (Clean, spacious, zero text collision) */}
@@ -219,19 +161,19 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
         </span>
 
         <div className="flex items-center space-x-2 shrink-0">
-          {/* Review Status Pill */}
+          {/* Review Status */}
           <div
-            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all cursor-default select-none ${
+            className={`flex items-center space-x-1.5 text-xs font-semibold select-none cursor-default ${
               reviewStatus === 'approved'
-                ? 'bg-emerald-50/80 border-emerald-200/70 text-emerald-700'
+                ? 'text-emerald-600'
                 : reviewStatus === 'quarantined'
-                ? 'bg-rose-50/80 border-rose-200/70 text-rose-700'
-                : 'bg-amber-50/80 border-amber-200/70 text-amber-700'
+                ? 'text-rose-600'
+                : 'text-amber-600'
             }`}
           >
-            {reviewStatus === 'approved' && <CircleCheck className="w-3.5 h-3.5 text-emerald-600" />}
-            {reviewStatus === 'quarantined' && <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />}
-            {reviewStatus === 'action_required' && <CircleAlert className="w-3.5 h-3.5 text-amber-600" />}
+            {reviewStatus === 'approved' && <CircleCheck className="w-3.5 h-3.5" />}
+            {reviewStatus === 'quarantined' && <ShieldAlert className="w-3.5 h-3.5" />}
+            {reviewStatus === 'action_required' && <CircleAlert className="w-3.5 h-3.5" />}
             <span>
               {reviewStatus === 'approved'
                 ? 'Ready for Wire'
@@ -349,7 +291,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                   onClick={() => handleToggleUrgency('breaking')}
                   className={`flex-1 h-full rounded-lg transition-colors cursor-pointer flex items-center justify-center space-x-1.5 select-none outline-none focus:outline-none focus-visible:outline-none focus:ring-0 border ${
                     urgency === 'breaking'
-                      ? 'bg-rose-50 text-rose-700 border-rose-200/80 shadow-2xs font-bold'
+                      ? 'bg-white text-rose-600 border-slate-200/80 shadow-2xs font-bold'
                       : 'text-slate-500 hover:text-slate-800 hover:bg-white/50 font-medium border-transparent'
                   }`}
                 >
@@ -400,7 +342,6 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 <span className="font-semibold text-slate-800 text-[11px] truncate max-w-[190px]">
                   {telemetry.make ? `${telemetry.make} ${telemetry.model || ''}` : 'Direct Smartphone Ingest'}
                 </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Sensor Verified" />
               </div>
             </div>
 
@@ -412,8 +353,8 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
               </div>
               <div className="flex items-center space-x-1.5">
                 {telemetry.time_delta_seconds && telemetry.time_delta_seconds > 7200 ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1" title="EXIF timestamp delta exceeds 2-hour breaking news threshold">
-                    <CircleAlert className="w-3 h-3 text-amber-600 shrink-0" />
+                  <span className="text-[11px] font-semibold text-amber-600 flex items-center space-x-1" title="EXIF timestamp delta exceeds 2-hour breaking news threshold">
+                    <CircleAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     <span>Stale ({timeDeltaMinutes}m &gt; 2h)</span>
                   </span>
                 ) : (
@@ -431,13 +372,12 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 <span>Broadcast Rights</span>
               </div>
               <div className="flex items-center space-x-1.5">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <span
+                  className="font-semibold text-emerald-600 text-[11px]"
+                  title={`Waiver Signed • Submitter IP: ${telemetry.submitter_ip || 'Verified'}`}
+                >
                   Irrevocable License
                 </span>
-                <span
-                  className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
-                  title={`Waiver Signed • Submitter IP: ${telemetry.submitter_ip || 'Verified'}`}
-                />
               </div>
             </div>
 
@@ -448,10 +388,10 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 <span>Content Safety</span>
               </div>
               <span
-                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                className={`font-semibold text-[11px] ${
                   moderation.status === 'approved'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                    : 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                    ? 'text-emerald-600'
+                    : 'text-rose-600'
                 }`}
               >
                 {moderation.status === 'approved' ? 'Passed (Clean)' : moderation.status}
@@ -481,69 +421,6 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 )}
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Section 2: Broadcast Deliverables */}
-        <div className="space-y-2 pt-2 border-t border-slate-100">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Syndication Packages
-            </span>
-          </div>
-
-          <div className="bg-slate-50/60 border border-slate-200/80 rounded-xl overflow-hidden divide-y divide-slate-100">
-            {packages.map((pkg) => (
-              <div
-                key={pkg.key}
-                className="flex items-center justify-between px-3.5 py-3 hover:bg-white transition-colors"
-              >
-                <div className="flex items-center space-x-2.5 min-w-0">
-                  <span className="w-9 text-center py-0.5 rounded text-[10px] font-mono font-bold bg-white border border-slate-200 text-slate-700 shadow-2xs shrink-0">
-                    {pkg.aspect}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-800 text-xs truncate leading-tight">
-                      {pkg.name}
-                    </p>
-                    <p className="text-[10px] text-slate-400 truncate">
-                      {pkg.specs}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-1.5 shrink-0 ml-2">
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(pkg.key, pkg.url)}
-                    className={`p-1.5 rounded-lg transition cursor-pointer border ${
-                      copiedKey === pkg.key
-                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                        : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 border-transparent'
-                    }`}
-                    title={copiedKey === pkg.key ? 'Copied to clipboard!' : 'Copy syndication URL'}
-                  >
-                    {copiedKey === pkg.key ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-
-                  {pkg.downloadUrl && (
-                    <a
-                      href={pkg.downloadUrl}
-                      download
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 shadow-2xs transition flex items-center space-x-1 cursor-pointer"
-                      title="Direct download broadcast master"
-                    >
-                      <Download className="w-3 h-3" />
-                      <span>Download</span>
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
