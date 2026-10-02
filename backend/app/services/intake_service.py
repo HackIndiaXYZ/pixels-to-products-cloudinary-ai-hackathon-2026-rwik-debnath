@@ -300,6 +300,9 @@ class IntakeService:
                 logging.warning(f"[Cloudinary] Failed to unlock quarantined delivery for newsroom review: {e}")
         elif faces_list:
             review_status = "action_required"  # Needs privacy triage
+        else:
+            review_status = "approved"
+
         # If OCR detected sensitive license plates or PII, register explicit face_coordinates immediately
         if has_ocr_boxes:
             try:
