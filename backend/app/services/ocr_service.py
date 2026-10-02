@@ -48,9 +48,12 @@ class OCRService:
     def normalize_plate_text(raw_text: str) -> str:
         """
         Cleans and normalizes common OCR character confusions on Indian license plates.
-        E.g., spaces/hyphens removed, 'O' -> '0' in digits, '8' -> 'B' in letters.
+        E.g., spaces/hyphens removed, 'IND' HSRP prefix stripped, 'O' -> '0' in digits, '8' -> 'B' in letters.
         """
         cleaned = re.sub(r"[\s\.\-_/:\;]+", "", raw_text).upper()
+        if cleaned.startswith("IND") and len(cleaned) > 5:
+            cleaned = cleaned[3:]
+
         if len(cleaned) < 6:
             return cleaned
 
@@ -86,7 +89,12 @@ class OCRService:
         detected_regions = []
 
         for box, text, score in results:
-            if not text or score < 0.45:
+            try:
+                num_score = float(score)
+            except (ValueError, TypeError):
+                num_score = 0.0
+
+            if not text or num_score < 0.40:
                 continue
 
             raw_str = text.strip()

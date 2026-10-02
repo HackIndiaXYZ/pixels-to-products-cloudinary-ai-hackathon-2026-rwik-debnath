@@ -19,7 +19,9 @@ def test_indian_plate_regex():
         "GJ01AA0001",
         "TN09B1111",
         "WB02AB9876",
-        "22BH1234AA"
+        "22BH1234AA",
+        "IND HR51BV3737",
+        "INDHR51BV3737"
     ]
     for plate in valid_plates:
         norm = OCRService.normalize_plate_text(plate)
