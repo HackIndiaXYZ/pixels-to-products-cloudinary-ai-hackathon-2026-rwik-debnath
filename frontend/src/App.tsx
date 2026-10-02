@@ -749,7 +749,7 @@ export function App() {
                   {isDragOverCenter ? 'Release files to import' : 'Wire queue is empty'}
                 </h3>
                 <p className="text-xs text-slate-400 max-w-xs mt-1 leading-relaxed">
-                  Drop breaking photos or video dispatches here, or browse from your computer.
+                  Drop breaking photo dispatches here, or browse from your computer.
                 </p>
 
                 {/* Single Concise Button */}
@@ -768,7 +768,7 @@ export function App() {
                   ref={centralFileInputRef}
                   className="hidden"
                   multiple
-                  accept="image/*,video/*"
+                  accept="image/*"
                   onChange={(e) => {
                     if (e.target.files && e.target.files.length > 0) {
                       handleDirectUpload(e.target.files);

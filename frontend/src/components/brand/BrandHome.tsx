@@ -5,7 +5,6 @@ import {
   Tv,
   Smartphone,
   Square,
-  Film,
   Globe,
   SlidersHorizontal,
   ArrowRight,
@@ -27,10 +26,10 @@ interface BrandHomeProps {
 }
 
 const ROTATING_PHRASES = [
-  'Breaking news intake',
-  'Provenance auditing',
-  'Selective face redaction',
-  'Broadcast syndication',
+  'Breaking photojournalism intake',
+  'Hardware provenance auditing',
+  'Selective face privacy blur',
+  'Zero-storage wire syndication',
 ];
 
 interface TransformationTab {
@@ -42,7 +41,6 @@ interface TransformationTab {
   transformationCode: string;
   previewUrl: string;
   badge: string;
-  isVideo?: boolean;
 }
 
 const TRANSFORMATION_TABS: TransformationTab[] = [
@@ -80,24 +78,23 @@ const TRANSFORMATION_TABS: TransformationTab[] = [
     description:
       'Square aspect ratio with automated subject centering and adaptive quality compression for wire API consumers.',
     transformationCode:
-      'c_fill,ar_1:1,g_auto:faces,e_pixelate_faces:10 / f_auto,q_auto',
+      'c_fill,ar_1:1,g_auto:faces,e_blur_faces:400 / f_auto,q_auto',
     previewUrl:
-      'https://res.cloudinary.com/demo/image/upload/c_fill,ar_1:1,g_auto:faces,e_pixelate_faces:10/sample.jpg',
+      'https://res.cloudinary.com/demo/image/upload/c_fill,ar_1:1,g_auto:faces,e_blur_faces:400/sample.jpg',
     badge: 'Mobile App Feeds & X/Twitter',
   },
   {
-    id: 'video',
-    label: '6s Keyframe Highlight',
-    icon: Film,
+    id: 'master',
+    label: 'Clean Master Delivery',
+    icon: Globe,
     aspectRatio: '16/9',
     description:
-      'Autonomous keyframe preview extracting high-salience video segments dynamically without server-side re-encoding.',
+      'Unburned original aspect ratio delivery with selective privacy blur applied, ready for worldwide wire syndication without lower-third overlays.',
     transformationCode:
-      'c_fill,ar_16:9,so_0,du_6 / f_auto,q_auto',
+      'e_blur_faces:400 / f_auto,q_auto',
     previewUrl:
-      'https://res.cloudinary.com/demo/video/upload/c_fill,ar_16:9,so_0,du_6/elephants.mp4',
-    badge: 'Autonomous Video Reel',
-    isVideo: true,
+      'https://res.cloudinary.com/demo/image/upload/e_blur_faces:400/sample.jpg',
+    badge: 'Global Wire Syndication',
   },
 ];
 
@@ -125,11 +122,11 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
     TRANSFORMATION_TABS.find((t) => t.id === activeTab) || TRANSFORMATION_TABS[0];
 
   return (
-    <div className="min-h-screen bg-white text-[#0F0F0F] font-sans selection:bg-blue-600 selection:text-white antialiased flex flex-col">
+    <div className="min-h-screen bg-[#F8F9FA] text-slate-800 font-sans selection:bg-slate-200 selection:text-slate-900 antialiased flex flex-col">
       {/* =========================================================================
           STICKY NAVBAR (Coco Alemana Style Minimalist Blur)
          ========================================================================= */}
-      <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-slate-200/70 transition-all">
+      <nav className="sticky top-0 z-50 w-full bg-[#F8F9FA]/85 backdrop-blur-md border-b border-slate-200/60 transition-all">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           {/* Brand Logo */}
           <PressWireLogo
@@ -139,17 +136,17 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
           />
 
           {/* Desktop Nav Links */}
-          <div className="hidden md:flex items-center space-x-7 text-xs font-medium text-slate-600">
-            <a href="#provenance" className="hover:text-slate-900 transition">
+          <div className="hidden md:flex items-center space-x-7 text-xs font-medium text-slate-500">
+            <a href="#provenance" className="hover:text-slate-800 transition">
               Verification & Safety
             </a>
-            <a href="#transformations" className="hover:text-slate-900 transition">
+            <a href="#transformations" className="hover:text-slate-800 transition">
               Multi-Format Packaging
             </a>
-            <a href="#features" className="hover:text-slate-900 transition">
+            <a href="#features" className="hover:text-slate-800 transition">
               Platform Features
             </a>
-            <a href="#pricing" className="hover:text-slate-900 transition">
+            <a href="#pricing" className="hover:text-slate-800 transition">
               Station Pricing
             </a>
           </div>
@@ -159,7 +156,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             {/* Public Tip Line Action */}
             <button
               onClick={() => onNavigate('submit')}
-              className="px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all cursor-pointer active:scale-95"
+              className="px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200/80 transition-all cursor-pointer active:scale-95 shadow-2xs"
             >
               Submit a Tip
             </button>
@@ -167,7 +164,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             {/* Editorial Desk Action */}
             <button
               onClick={() => onNavigate('desk')}
-              className="px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all flex items-center space-x-1.5 cursor-pointer shadow-xs active:scale-95"
+              className="px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs active:scale-95"
             >
               <span>Editorial Desk</span>
               <ArrowRight className="w-3 h-3 text-slate-400" />
@@ -181,7 +178,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
          ========================================================================= */}
       <section className="relative pt-20 pb-20 md:pt-28 md:pb-28 overflow-hidden">
         {/* Soft atmospheric gradient glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-gradient-to-tr from-blue-100/60 via-indigo-50/40 to-rose-50/30 rounded-full blur-3xl pointer-events-none -z-10" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-gradient-to-tr from-slate-200/40 via-sky-100/30 to-indigo-50/20 rounded-full blur-3xl pointer-events-none -z-10" />
 
         <div className="max-w-4xl mx-auto px-6 text-center">
           {/* Dynamic Rotating Headline (Clean Single-Element Render, Zero Ghosting) */}
@@ -189,25 +186,25 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             <span className="block h-[1.28em] overflow-hidden">
               <span
                 key={phraseIndex}
-                className="inline-block text-blue-600 animate-phrase-in"
+                className="inline-block text-slate-700 animate-phrase-in"
               >
                 {ROTATING_PHRASES[phraseIndex]}
               </span>
             </span>
-            <span className="text-slate-900 block mt-1">that moves at wire speed.</span>
+            <span className="text-slate-800 block mt-1">that moves at wire speed.</span>
           </h1>
 
           {/* Hero Subtitle */}
-          <p className="mt-6 text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Turn eyewitness smartphone footage into broadcast-ready news packages for TV, web, and
-            social — in seconds, with zero manual video editing.
+          <p className="mt-6 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+            Turn eyewitness photo dispatches into verified, broadcast-ready news packages for TV, web, and
+            wire syndication — in seconds, with zero duplicate asset storage.
           </p>
 
           {/* Dual Action Buttons */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             <button
               onClick={() => onNavigate('submit')}
-              className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
+              className="w-full sm:w-auto px-6 py-3 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
             >
               <UploadCloud className="w-4 h-4" />
               <span>Submit Breaking Scoop</span>
@@ -215,9 +212,9 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
 
             <button
               onClick={() => onNavigate('desk')}
-              className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
+              className="w-full sm:w-auto px-6 py-3 rounded-full bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/80 font-semibold text-sm shadow-2xs transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
             >
-              <SlidersHorizontal className="w-4 h-4 text-slate-300" />
+              <SlidersHorizontal className="w-4 h-4 text-slate-500" />
               <span>Launch Editorial Desk</span>
             </button>
           </div>
@@ -389,7 +386,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
           SECTION 2: DEEP DARK SECTION (Coco Alemana Bento Section)
           "Provenance & Safety Verification"
          ========================================================================= */}
-      <section id="provenance" className="bg-[#151718] text-[#F5F5F7] py-24 sm:py-32">
+      <section id="provenance" className="bg-[#181A1D] text-[#F5F5F7] py-24 sm:py-32">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16 sm:mb-20">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight">
@@ -397,14 +394,14 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             </h2>
             <p className="mt-4 text-base sm:text-lg text-slate-400 leading-relaxed">
               Every eyewitness upload is automatically verified at intake. Camera hardware metadata,
-              spatial GPS matching, and AI safety filters keep your newsroom secure before footage ever reaches the wire.
+              spatial GPS matching, and Amazon Rekognition AI safety filters keep your newsroom secure before imagery ever reaches the wire.
             </p>
           </div>
 
           {/* Bento Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Card 1: Sensor & Hardware Audit */}
-            <div className="bg-[#1F2123] rounded-2xl p-6 border border-slate-800 flex flex-col justify-between">
+            <div className="bg-[#22252A] rounded-2xl p-6 border border-slate-800/80 flex flex-col justify-between">
               <div>
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
                   <Camera className="w-5 h-5" />
@@ -418,27 +415,27 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                 </p>
               </div>
               <div className="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-slate-400 space-y-1">
-                <div className="text-emerald-400 font-semibold">✓ Sensor Payload Verified</div>
+                <div className="text-emerald-400 font-semibold">Sensor Payload Verified</div>
                 <div className="text-slate-500">Delta: +00:03:12 (Within tolerance)</div>
               </div>
             </div>
 
             {/* Card 2: AI Content Moderation Engine */}
-            <div className="bg-[#1F2123] rounded-2xl p-6 border border-slate-800 flex flex-col justify-between">
+            <div className="bg-[#22252A] rounded-2xl p-6 border border-slate-800/80 flex flex-col justify-between">
               <div>
                 <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mb-4">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-white tracking-tight">
-                  Automated Safety Gates
+                  Amazon Rekognition Safety
                 </h3>
                 <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                  Cloudinary automated moderation algorithms score toxic content, graphic violence,
-                  and inappropriate material, quarantining questionable media immediately.
+                  Automated visual moderation audits graphic violence, blood, hate imagery,
+                  and content policy flags, quarantining questionable assets immediately.
                 </p>
               </div>
               <div className="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-slate-400 space-y-1">
-                <div className="text-emerald-400 font-semibold">✓ Violence Score: 0.02 (Safe)</div>
+                <div className="text-emerald-400 font-semibold">AI Safety Audit Verified</div>
                 <div className="text-slate-500">Quarantine Gate: PASS</div>
               </div>
             </div>
@@ -547,12 +544,12 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
           </div>
 
           {/* Active Tab Preview Card */}
-          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 sm:p-8 shadow-xs border border-slate-200/80">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               {/* Media Preview Visualizer */}
               <div className="lg:col-span-7">
                 <div
-                  className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-200 shadow-inner flex items-center justify-center max-h-[380px]"
+                  className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-200/80 shadow-inner flex items-center justify-center max-h-[380px]"
                   style={{
                     aspectRatio:
                       selectedTabData.id === 'social' ? '9/16' : selectedTabData.aspectRatio,
@@ -560,22 +557,11 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                     margin: selectedTabData.id === 'social' ? '0 auto' : '0',
                   }}
                 >
-                  {selectedTabData.isVideo ? (
-                    <video
-                      src={selectedTabData.previewUrl}
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <img
-                      src={selectedTabData.previewUrl}
-                      alt={selectedTabData.label}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
+                  <img
+                    src={selectedTabData.previewUrl}
+                    alt={selectedTabData.label}
+                    className="w-full h-full object-cover"
+                  />
 
                   {/* Dynamic Lower Third Simulation on 16:9 Broadcast */}
                   {selectedTabData.id === 'broadcast' && (
@@ -727,11 +713,11 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                 <SlidersHorizontal className="w-5 h-5 text-rose-600" />
               </div>
               <h4 className="text-base font-bold text-slate-900 tracking-tight">
-                7 Fixed News Desks
+                6 Fixed News Desks
               </h4>
               <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                Breaking News, Public Safety, Severe Weather, Politics, Transit, Metro, and Wire.
-                Deterministic taxonomy for automated agency feeds.
+                Public Safety, Severe Weather, Politics & Civic, Transit & Infrastructure, Metro & Local, and General Wire.
+                Deterministic taxonomy with breaking urgency flags.
               </p>
             </div>
           </div>
@@ -741,10 +727,10 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
       {/* =========================================================================
           SECTION: B2B STATION PRICING & PACKAGING (Coco Alemana Pricing Motif)
          ========================================================================= */}
-      <section id="pricing" className="py-24 sm:py-32 bg-[#F5F5F7] border-t border-slate-200/80">
+      <section id="pricing" className="py-24 sm:py-32 bg-[#F8F9FA] border-t border-slate-200/60">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-700 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-2xs">
               Station Packaging & Licensing
             </span>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mt-3">
@@ -757,7 +743,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
             {/* Tier 1: Local Station */}
-            <div className="bg-white rounded-3xl p-7 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div className="bg-white rounded-2xl p-7 border border-slate-200/80 shadow-2xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-bold text-slate-900 uppercase tracking-wider">Local Station</span>
@@ -772,23 +758,23 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                 </p>
                 <div className="space-y-3 pt-6 border-t border-slate-100 text-xs text-slate-700">
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>1 White-Label Station Tip Line (<code className="font-mono text-[11px] text-slate-500">tips.station.com</code>)</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>Mandatory Broadcast Copyright Release Waiver</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>Explicit API Face Privacy Redaction</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>Dynamic 16:9 Linear & 9:16 Social Packaging</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>500 Cloudinary Broadcast CDN Hours</span>
                   </div>
                 </div>
@@ -804,8 +790,8 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             </div>
 
             {/* Tier 2: Broadcast Group (Featured) */}
-            <div className="bg-slate-900 text-white rounded-3xl p-7 border-2 border-blue-500/80 shadow-xl flex flex-col justify-between relative overflow-hidden ring-4 ring-blue-500/10">
-              <div className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-blue-600 text-[10px] font-bold uppercase tracking-wider text-white">
+            <div className="bg-[#1A1C20] text-white rounded-2xl p-7 border border-slate-700/80 shadow-md flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-200 border border-slate-700">
                 Most Popular
               </div>
               <div>
@@ -819,25 +805,25 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                 <p className="text-xs text-slate-300 mb-6 leading-relaxed">
                   For regional broadcast networks (Nexstar, Sinclair, Tegna) managing multi-market sister stations.
                 </p>
-                <div className="space-y-3 pt-6 border-t border-slate-800 text-xs text-slate-200">
+                <div className="space-y-3 pt-6 border-t border-slate-800 text-xs text-slate-300">
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>Up to 15 Broadcast Sister Stations</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>Cross-Station Wire Sharing & Live Pool Feeds</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>Custom Station Lower-Third Chyrons & Logos</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>Unlimited Dynamic URL Transformations</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>Priority 24/7 Breaking News Desk Support</span>
                   </div>
                 </div>
@@ -845,7 +831,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
               <div className="mt-8 pt-4">
                 <button
                   onClick={() => onNavigate('desk')}
-                  className="w-full py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-sm transition cursor-pointer"
+                  className="w-full py-2.5 rounded-full bg-white hover:bg-slate-100 text-slate-900 font-semibold text-xs shadow-2xs transition cursor-pointer"
                 >
                   Launch Group Demo
                 </button>
@@ -853,7 +839,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             </div>
 
             {/* Tier 3: Enterprise Network */}
-            <div className="bg-white rounded-3xl p-7 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div className="bg-white rounded-2xl p-7 border border-slate-200/80 shadow-2xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-bold text-slate-900 uppercase tracking-wider">Enterprise Network</span>
@@ -867,19 +853,19 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                 </p>
                 <div className="space-y-3 pt-6 border-t border-slate-100 text-xs text-slate-700">
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>Dedicated Cloudinary Bring-Your-Own-Cloud (BYOC)</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                    <span>1-Click Master Broadcast MP4 Playout Exports</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
+                    <span>1-Click Master Full-Resolution Playout Downloads</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>C2PA Hardware Content Credentials Attestation</span>
                   </div>
                   <div className="flex items-start space-x-2.5">
-                    <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
                     <span>Complete Legal Indemnification & Provenance Logs</span>
                   </div>
                 </div>
@@ -900,7 +886,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
       {/* =========================================================================
           SECTION 5: FINAL CALL TO ACTION (Coco Alemana Closing Section)
          ========================================================================= */}
-      <section className="py-24 sm:py-32 bg-[#FBFBFC] border-t border-slate-200/80">
+      <section className="py-24 sm:py-32 bg-[#F8F9FA] border-t border-slate-200/60">
         <div className="max-w-3xl mx-auto px-6 text-center">
           <div className="mb-6 flex justify-center">
             <PressWireLogo size="2xl" variant="mark" />
@@ -909,14 +895,14 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
             PressWire
           </h2>
-          <p className="mt-3 text-lg text-slate-600">
+          <p className="mt-3 text-base sm:text-lg text-slate-600">
             The autonomous breaking newsroom engine.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={() => onNavigate('submit')}
-              className="w-full sm:w-auto px-6 py-3 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-md shadow-blue-600/20 transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
+              className="w-full sm:w-auto px-6 py-3 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
             >
               <UploadCloud className="w-4 h-4" />
               <span>Submit a Tip</span>
@@ -924,9 +910,9 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
 
             <button
               onClick={() => onNavigate('desk')}
-              className="w-full sm:w-auto px-6 py-3 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
+              className="w-full sm:w-auto px-6 py-3 rounded-full bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/80 font-semibold text-sm shadow-2xs transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
             >
-              <SlidersHorizontal className="w-4 h-4 text-slate-300" />
+              <SlidersHorizontal className="w-4 h-4 text-slate-500" />
               <span>Open Editorial Desk</span>
             </button>
           </div>
@@ -936,7 +922,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
       {/* =========================================================================
           FOOTER (Coco Alemana Minimal 3-Column Footer)
          ========================================================================= */}
-      <footer className="bg-[#F5F5F7] border-t border-slate-200/70 py-12 text-xs text-slate-500">
+      <footer className="bg-[#F8F9FA] border-t border-slate-200/60 py-12 text-xs text-slate-500">
         <div className="max-w-5xl mx-auto px-6">
           <div className="mb-8">
             <PressWireLogo size="md" variant="full" />
@@ -975,13 +961,14 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             </div>
 
             <div>
-              <div className="font-semibold text-slate-900 mb-3">Editorial Desks</div>
+              <div className="font-semibold text-slate-900 mb-3">6 Fixed News Desks</div>
               <ul className="space-y-2">
-                <li>Breaking News</li>
                 <li>Public Safety</li>
                 <li>Severe Weather</li>
                 <li>Politics & Civic</li>
                 <li>Transit & Infrastructure</li>
+                <li>Metro & Local</li>
+                <li>General Wire</li>
               </ul>
             </div>
 
