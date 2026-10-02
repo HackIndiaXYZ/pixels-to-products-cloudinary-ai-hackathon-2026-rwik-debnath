@@ -7,8 +7,6 @@ import {
   ArrowRight,
   RefreshCw,
   X,
-  FileVideo,
-  FileImage,
   Lock,
 } from 'lucide-react';
 import { PressWireLogo } from '../brand/PressWireLogo';
@@ -283,52 +281,31 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                     </div>
                   </div>
                 ) : (
-                  /* Cinematic Preview Card */
-                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950 shadow-md">
+                  /* Clean Image/Video Preview */
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-200/90 bg-slate-50/50 shadow-2xs">
                     {mediaType === 'video' ? (
                       <video
                         src={previewUrl!}
                         controls
-                        className="max-h-60 w-full object-contain mx-auto"
+                        className="max-h-72 w-full object-contain mx-auto"
                       />
                     ) : (
                       <img
                         src={previewUrl!}
                         alt="Preview"
-                        className="max-h-60 w-full object-contain mx-auto"
+                        className="max-h-72 w-full object-contain mx-auto"
                       />
                     )}
 
-                    {/* Clear Button */}
+                    {/* Minimal Clear Button */}
                     <button
                       type="button"
                       onClick={handleClearFile}
-                      className="absolute top-2.5 right-2.5 p-1.5 bg-black/80 hover:bg-rose-600 text-white rounded-lg backdrop-blur-md transition cursor-pointer shadow-md"
+                      className="absolute top-2.5 right-2.5 p-1.5 bg-white/90 hover:bg-white text-slate-600 hover:text-rose-600 rounded-lg backdrop-blur-xs transition cursor-pointer shadow-xs border border-slate-200/80"
                       title="Remove file"
                     >
                       <X className="w-4 h-4" />
                     </button>
-
-                    <div className="p-3 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between text-xs">
-                      <div className="flex items-center space-x-2 truncate">
-                        {mediaType === 'video' ? (
-                          <FileVideo className="w-4 h-4 text-slate-400 shrink-0" />
-                        ) : (
-                          <FileImage className="w-4 h-4 text-slate-400 shrink-0" />
-                        )}
-                        <span className="font-medium text-slate-200 truncate text-[11px]">
-                          {file.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2 shrink-0">
-                        <span className="text-[10px] font-mono text-slate-400">
-                          {(file.size / (1024 * 1024)).toFixed(2)} MB
-                        </span>
-                        <span className="font-mono text-[9px] font-bold uppercase bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">
-                          {mediaType}
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>

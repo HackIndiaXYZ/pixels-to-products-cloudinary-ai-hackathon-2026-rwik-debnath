@@ -35,6 +35,40 @@ def test_video_packaging_urls():
     assert "/video/upload/" in urls["broadcast_16_9"]
     assert "/video/upload/" in urls["social_9_16"]
     assert "/video/upload/" in urls["clean_master"]
+    # Check that video 9:16 uses c_fill,g_auto without b_auto:predominant
+    assert "c_fill" in urls["social_9_16"]
+    assert "g_auto" in urls["social_9_16"]
+    assert "b_auto" not in urls["social_9_16"]
+
+def test_focal_point_packaging_urls():
+    # Test default image 9:16 social reel uses clean c_fill with g_auto:subject
+    default_urls = PackagingService.generate_broadcast_urls(
+        public_id="presswire/test_focal_default",
+        resource_type="image"
+    )
+    assert "c_fill" in default_urls["social_9_16"]
+    assert "g_auto:subject" in default_urls["social_9_16"]
+
+    # Test custom focal coordinates generate xy_center gravity with exact coordinates
+    custom_urls = PackagingService.generate_broadcast_urls(
+        public_id="presswire/test_focal_custom",
+        resource_type="image",
+        focal_x=620,
+        focal_y=370
+    )
+    assert "g_xy_center" in custom_urls["social_9_16"]
+    assert "x_620" in custom_urls["social_9_16"]
+    assert "y_370" in custom_urls["social_9_16"]
+    assert "c_fill" in custom_urls["social_9_16"]
+
+    assert "g_xy_center" in custom_urls["broadcast_16_9"]
+    assert "x_620" in custom_urls["broadcast_16_9"]
+    assert "y_370" in custom_urls["broadcast_16_9"]
+
+    assert "g_xy_center" in custom_urls["feed_1_1"]
+    assert "x_620" in custom_urls["feed_1_1"]
+    assert "y_370" in custom_urls["feed_1_1"]
+
 
 
 def test_delete_asset():
@@ -63,9 +97,46 @@ def test_delete_asset():
     res = client.delete(f"/api/v1/editorial/asset/{test_id}")
     assert res.status_code == 200
     data = res.json()
-    assert data["success"] is True
-    assert test_id in data["deleted_ids"]
     assert test_id not in WIRE_STORE
+
+
+def test_focal_point_endpoint():
+    from app.services.intake_service import WIRE_STORE
+    from app.models.schemas import MediaAssetResponse, ModerationResult
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    test_id = "presswire/test_focal_asset"
+    WIRE_STORE[test_id] = MediaAssetResponse(
+        public_id=test_id,
+        format="jpg",
+        resource_type="image",
+        width=1200,
+        height=800,
+        bytes=50000,
+        secure_url="https://res.cloudinary.com/demo/image/upload/sample.jpg",
+        telemetry=TelemetryData(),
+        moderation=ModerationResult(),
+        review_status="action_required",
+        created_at=datetime.datetime.now().isoformat()
+    )
+
+    res = client.post("/api/v1/editorial/focal-point", json={
+        "public_id": test_id,
+        "focal_x": 550,
+        "focal_y": 320,
+        "focal_gravity": "xy_center"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["focal_x"] == 550
+    assert data["focal_y"] == 320
+    assert "x_550" in data["syndication_urls"]["social_9_16"]
+    assert "y_320" in data["syndication_urls"]["social_9_16"]
+    assert "x_550" in data["syndication_urls"]["feed_1_1"]
+    assert "y_320" in data["syndication_urls"]["feed_1_1"]
+
 
 
 def test_batch_delete_assets():

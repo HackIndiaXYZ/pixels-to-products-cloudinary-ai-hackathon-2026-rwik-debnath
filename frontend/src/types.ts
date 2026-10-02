@@ -63,6 +63,9 @@ export type MediaAsset = {
   cluster_radius_km?: number;
   package_window_hours?: number;
   package_status?: 'active' | 'concluded' | 'locked';
+  focal_x?: number;
+  focal_y?: number;
+  focal_gravity?: string;
   created_at: string;
 };
 

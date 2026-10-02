@@ -23,7 +23,8 @@ from app.models.schemas import (
     PackageUpdateRequest,
     PackageDisbandRequest,
     BatchPackageAssignRequest,
-    StoryPackageResponse
+    StoryPackageResponse,
+    FocalPointRequest
 )
 from app.services.redaction_service import RedactionService
 from app.services.packaging_service import PackagingService
@@ -161,15 +162,53 @@ async def update_redactions(req: RedactionUpdateRequest):
     elif asset.resource_type != "video" and len(req.face_coordinates) == 0:
         pixelate_flag = False
 
-    asset.pixelate_bystanders = pixelate_flag
+    if req.focal_x is not None:
+        asset.focal_x = req.focal_x
+    if req.focal_y is not None:
+        asset.focal_y = req.focal_y
+    if req.focal_gravity is not None:
+        asset.focal_gravity = req.focal_gravity
 
-    # Re-generate broadcast packaging URLs with updated headline / bystander count / version
+    # Re-generate broadcast packaging URLs with updated headline / bystander count / version / focal framing
     asset.syndication_urls = PackagingService.generate_broadcast_urls(
         public_id=asset.public_id,
         headline=asset.headline or "BREAKING NEWS",
         pixelate_bystanders=pixelate_flag,
         resource_type=asset.resource_type,
-        version=version
+        version=version,
+        focal_x=asset.focal_x,
+        focal_y=asset.focal_y,
+        focal_gravity=asset.focal_gravity
+    )
+
+    WIRE_STORE[req.public_id] = asset
+    return asset
+
+@router.post("/focal-point", response_model=MediaAssetResponse)
+async def update_focal_point(req: FocalPointRequest):
+    """
+    Updates editorial crop focal coordinates (focal_x, focal_y, focal_gravity)
+    and deterministically regenerates syndication packaging URLs.
+    """
+    if req.public_id not in WIRE_STORE:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    asset = WIRE_STORE[req.public_id]
+    asset.focal_x = req.focal_x
+    asset.focal_y = req.focal_y
+    if req.focal_gravity is not None:
+        asset.focal_gravity = req.focal_gravity
+
+    version = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    asset.syndication_urls = PackagingService.generate_broadcast_urls(
+        public_id=asset.public_id,
+        headline=asset.headline or "BREAKING NEWS",
+        pixelate_bystanders=asset.pixelate_bystanders,
+        resource_type=asset.resource_type,
+        version=version,
+        focal_x=asset.focal_x,
+        focal_y=asset.focal_y,
+        focal_gravity=asset.focal_gravity
     )
 
     WIRE_STORE[req.public_id] = asset
@@ -245,8 +284,11 @@ async def update_metadata(req: MetadataUpdateRequest):
     asset.syndication_urls = PackagingService.generate_broadcast_urls(
         public_id=asset.public_id,
         headline=asset.headline or "BREAKING NEWS",
-        pixelate_bystanders=True,
-        resource_type=asset.resource_type
+        pixelate_bystanders=asset.pixelate_bystanders,
+        resource_type=asset.resource_type,
+        focal_x=asset.focal_x,
+        focal_y=asset.focal_y,
+        focal_gravity=asset.focal_gravity
     )
 
     WIRE_STORE[req.public_id] = asset

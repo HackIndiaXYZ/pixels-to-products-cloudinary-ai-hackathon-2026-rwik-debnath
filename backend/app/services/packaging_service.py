@@ -1,3 +1,4 @@
+from typing import Optional, Dict, Any
 import urllib.parse
 import cloudinary
 from cloudinary.utils import cloudinary_url
@@ -24,24 +25,32 @@ class PackagingService:
         subheadline: str = "Eyewitness Report",
         pixelate_bystanders: bool = True,
         resource_type: str = "image",
-        version: Optional[int] = None
+        version: Optional[int] = None,
+        focal_x: Optional[int] = None,
+        focal_y: Optional[int] = None,
+        focal_gravity: Optional[str] = None
     ) -> dict:
         """
         Generates dynamic syndication URLs according to PressWire specs:
-        - 16:9 Linear Broadcast with lower-third overlay
-        - 9:16 Social Story with predominant blur background
+        - 16:9 Linear Broadcast (clean master feed)
+        - 9:16 Social Story with predominant blur background or focal crop
         - 1:1 Feed thumbnail with f_auto, q_auto
         - 6s Autonomous Video Highlight (if video)
         """
-        enc_headline = cls.sanitize_text(headline)
         cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
-
         redaction_trans = [{"effect": "pixelate_faces:10"}] if pixelate_bystanders else []
 
-        # 1. 16:9 Clean Linear TV Broadcast (Redacted, 16:9 crop, NO burned-in lower-third - standard for TV stations)
+        has_custom_focal = focal_x is not None and focal_y is not None
+
+        # 1. 16:9 Clean Linear TV Broadcast (Redacted, 16:9 crop)
+        if has_custom_focal:
+            tv_crop = {"aspect_ratio": "16:9", "crop": "fill", "gravity": "xy_center", "x": focal_x, "y": focal_y}
+        else:
+            tv_crop = {"aspect_ratio": "16:9", "crop": "fill", "gravity": focal_gravity or "auto:subject"}
+
         tv_clean_transformations = [
             *redaction_trans,
-            {"aspect_ratio": "16:9", "crop": "fill", "gravity": "auto:subject"},
+            tv_crop,
             {"fetch_format": "auto", "quality": "auto"}
         ]
         tv_16_9_url, _ = cloudinary_url(
@@ -52,31 +61,30 @@ class PackagingService:
             secure=True,
             version=version
         )
+        tv_16_9_clean_url = tv_16_9_url
 
-        # 1b. Clean 16:9 Linear Broadcast (Redacted, 16:9 crop, NO lower-third banner - for TV Networks)
-        tv_clean_transformations = [
-            *redaction_trans,
-            {"aspect_ratio": "16:9", "crop": "fill", "gravity": "auto:subject"},
-            {"fetch_format": "auto", "quality": "auto"}
-        ]
-        tv_16_9_clean_url, _ = cloudinary_url(
-            public_id,
-            resource_type=resource_type,
-            transformation=tv_clean_transformations,
-            cloud_name=cloud_name,
-            secure=True,
-            version=version
-        )
+        # 2. 9:16 Vertical Social Story / Reel
+        if resource_type == "video":
+            social_crop = {"aspect_ratio": "9:16", "crop": "fill", "gravity": "auto"}
+        elif has_custom_focal:
+            social_crop = {
+                "aspect_ratio": "9:16",
+                "crop": "fill",
+                "gravity": "xy_center",
+                "x": focal_x,
+                "y": focal_y
+            }
+        else:
+            # Full vertical fill: c_fill with subject gravity
+            social_crop = {
+                "aspect_ratio": "9:16",
+                "crop": "fill",
+                "gravity": focal_gravity or "auto:subject"
+            }
 
-        # 2. 9:16 Vertical Social Story / Reel with Context Blur Fill
         social_transformations = [
             *redaction_trans,
-            {
-                "aspect_ratio": "9:16",
-                "crop": "pad",
-                "background": "auto:predominant",
-                "gravity": "auto:subject"
-            },
+            social_crop,
             {"fetch_format": "auto", "quality": "auto"}
         ]
         social_9_16_url, _ = cloudinary_url(
@@ -89,10 +97,14 @@ class PackagingService:
         )
 
         # 3. 1:1 Fast-Loading Wire Index Card / Micro-Thumbnail
-        # For video, generate a fast image poster frame so wire lists load instantaneously
+        if has_custom_focal:
+            feed_crop = {"aspect_ratio": "1:1", "crop": "fill", "gravity": "xy_center", "x": focal_x, "y": focal_y}
+        else:
+            feed_crop = {"aspect_ratio": "1:1", "crop": "fill", "gravity": focal_gravity or "auto:subject"}
+
         feed_transformations = [
             *redaction_trans,
-            {"aspect_ratio": "1:1", "crop": "fill", "gravity": "auto:subject"},
+            feed_crop,
             {"fetch_format": "auto", "quality": "auto"}
         ]
         feed_1_1_url, _ = cloudinary_url(

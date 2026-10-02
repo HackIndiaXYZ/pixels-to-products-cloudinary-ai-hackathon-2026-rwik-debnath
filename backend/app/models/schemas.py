@@ -57,6 +57,9 @@ class MediaAssetResponse(BaseModel):
     cluster_radius_km: Optional[float] = 1.5
     package_window_hours: Optional[float] = 1.0
     package_status: Optional[str] = "active"
+    focal_x: Optional[int] = None
+    focal_y: Optional[int] = None
+    focal_gravity: Optional[str] = "auto:subject"
     created_at: str
 
 class RedactionUpdateRequest(BaseModel):
@@ -71,6 +74,15 @@ class RedactionUpdateRequest(BaseModel):
     urgency: Optional[str] = None
     headline: Optional[str] = None
     pixelate_bystanders: Optional[bool] = None
+    focal_x: Optional[int] = None
+    focal_y: Optional[int] = None
+    focal_gravity: Optional[str] = None
+
+class FocalPointRequest(BaseModel):
+    public_id: str
+    focal_x: Optional[int] = None
+    focal_y: Optional[int] = None
+    focal_gravity: Optional[str] = "auto:subject"
 
 
 class SearchQueryRequest(BaseModel):
