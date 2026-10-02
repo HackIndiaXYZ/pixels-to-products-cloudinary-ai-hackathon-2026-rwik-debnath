@@ -32,20 +32,18 @@ class PackagingService:
     ) -> dict:
         """
         Generates dynamic syndication URLs according to PressWire specs:
-        - 16:9 Linear Broadcast (clean master feed)
-        - 9:16 Social Story with predominant blur background or focal crop
-        - 1:1 Feed thumbnail with f_auto, q_auto
-        - 6s Autonomous Video Highlight (if video)
+        - 16:9 Linear Broadcast (clean master feed with smart subject framing)
+        - 9:16 Vertical Social Story with predominant subject crop
+        - 1:1 Fast-Loading Wire Index Card / Micro-Thumbnail
+        - Clean Master Delivery with selective privacy redactions
         """
         cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
-        redaction_trans = [{"effect": "pixelate_faces:15" if resource_type == "video" else "pixelate_faces:10"}] if pixelate_bystanders else []
+        redaction_trans = [{"effect": "pixelate_faces:10"}] if pixelate_bystanders else []
 
         has_custom_focal = focal_x is not None and focal_y is not None
 
         # 1. 16:9 Clean Linear TV Broadcast (Redacted, 16:9 crop)
-        if resource_type == "video":
-            tv_crop = {"aspect_ratio": "16:9", "crop": "fill", "gravity": "auto"}
-        elif has_custom_focal:
+        if has_custom_focal:
             tv_crop = {"aspect_ratio": "16:9", "crop": "fill", "gravity": "xy_center", "x": focal_x, "y": focal_y}
         else:
             tv_crop = {"aspect_ratio": "16:9", "crop": "fill", "gravity": focal_gravity or "auto:subject"}
@@ -57,8 +55,7 @@ class PackagingService:
         ]
         tv_16_9_url, _ = cloudinary_url(
             public_id,
-            resource_type=resource_type,
-            format="mp4" if resource_type == "video" else None,
+            resource_type="image",
             transformation=tv_clean_transformations,
             cloud_name=cloud_name,
             secure=True,
@@ -67,9 +64,7 @@ class PackagingService:
         tv_16_9_clean_url = tv_16_9_url
 
         # 2. 9:16 Vertical Social Story / Reel
-        if resource_type == "video":
-            social_crop = {"aspect_ratio": "9:16", "crop": "fill", "gravity": "auto"}
-        elif has_custom_focal:
+        if has_custom_focal:
             social_crop = {
                 "aspect_ratio": "9:16",
                 "crop": "fill",
@@ -78,7 +73,6 @@ class PackagingService:
                 "y": focal_y
             }
         else:
-            # Full vertical fill: c_fill with subject gravity
             social_crop = {
                 "aspect_ratio": "9:16",
                 "crop": "fill",
@@ -92,8 +86,7 @@ class PackagingService:
         ]
         social_9_16_url, _ = cloudinary_url(
             public_id,
-            resource_type=resource_type,
-            format="mp4" if resource_type == "video" else None,
+            resource_type="image",
             transformation=social_transformations,
             cloud_name=cloud_name,
             secure=True,
@@ -101,9 +94,7 @@ class PackagingService:
         )
 
         # 3. 1:1 Fast-Loading Wire Index Card / Micro-Thumbnail
-        if resource_type == "video":
-            feed_crop = {"aspect_ratio": "1:1", "crop": "fill", "gravity": "auto"}
-        elif has_custom_focal:
+        if has_custom_focal:
             feed_crop = {"aspect_ratio": "1:1", "crop": "fill", "gravity": "xy_center", "x": focal_x, "y": focal_y}
         else:
             feed_crop = {"aspect_ratio": "1:1", "crop": "fill", "gravity": focal_gravity or "auto:subject"}
@@ -115,8 +106,7 @@ class PackagingService:
         ]
         feed_1_1_url, _ = cloudinary_url(
             public_id,
-            resource_type=resource_type,
-            format="mp4" if resource_type == "video" else None,
+            resource_type="image",
             transformation=feed_transformations,
             cloud_name=cloud_name,
             secure=True,
@@ -126,37 +116,17 @@ class PackagingService:
         # 4. Clean Master Delivery (Raw subject crop without banner)
         clean_master_url, _ = cloudinary_url(
             public_id,
-            resource_type=resource_type,
-            format="mp4" if resource_type == "video" else None,
+            resource_type="image",
             transformation=[*redaction_trans, {"fetch_format": "auto", "quality": "auto"}],
             cloud_name=cloud_name,
             secure=True,
             version=version
         )
 
-        urls = {
+        return {
             "broadcast_16_9": tv_16_9_url,
             "broadcast_16_9_clean": tv_16_9_clean_url,
             "social_9_16": social_9_16_url,
             "feed_1_1": feed_1_1_url,
             "clean_master": clean_master_url
         }
-
-        # 5. Video Highlight Reel (6 seconds with key segments & face tracking)
-        if resource_type == "video":
-            video_preview_url, _ = cloudinary_url(
-                public_id,
-                resource_type="video",
-                format="mp4",
-                transformation=[
-                    {"effect": "preview:duration_6:max_seg_3"},
-                    *redaction_trans,
-                    {"fetch_format": "auto", "quality": "auto"}
-                ],
-                cloud_name=cloud_name,
-                secure=True,
-                version=version
-            )
-            urls["video_highlight_6s"] = video_preview_url
-
-        return urls

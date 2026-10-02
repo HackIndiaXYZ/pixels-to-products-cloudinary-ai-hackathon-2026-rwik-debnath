@@ -11,14 +11,10 @@ import {
   Smartphone,
   LayoutGrid,
   Info,
-  Check,
   Copy,
   Download,
-  Video,
   Eye,
   EyeOff,
-  ShieldAlert,
-  ShieldCheck,
   ChevronDown,
   Layers,
   Loader2,
@@ -52,7 +48,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
     return allAssets.filter((a) => a.event_id === asset.event_id && !a.is_archived);
   }, [asset.event_id, allAssets]);
 
-  const [activePreviewMode, setActivePreviewMode] = useState<'canvas' | 'tv_16_9' | 'reel_9_16' | 'feed_1_1' | 'highlight_6s'>('canvas');
+  const [activePreviewMode, setActivePreviewMode] = useState<'canvas' | 'tv_16_9' | 'reel_9_16' | 'feed_1_1'>('canvas');
   const [faces, setFaces] = useState<FaceCoordinate[]>(asset.faces || []);
   const [showDiffSlider, setShowDiffSlider] = useState(false);
   const [sliderPosition, setSliderPosition] = useState(50);
@@ -61,9 +57,6 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isBlurPreviewVisible, setIsBlurPreviewVisible] = useState<boolean>(true);
-  const [isVideoRedacted, setIsVideoRedacted] = useState<boolean>(
-    asset.pixelate_bystanders !== undefined ? asset.pixelate_bystanders : true
-  );
 
   useEffect(() => {
     return () => {
@@ -143,53 +136,8 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       setHoveredFaceIndex(null);
       setZoom(1.0);
       setPan({ x: 0, y: 0 });
-      setIsVideoRedacted(asset.pixelate_bystanders !== undefined ? asset.pixelate_bystanders : true);
-      if (asset.resource_type === 'video') {
-        setDisplayDims({ width: 0, height: 0, naturalWidth: asset.width || 1920, naturalHeight: asset.height || 1080 });
-      }
     }
-  }, [asset.public_id, asset.resource_type, asset.width, asset.height, asset.faces, asset.pixelate_bystanders]);
-
-  const handleToggleVideoPrivacy = async (shouldBlur: boolean) => {
-    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    setSyncStatus('syncing');
-    setIsVideoRedacted(shouldBlur);
-    const optimisticallyUpdated: MediaAsset = {
-      ...asset,
-      pixelate_bystanders: shouldBlur,
-    };
-    onUpdateSuccess(optimisticallyUpdated);
-
-    try {
-      const res = await fetch('/api/v1/editorial/redact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          public_id: asset.public_id,
-          face_coordinates: [],
-          faces: [],
-          headline: asset.headline || 'Breaking News',
-          incident_type: asset.incident_type || 'uncategorized',
-          urgency: asset.urgency || 'breaking',
-          review_status: 'approved',
-          pixelate_bystanders: shouldBlur,
-        }),
-      });
-      if (res.ok) {
-        const serverAsset: MediaAsset = await res.json();
-        onUpdateSuccess(serverAsset);
-        setSyncStatus('synced');
-        syncTimerRef.current = setTimeout(() => {
-          setSyncStatus('idle');
-        }, 2200);
-      } else {
-        setSyncStatus('idle');
-      }
-    } catch (err) {
-      console.error('Failed to toggle video privacy:', err);
-      setSyncStatus('idle');
-    }
-  };
+  }, [asset.public_id, asset.width, asset.height, asset.faces]);
 
   const handleUpdateFocalPoint = async (
     targetX: number | null,
@@ -234,7 +182,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
     }
   };
 
-  const switchPreviewMode = (mode: 'canvas' | 'tv_16_9' | 'reel_9_16' | 'feed_1_1' | 'highlight_6s') => {
+  const switchPreviewMode = (mode: 'canvas' | 'tv_16_9' | 'reel_9_16' | 'feed_1_1') => {
     setActivePreviewMode(mode);
     setShowDiffSlider(false);
     setIsDrawingMode(false);
@@ -303,7 +251,6 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   }, [activePreviewMode]);
 
   const handleContainerMouseDown = (e: React.MouseEvent) => {
-    if (asset.resource_type === 'video') return;
     if (isFocalMode) {
       e.preventDefault();
       const { x, y } = getNaturalCoords(e);
@@ -369,9 +316,6 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       } else if (e.key === '4') {
         e.preventDefault();
         switchPreviewMode('feed_1_1');
-      } else if (e.key === '5' && asset.resource_type === 'video' && asset.syndication_urls?.video_highlight_6s) {
-        e.preventDefault();
-        switchPreviewMode('highlight_6s');
       }
     };
 
@@ -388,7 +332,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedFaceIndex, isDrawingMode, onToggleInspector, asset.resource_type, asset.syndication_urls]);
+  }, [selectedFaceIndex, isDrawingMode, onToggleInspector, asset.syndication_urls]);
 
   // Global click-to-deselect listener: clicking anywhere outside an active box deselects it
   useEffect(() => {
@@ -574,7 +518,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
           >
             <Crosshair className="w-3.5 h-3.5 text-blue-600" />
             <span>Triage</span>
-            {asset.resource_type !== 'video' && faces.length > 0 && (
+            {faces.length > 0 && (
               <span className="ml-1 text-rose-600 font-mono font-bold text-[11px] leading-none">
                 ({faces.length})
               </span>
@@ -616,55 +560,10 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             <LayoutGrid className="w-3.5 h-3.5 text-slate-500" />
             <span>1:1 Wire</span>
           </button>
-
-          {asset.resource_type === 'video' && asset.syndication_urls?.video_highlight_6s && (
-            <button
-              onClick={() => switchPreviewMode('highlight_6s')}
-              className={`px-2.5 h-full rounded-md transition-all cursor-pointer flex items-center space-x-1.5 whitespace-nowrap text-xs font-semibold ${
-                activePreviewMode === 'highlight_6s' && !showDiffSlider
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
-              }`}
-            >
-              <Video className="w-3.5 h-3.5 text-blue-600" />
-              <span>6s Highlight</span>
-            </button>
-          )}
         </div>
 
         {/* Right: Primary Editorial Actions */}
         <div className="flex items-center space-x-2 shrink-0">
-          {/* Video Privacy Mode Switch (Bystander Mask vs Public Figures) */}
-          {asset.resource_type === 'video' && (
-            <div className="flex items-center space-x-0.5 bg-slate-100/90 p-0.5 rounded-lg border border-slate-200/60 shadow-2xs text-xs font-medium h-8 shrink-0">
-              <button
-                type="button"
-                onClick={() => handleToggleVideoPrivacy(true)}
-                className={`px-2 h-full rounded-md transition-all cursor-pointer flex items-center space-x-1.5 whitespace-nowrap ${
-                  isVideoRedacted
-                    ? 'bg-white text-rose-700 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-white/60 font-medium'
-                }`}
-                title="Bystander Protection: AI automatically tracks and pixelates all moving civilian faces"
-              >
-                <ShieldAlert className={`w-3.5 h-3.5 ${isVideoRedacted ? 'text-rose-600' : 'text-slate-400'}`} />
-                <span>Protect Bystanders</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleToggleVideoPrivacy(false)}
-                className={`px-2 h-full rounded-md transition-all cursor-pointer flex items-center space-x-1.5 whitespace-nowrap ${
-                  !isVideoRedacted
-                    ? 'bg-white text-blue-700 shadow-2xs font-bold'
-                    : 'text-slate-500 hover:text-slate-900 hover:bg-white/60 font-medium'
-                }`}
-                title="Public Figure Exemption: Air crisp unblurred footage for officials, anchors, or press conferences"
-              >
-                <Eye className={`w-3.5 h-3.5 ${!isVideoRedacted ? 'text-blue-600' : 'text-slate-400'}`} />
-                <span>Unblur (Public Figures)</span>
-              </button>
-            </div>
-          )}
 
           {activePreviewMode !== 'canvas' && (
             <>
@@ -674,8 +573,6 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                     ? (asset.syndication_urls?.broadcast_16_9 || asset.syndication_urls?.broadcast_16_9_clean)
                     : activePreviewMode === 'reel_9_16'
                     ? asset.syndication_urls?.social_9_16
-                    : activePreviewMode === 'highlight_6s'
-                    ? asset.syndication_urls?.video_highlight_6s
                     : asset.syndication_urls?.feed_1_1;
 
                 const modeLabel =
@@ -683,8 +580,6 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                     ? '16:9 Broadcast'
                     : activePreviewMode === 'reel_9_16'
                     ? '9:16 Reel'
-                    : activePreviewMode === 'highlight_6s'
-                    ? '6s Highlight'
                     : '1:1 Wire';
 
                 const downloadUrl = currentModeUrl && currentModeUrl.includes('/upload/')
@@ -697,11 +592,11 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                       <button
                         type="button"
                         onClick={() => handleCopyUrl(activePreviewMode, currentModeUrl)}
-                        className="w-8 h-8 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg shadow-2xs transition flex items-center justify-center cursor-pointer active:scale-95"
+                        className="px-2 h-8 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg shadow-2xs transition flex items-center justify-center cursor-pointer active:scale-95"
                         title={copiedPreviewKey === activePreviewMode ? 'Copied to clipboard!' : `Copy ${modeLabel} URL`}
                       >
                         {copiedPreviewKey === activePreviewMode ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-[11px] font-semibold text-emerald-600">Copied</span>
                         ) : (
                           <Copy className="w-3.5 h-3.5 text-slate-500 hover:text-slate-700" />
                         )}
@@ -824,8 +719,8 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                         </span>
                       </div>
                       <div className="flex items-center shrink-0">
-                        <span className="text-[10px] text-slate-400 capitalize">
-                          {sibling.resource_type === 'video' ? 'Video' : 'Photo'}
+                        <span className="text-[10px] text-slate-400 uppercase">
+                          {sibling.format || 'jpg'}
                         </span>
                       </div>
                     </button>
@@ -861,96 +756,78 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             : 'cursor-default'
         }`}
       >
-        {/* Video Privacy Status Pill */}
-        {asset.resource_type === 'video' && activePreviewMode === 'canvas' && (
-          <div className="absolute top-3.5 left-3.5 z-30 flex items-center space-x-2 bg-white/95 backdrop-blur-md border border-slate-200/90 px-3 py-1.5 rounded-xl shadow-lg shadow-slate-900/5 select-none text-xs">
-            <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${isVideoRedacted ? 'text-rose-600' : 'text-emerald-600'}`} />
-            <span className={`font-semibold ${isVideoRedacted ? 'text-rose-600' : 'text-emerald-600'}`}>
-              {isVideoRedacted ? 'AI Face Blur Active' : 'Clean Video Feed'}
-            </span>
-            <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
-              {isVideoRedacted ? '· All moving faces masked' : '· Unblurred public figures'}
-            </span>
-          </div>
-        )}
 
         {/* Floating Canvas Micro-Dock in Edit Zone */}
         {activePreviewMode === 'canvas' && (
           <div className="absolute top-3.5 right-3.5 z-40 flex items-center space-x-1 bg-white/90 backdrop-blur-md border border-slate-200/90 p-1 rounded-xl shadow-lg shadow-slate-900/5 select-none">
-            {/* Set Editorial Focal Target (Photos Only) */}
-            {asset.resource_type !== 'video' && (
-              <div className="relative group flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsFocalMode(!isFocalMode);
-                    if (!isFocalMode) {
-                      setIsDrawingMode(false);
-                      setShowDiffSlider(false);
-                    }
-                  }}
-                  className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
-                    isFocalMode
-                      ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-2xs'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/90'
-                  }`}
-                >
-                  <Crosshair className="w-3.5 h-3.5" />
-                </button>
-                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-medium rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                  {isFocalMode ? 'Exit Focal Target (Esc)' : 'Set Editorial Focal Target (Click to Place)'}
-                </div>
+            {/* Set Editorial Focal Target */}
+            <div className="relative group flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFocalMode(!isFocalMode);
+                  if (!isFocalMode) {
+                    setIsDrawingMode(false);
+                    setShowDiffSlider(false);
+                  }
+                }}
+                className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
+                  isFocalMode
+                    ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-2xs'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/90'
+                }`}
+              >
+                <Crosshair className="w-3.5 h-3.5" />
+              </button>
+              <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-medium rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                {isFocalMode ? 'Exit Focal Target (Esc)' : 'Set Editorial Focal Target (Click to Place)'}
               </div>
-            )}
+            </div>
 
-            {/* Add Box Tool (Photos Only) */}
-            {asset.resource_type !== 'video' && (
-              <div className="relative group flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (showDiffSlider) setShowDiffSlider(false);
-                    setIsDrawingMode(!isDrawingMode);
-                    if (!isDrawingMode) setIsFocalMode(false);
-                  }}
-                  className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
-                    isDrawingMode
-                      ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-2xs'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/90'
-                  }`}
-                >
-                  <Plus className={`w-4 h-4 transition-transform duration-150 ${isDrawingMode ? 'rotate-45' : ''}`} />
-                </button>
-                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-medium rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                  {isDrawingMode ? 'Exit Drawing (Esc)' : 'Add Redaction Box'}
-                </div>
+            {/* Add Box Tool */}
+            <div className="relative group flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  if (showDiffSlider) setShowDiffSlider(false);
+                  setIsDrawingMode(!isDrawingMode);
+                  if (!isDrawingMode) setIsFocalMode(false);
+                }}
+                className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
+                  isDrawingMode
+                    ? 'border-blue-500 bg-blue-50 text-blue-600 shadow-2xs'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/90'
+                }`}
+              >
+                <Plus className={`w-4 h-4 transition-transform duration-150 ${isDrawingMode ? 'rotate-45' : ''}`} />
+              </button>
+              <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-medium rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                {isDrawingMode ? 'Exit Drawing (Esc)' : 'Add Redaction Box'}
               </div>
-            )}
+            </div>
 
-            {/* Toggle Frosted Blur Preview on Canvas (Photos Only) */}
-            {asset.resource_type !== 'video' && (
-              <div className="relative group flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={() => setIsBlurPreviewVisible(!isBlurPreviewVisible)}
-                  className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
-                    isBlurPreviewVisible
-                      ? 'border-transparent text-slate-700 hover:text-slate-900 hover:bg-slate-100/90'
-                      : 'border-amber-300 bg-amber-50 text-amber-700'
-                  }`}
-                  title={isBlurPreviewVisible ? 'Privacy blur preview ON' : 'Privacy blur preview OFF'}
-                >
-                  {isBlurPreviewVisible ? (
-                    <Eye className="w-3.5 h-3.5" />
-                  ) : (
-                    <EyeOff className="w-3.5 h-3.5 text-amber-600" />
-                  )}
-                </button>
-                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-medium rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                  {isBlurPreviewVisible ? 'Privacy blur active (Click to inspect raw faces)' : 'Raw faces visible (Click to preview blur)'}
-                </div>
+            {/* Toggle Frosted Blur Preview on Canvas */}
+            <div className="relative group flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setIsBlurPreviewVisible(!isBlurPreviewVisible)}
+                className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
+                  isBlurPreviewVisible
+                    ? 'border-transparent text-slate-700 hover:text-slate-900 hover:bg-slate-100/90'
+                    : 'border-amber-300 bg-amber-50 text-amber-700'
+                }`}
+                title={isBlurPreviewVisible ? 'Privacy blur preview ON' : 'Privacy blur preview OFF'}
+              >
+                {isBlurPreviewVisible ? (
+                  <Eye className="w-3.5 h-3.5" />
+                ) : (
+                  <EyeOff className="w-3.5 h-3.5 text-amber-600" />
+                )}
+              </button>
+              <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-medium rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                {isBlurPreviewVisible ? 'Privacy blur active (Click to inspect raw faces)' : 'Raw faces visible (Click to preview blur)'}
               </div>
-            )}
+            </div>
 
             {/* Split Diff Comparison Tool */}
             <div className="relative group flex items-center justify-center">
@@ -1040,34 +917,17 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                 onMouseDown={handleContainerMouseDown}
                 className={`relative inline-block ${isDrawingMode ? 'cursor-crosshair' : ''}`}
               >
-                {asset.resource_type === 'video' ? (
-                  <video
-                    key={`${asset.public_id}_triage_${isVideoRedacted ? 'redacted' : 'clean'}`}
-                    src={
-                      isVideoRedacted
-                        ? (asset.syndication_urls?.clean_master || asset.secure_url)
-                        : asset.secure_url
-                    }
-                    controls
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="max-h-[520px] w-auto object-contain block select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10"
-                  />
-                ) : (
-                  <img
-                    ref={imgRef}
-                    src={asset.secure_url}
-                    alt="Subject Triage"
-                    onLoad={handleImageLoad}
-                    className="max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10"
-                    draggable={false}
-                  />
-                )}
+                <img
+                  ref={imgRef}
+                  src={asset.secure_url}
+                  alt="Subject Triage"
+                  onLoad={handleImageLoad}
+                  className="max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10"
+                  draggable={false}
+                />
 
-                {/* Clean Editorial Focal Target Reticle (Photos Only) */}
-                {asset.resource_type !== 'video' && (isFocalMode || (asset.focal_x != null && asset.focal_y != null)) && displayDims.width > 0 && (() => {
+                {/* Clean Editorial Focal Target Reticle */}
+                {(isFocalMode || (asset.focal_x != null && asset.focal_y != null)) && displayDims.width > 0 && (() => {
                   const focalX = asset.focal_x != null ? asset.focal_x : Math.round(refWidth / 2);
                   const focalY = asset.focal_y != null ? asset.focal_y : Math.round(refHeight / 2);
 
@@ -1086,22 +946,21 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                   );
                 })()}
 
-                {/* Drawing in-progress preview rectangle (Photos Only) */}
-              {asset.resource_type !== 'video' && drawStart && drawCurrent && (
-                <div
-                  style={{
-                    left: `${Math.min(drawStart.x, drawCurrent.x) * scaleX}px`,
-                    top: `${Math.min(drawStart.y, drawCurrent.y) * scaleY}px`,
-                    width: `${Math.abs(drawCurrent.x - drawStart.x) * scaleX}px`,
-                    height: `${Math.abs(drawCurrent.y - drawStart.y) * scaleY}px`,
-                  }}
-                  className="absolute border border-dashed border-blue-500 bg-blue-500/15 backdrop-blur-sm rounded pointer-events-none z-30"
-                />
-              )}
+                {/* Drawing in-progress preview rectangle */}
+                {drawStart && drawCurrent && (
+                  <div
+                    style={{
+                      left: `${Math.min(drawStart.x, drawCurrent.x) * scaleX}px`,
+                      top: `${Math.min(drawStart.y, drawCurrent.y) * scaleY}px`,
+                      width: `${Math.abs(drawCurrent.x - drawStart.x) * scaleX}px`,
+                      height: `${Math.abs(drawCurrent.y - drawStart.y) * scaleY}px`,
+                    }}
+                    className="absolute border border-dashed border-blue-500 bg-blue-500/15 backdrop-blur-sm rounded pointer-events-none z-30"
+                  />
+                )}
 
-              {/* Bounding box layer (Photos Only) */}
-              {asset.resource_type !== 'video' &&
-                displayDims.width > 0 &&
+                {/* Bounding box layer */}
+                {displayDims.width > 0 &&
                 faces.map((f, idx) => {
                   const left = f.x * scaleX;
                   const top = f.y * scaleY;
@@ -1217,7 +1076,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
         {/* Floating Notification Toast */}
         {toastMessage && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur-md text-slate-900 px-3.5 py-1.5 rounded-lg shadow-xl text-xs font-medium flex items-center space-x-2 border border-slate-200/90 animate-in fade-in slide-in-from-bottom-2 duration-150 select-none">
-            <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
             <span>{toastMessage}</span>
           </div>
         )}
@@ -1268,7 +1127,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
         )}
 
         {/* Docked Framing Controls for Syndication Previews */}
-        {(activePreviewMode === 'reel_9_16' || activePreviewMode === 'feed_1_1' || activePreviewMode === 'tv_16_9') && asset.resource_type !== 'video' && (
+        {(activePreviewMode === 'reel_9_16' || activePreviewMode === 'feed_1_1' || activePreviewMode === 'tv_16_9') && (
           <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 bg-white/95 backdrop-blur-md border border-slate-200/90 py-1 px-3 rounded-xl shadow-lg shadow-slate-900/5 select-none text-xs animate-in fade-in zoom-in-95 duration-100">
             <div className="flex items-center space-x-1.5 pr-2 border-r border-slate-200/80">
               <Crosshair className="w-3.5 h-3.5 text-blue-600" />
@@ -1293,90 +1152,32 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
         {/* Mode C: 16:9 Broadcast Overlay */}
         {!showDiffSlider && activePreviewMode === 'tv_16_9' && (
           <div className="w-full h-full flex flex-col items-center justify-center p-4">
-            {asset.resource_type === 'video' ? (
-              <video
-                key={`${asset.public_id}_tv_${isVideoRedacted ? 'redacted' : 'clean'}`}
-                src={asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
-                controls
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="max-h-[500px] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-slate-900/10"
-              />
-            ) : (
-              <img
-                src={asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.clean_master || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
-                alt="16:9 Broadcast Feed"
-                className="max-h-[500px] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-slate-900/10 select-none"
-              />
-            )}
+            <img
+              src={asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.clean_master || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
+              alt="16:9 Broadcast Feed"
+              className="max-h-[500px] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-slate-900/10 select-none"
+            />
           </div>
         )}
 
         {/* Mode D: 9:16 Social Reel */}
         {!showDiffSlider && activePreviewMode === 'reel_9_16' && (
           <div className="w-full h-full flex flex-col items-center justify-center p-4">
-            {asset.resource_type === 'video' ? (
-              <video
-                key={`${asset.public_id}_reel_${isVideoRedacted ? 'redacted' : 'clean'}`}
-                src={asset.syndication_urls?.social_9_16 || asset.secure_url}
-                controls
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="max-h-[500px] w-auto rounded-xl object-contain shadow-2xl ring-1 ring-slate-900/10"
-              />
-            ) : (
-              <img
-                src={asset.syndication_urls?.social_9_16 || asset.secure_url}
-                alt="9:16 Social Reel"
-                className="max-h-[500px] w-auto rounded-xl object-contain shadow-2xl ring-1 ring-slate-900/10 select-none"
-              />
-            )}
+            <img
+              src={asset.syndication_urls?.social_9_16 || asset.secure_url}
+              alt="9:16 Social Reel"
+              className="max-h-[500px] w-auto rounded-xl object-contain shadow-2xl ring-1 ring-slate-900/10 select-none"
+            />
           </div>
         )}
 
         {/* Mode E: 1:1 Wire Card */}
         {!showDiffSlider && activePreviewMode === 'feed_1_1' && (
           <div className="w-full h-full flex flex-col items-center justify-center p-4">
-            {asset.resource_type === 'video' ? (
-              <video
-                key={`${asset.public_id}_feed_${isVideoRedacted ? 'redacted' : 'clean'}`}
-                src={
-                  isVideoRedacted
-                    ? (asset.syndication_urls?.feed_1_1 || asset.secure_url)
-                    : asset.secure_url
-                }
-                controls
-                autoPlay
-                loop
-                muted
-                playsInline
-                className="max-h-[480px] aspect-square rounded-xl object-cover shadow-2xl ring-1 ring-slate-900/10"
-              />
-            ) : (
-              <img
-                src={asset.syndication_urls?.feed_1_1 || asset.secure_url}
-                alt="1:1 Micro Card"
-                className="max-h-[480px] aspect-square rounded-xl object-cover shadow-2xl ring-1 ring-slate-900/10 select-none"
-              />
-            )}
-          </div>
-        )}
-
-        {/* Mode F: 6s Highlight Reel */}
-        {!showDiffSlider && activePreviewMode === 'highlight_6s' && asset.syndication_urls?.video_highlight_6s && (
-          <div className="w-full h-full flex flex-col items-center justify-center p-4">
-            <video
-              src={asset.syndication_urls.video_highlight_6s}
-              controls
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="max-h-[500px] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-slate-900/10"
+            <img
+              src={asset.syndication_urls?.feed_1_1 || asset.secure_url}
+              alt="1:1 Micro Card"
+              className="max-h-[480px] aspect-square rounded-xl object-cover shadow-2xl ring-1 ring-slate-900/10 select-none"
             />
           </div>
         )}

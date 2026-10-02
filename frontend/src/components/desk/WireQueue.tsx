@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { MediaAsset, StoryPackage } from '../../types';
 import {
-  Film,
   Image as ImageIcon,
   Search,
   AlertCircle,
@@ -15,7 +14,6 @@ import {
   ArrowUpDown,
   ChevronDown,
   SlidersHorizontal,
-  Video,
   Layers,
   Minus,
   ShieldAlert,
@@ -82,7 +80,6 @@ export const WireQueue: React.FC<WireQueueProps> = ({
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   const [selectedBeat, setSelectedBeat] = useState<string>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'breaking'>('all');
-  const [formatFilter, setFormatFilter] = useState<'all' | 'video' | 'image'>('all');
   const [viewMode, setViewMode] = useState<'stream' | 'packages'>('stream');
 
   // Collapsed packages tracking
@@ -153,14 +150,12 @@ export const WireQueue: React.FC<WireQueueProps> = ({
   const activeFilterCount =
     (activeTab !== 'all' ? 1 : 0) +
     (selectedBeat !== 'all' ? 1 : 0) +
-    (urgencyFilter !== 'all' ? 1 : 0) +
-    (formatFilter !== 'all' ? 1 : 0);
+    (urgencyFilter !== 'all' ? 1 : 0);
 
   const handleResetFilters = () => {
     setActiveTab('all');
     setSelectedBeat('all');
     setUrgencyFilter('all');
-    setFormatFilter('all');
   };
 
   // 1. Filter by lifecycle status
@@ -174,7 +169,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
     ? liveAssets.filter((a) => a.review_status === 'quarantined')
     : liveAssets;
 
-  // 2. Filter by search, news desk, urgency, format
+  // 2. Filter by search, news desk, urgency
   const filteredAssets = baseAssets.filter((asset) => {
     if (search.trim()) {
       const q = search.toLowerCase().trim();
@@ -195,13 +190,6 @@ export const WireQueue: React.FC<WireQueueProps> = ({
     }
 
     if (urgencyFilter === 'breaking' && asset.urgency !== 'breaking') {
-      return false;
-    }
-
-    if (formatFilter === 'video' && asset.resource_type !== 'video') {
-      return false;
-    }
-    if (formatFilter === 'image' && asset.resource_type === 'video') {
       return false;
     }
 
@@ -437,14 +425,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
   const renderAssetCard = (asset: MediaAsset, isNestedInPackage = false, _angleIndex?: number) => {
     const isSelected = selectedId === asset.public_id;
     const isChecked = selectedIds.includes(asset.public_id);
-    const thumbUrl =
-      asset.resource_type === 'video'
-        ? asset.secure_url?.includes('/video/upload/')
-          ? asset.secure_url.replace('/video/upload/', '/video/upload/so_0,c_fill,ar_1:1,w_120,h_120/').replace(/\.(mp4|mov|webm)$/i, '.jpg')
-          : asset.syndication_urls?.feed_1_1 && !asset.syndication_urls.feed_1_1.endsWith('.mp4')
-          ? asset.syndication_urls.feed_1_1
-          : asset.secure_url?.replace(/\.(mp4|mov|webm)$/i, '.jpg')
-        : asset.secure_url || asset.syndication_urls?.feed_1_1;
+    const thumbUrl = asset.syndication_urls?.feed_1_1 || asset.secure_url;
     const cat = getCategoryMeta(asset.incident_type);
     const siblingCount = asset.event_id ? (eventCounts[asset.event_id] || 0) : 0;
 
@@ -516,7 +497,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
               thumbUrl ? 'hidden' : ''
             }`}
           >
-            {asset.resource_type === 'video' ? <Film className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
+            <ImageIcon className="w-4 h-4" />
           </div>
 
           {/* Clean Selection Checkbox (visible on hover or when checked) */}
@@ -541,13 +522,6 @@ export const WireQueue: React.FC<WireQueueProps> = ({
               )}
             </div>
           </div>
-
-          {/* Video format badge on thumbnail */}
-          {asset.resource_type === 'video' && !isChecked && (
-            <div className="absolute bottom-0.5 right-0.5 bg-black/75 backdrop-blur-[2px] px-1 py-0.2 rounded text-[8px] text-white flex items-center space-x-0.5">
-              <Video className="w-2.5 h-2.5 text-blue-400" />
-            </div>
-          )}
         </div>
 
         {/* Minimalist Editorial Card Body */}
@@ -749,7 +723,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/*,video/*"
+        accept="image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic"
         className="hidden"
         onChange={handleFileInputChange}
       />
@@ -1193,11 +1167,11 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     Attributes
                   </span>
-                  <div className="flex items-center space-x-1.5">
+                  <div className="flex items-center">
                     <button
                       type="button"
                       onClick={() => setUrgencyFilter((prev) => (prev === 'breaking' ? 'all' : 'breaking'))}
-                      className={`flex-1 py-1 px-2 rounded-lg text-[10.5px] transition cursor-pointer flex items-center justify-center space-x-1 border ${
+                      className={`w-full py-1 px-2 rounded-lg text-[10.5px] transition cursor-pointer flex items-center justify-center space-x-1 border ${
                         urgencyFilter === 'breaking'
                           ? 'bg-white text-rose-600 border-slate-300 font-bold shadow-2xs'
                           : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/80 font-medium'
@@ -1205,19 +1179,6 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                     >
                       <span className={`w-1.5 h-1.5 rounded-full ${urgencyFilter === 'breaking' ? 'bg-rose-500 animate-pulse' : 'bg-slate-300'}`} />
                       <span>Breaking Only</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setFormatFilter((prev) => (prev === 'video' ? 'all' : 'video'))}
-                      className={`flex-1 py-1 px-2 rounded-lg text-[10.5px] transition cursor-pointer flex items-center justify-center space-x-1 border ${
-                        formatFilter === 'video'
-                          ? 'bg-white text-blue-600 border-slate-300 font-bold shadow-2xs'
-                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200/80 font-medium'
-                      }`}
-                    >
-                      <Video className="w-3 h-3" />
-                      <span>Videos Only</span>
                     </button>
                   </div>
                 </div>
@@ -1263,19 +1224,6 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                   type="button"
                   onClick={() => setUrgencyFilter('all')}
                   className="hover:text-rose-900 cursor-pointer"
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            )}
-
-            {formatFilter !== 'all' && (
-              <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
-                <span>{formatFilter === 'video' ? 'Videos' : 'Photos'}</span>
-                <button
-                  type="button"
-                  onClick={() => setFormatFilter('all')}
-                  className="hover:text-blue-900 cursor-pointer"
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>

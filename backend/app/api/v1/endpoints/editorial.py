@@ -123,15 +123,14 @@ async def update_redactions(req: RedactionUpdateRequest):
 
     asset = WIRE_STORE[req.public_id]
 
-    # Update Cloudinary explicit face_coordinates (only for images; videos use native temporal face tracking)
+    # Update Cloudinary explicit face_coordinates
     version = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-    if asset.resource_type != "video":
-        update_res = RedactionService.update_selective_faces(
-            public_id=req.public_id,
-            bystander_coordinates=req.face_coordinates
-        )
-        if update_res.get("success") and update_res.get("version"):
-            version = update_res["version"]
+    update_res = RedactionService.update_selective_faces(
+        public_id=req.public_id,
+        bystander_coordinates=req.face_coordinates
+    )
+    if update_res.get("success") and update_res.get("version"):
+        version = update_res["version"]
     
     # Update stored face states
     if req.faces is not None:
@@ -156,11 +155,13 @@ async def update_redactions(req: RedactionUpdateRequest):
         asset.urgency = req.urgency.strip().lower() or "breaking"
 
     # Determine whether bystanders should be pixelated
-    pixelate_flag = True
     if req.pixelate_bystanders is not None:
         pixelate_flag = req.pixelate_bystanders
-    elif asset.resource_type != "video" and len(req.face_coordinates) == 0:
+    elif len(req.face_coordinates) == 0:
         pixelate_flag = False
+    else:
+        pixelate_flag = True
+    asset.pixelate_bystanders = pixelate_flag
 
     if req.focal_x is not None:
         asset.focal_x = req.focal_x
@@ -174,7 +175,7 @@ async def update_redactions(req: RedactionUpdateRequest):
         public_id=asset.public_id,
         headline=asset.headline or "BREAKING NEWS",
         pixelate_bystanders=pixelate_flag,
-        resource_type=asset.resource_type,
+        resource_type="image",
         version=version,
         focal_x=asset.focal_x,
         focal_y=asset.focal_y,

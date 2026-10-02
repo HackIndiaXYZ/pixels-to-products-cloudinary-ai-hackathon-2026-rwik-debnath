@@ -200,25 +200,24 @@ async def seed_initial_assets():
         created_at=(now - datetime.timedelta(minutes=1)).isoformat()
     )
 
-    # Asset 5: Breaking Video Ingest (Mobile Footage with Video Highlight & Tracking)
-    asset_5_id = "presswire/sample_transit_video"
+    # Asset 5: Breaking Transit Incident (High-Resolution Scene Photo)
+    asset_5_id = "presswire/sample_transit_incident"
     urls_5 = PackagingService.generate_broadcast_urls(
         public_id=asset_5_id,
         headline="Transit Alert: Multi-Vehicle Collision on I-80",
-        subheadline="Traffic Bureau Live Feed",
+        subheadline="Traffic Bureau Live Dispatch",
         pixelate_bystanders=True,
-        resource_type="video"
+        resource_type="image"
     )
-    urls_5["feed_1_1"] = "https://res.cloudinary.com/demo/video/upload/so_0,c_fill,ar_1:1,w_200,h_200/dog.jpg"
     asset_5 = MediaAssetResponse(
         public_id=asset_5_id,
         asset_id="asset_demo_05",
-        format="mp4",
-        resource_type="video",
+        format="jpg",
+        resource_type="image",
         width=1920,
         height=1080,
-        bytes=4850200,
-        secure_url="https://res.cloudinary.com/demo/video/upload/dog.mp4",
+        bytes=2850200,
+        secure_url="https://res.cloudinary.com/demo/image/upload/sample.jpg",
         faces=[],
         telemetry=TelemetryData(
             make="Apple",
@@ -241,8 +240,6 @@ async def seed_initial_assets():
         headline="Transit Alert: Multi-Vehicle Collision on I-80",
         syndication_urls=urls_5,
         pixelate_bystanders=True,
-        duration=14.2,
-        frame_rate=30.0,
         event_id="evt_i80_collision",
         event_title="I-80 Multi-Vehicle Collision",
         created_at=(now - datetime.timedelta(minutes=4)).isoformat()

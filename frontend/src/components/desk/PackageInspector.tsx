@@ -6,7 +6,6 @@ import {
   Lock,
   Trash2,
   ChevronDown,
-  Film,
   ImageIcon,
   Copy,
   MapPin,
@@ -627,14 +626,7 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
               </div>
             ) : (
               assets.map((asset) => {
-                const thumbUrl =
-                  asset.resource_type === 'video'
-                    ? asset.secure_url?.includes('/video/upload/')
-                      ? asset.secure_url.replace('/video/upload/', '/video/upload/so_0,c_fill,ar_1:1,w_100,h_100/').replace(/\.(mp4|mov|webm)$/i, '.jpg')
-                      : asset.syndication_urls?.feed_1_1 && !asset.syndication_urls.feed_1_1.endsWith('.mp4')
-                      ? asset.syndication_urls.feed_1_1
-                      : asset.secure_url?.replace(/\.(mp4|mov|webm)$/i, '.jpg')
-                    : asset.secure_url || asset.syndication_urls?.feed_1_1;
+                const thumbUrl = asset.syndication_urls?.feed_1_1 || asset.secure_url;
 
                 return (
                   <div
@@ -646,8 +638,6 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 shrink-0 flex items-center justify-center relative">
                       {thumbUrl ? (
                         <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
-                      ) : asset.resource_type === 'video' ? (
-                        <Film className="w-4 h-4 text-slate-400" />
                       ) : (
                         <ImageIcon className="w-4 h-4 text-slate-400" />
                       )}

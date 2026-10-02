@@ -23,9 +23,16 @@ async def intake_upload(
     logs irrevocable broadcast copyright release waiver,
     and runs facial detection coordinate indexing.
     """
+    content_type = (file.content_type or "").lower()
+    filename_lower = (file.filename or "").lower()
+    if "video" in content_type or any(filename_lower.endswith(ext) for ext in [".mp4", ".mov", ".avi", ".webm", ".mkv", ".m4v"]):
+        raise HTTPException(
+            status_code=400,
+            detail="Video uploads are not supported. PressWire Wire Intake exclusively processes high-resolution photo journalism (JPEG, PNG, WebP, HEIC)."
+        )
+
     try:
         content = await file.read()
-        resource_type = "video" if file.content_type and "video" in file.content_type else "image"
         client_ip = request.client.host if request.client else "127.0.0.1"
         
         asset = await IntakeService.process_upload(
@@ -36,10 +43,12 @@ async def intake_upload(
             headline=headline,
             simulated_lat=lat,
             simulated_lng=lng,
-            resource_type=resource_type,
+            resource_type="image",
             waiver_signed=waiver_signed,
             submitter_ip=client_ip
         )
         return asset
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

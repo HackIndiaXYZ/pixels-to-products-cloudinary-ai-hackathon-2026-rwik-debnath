@@ -489,6 +489,11 @@ export function App() {
     try {
       const fileArray = Array.from(files);
       for (const file of fileArray) {
+        if (file.type.startsWith('video/') || /\.(mp4|mov|avi|wmv|flv|mkv|webm)$/i.test(file.name)) {
+          alert('Video uploads are not supported. PressWire exclusively processes high-resolution photo journalism (JPEG, PNG, WebP, HEIC).');
+          continue;
+        }
+
         const formData = new FormData();
         formData.append('file', file);
         // Clean human-readable headline from file basename (e.g., "market_st_crowd.jpg" -> "Market St Crowd")

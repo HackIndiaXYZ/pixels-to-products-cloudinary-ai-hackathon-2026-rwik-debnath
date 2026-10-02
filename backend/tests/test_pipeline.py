@@ -22,36 +22,19 @@ def test_packaging_url_generation():
     assert "l_text" not in urls["broadcast_16_9"]
     assert "e_pixelate_faces:10" in urls["broadcast_16_9"]
 
-def test_video_packaging_urls():
-    urls = PackagingService.generate_broadcast_urls(
-        public_id="presswire/test_video",
-        headline="STORM INCOMING",
-        pixelate_bystanders=True,
-        resource_type="video"
-    )
-    assert "video_highlight_6s" in urls
-    assert "e_preview:duration_6:max_seg_3" in urls["video_highlight_6s"]
-    assert "e_pixelate_faces:15" in urls["video_highlight_6s"]
-    preview_idx = urls["video_highlight_6s"].find("e_preview")
-    pixelate_idx = urls["video_highlight_6s"].find("e_pixelate_faces")
-    assert preview_idx < pixelate_idx, "e_preview must precede e_pixelate_faces for video"
+def test_video_upload_rejected():
+    from fastapi.testclient import TestClient
+    from app.main import app
 
-    assert "/video/upload/" in urls["broadcast_16_9"]
-    assert "/video/upload/" in urls["social_9_16"]
-    assert "/video/upload/" in urls["clean_master"]
-    assert "/video/upload/" in urls["feed_1_1"]
-    # Video 16:9 must use g_auto and NEVER g_auto:subject (which causes 400 Bad Request)
-    assert "g_auto:subject" not in urls["broadcast_16_9"]
-    assert "g_auto" in urls["broadcast_16_9"]
-    # Video 9:16 must use c_fill,g_auto without b_auto:predominant
-    assert "c_fill" in urls["social_9_16"]
-    assert "g_auto" in urls["social_9_16"]
-    assert "b_auto" not in urls["social_9_16"]
-    assert urls["broadcast_16_9"].endswith(".mp4")
-    assert urls["social_9_16"].endswith(".mp4")
-    assert urls["feed_1_1"].endswith(".mp4")
-    assert urls["clean_master"].endswith(".mp4")
-    assert urls["video_highlight_6s"].endswith(".mp4")
+    client = TestClient(app)
+    fake_video = b"\x00\x00\x00 ftypisom"
+    response = client.post(
+        "/api/v1/intake/upload",
+        files={"file": ("breaking_scene.mp4", fake_video, "video/mp4")},
+        data={"headline": "Breaking Video Report"}
+    )
+    assert response.status_code == 400
+    assert "Video uploads are not supported" in response.json()["detail"]
 
 def test_focal_point_packaging_urls():
     # Test default image 9:16 social reel uses clean c_fill with g_auto:subject

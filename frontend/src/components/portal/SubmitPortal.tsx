@@ -24,7 +24,6 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   const [headline, setHeadline] = useState('');
   const [incidentType, setIncidentType] = useState('public_safety');
   const [urgency, setUrgency] = useState<'breaking' | 'standard'>('breaking');
@@ -40,9 +39,11 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (selected: File) => {
+    if (selected.type.startsWith('video') || /\.(mp4|mov|avi|webm|mkv|m4v)$/i.test(selected.name)) {
+      setStatusMessage('Video submissions are not supported. PressWire Wire Intake exclusively accepts high-resolution photo journalism (JPEG, PNG, WebP, HEIC).');
+      return;
+    }
     setFile(selected);
-    const isVideo = selected.type.startsWith('video');
-    setMediaType(isVideo ? 'video' : 'image');
     setPreviewUrl(URL.createObjectURL(selected));
 
     // Auto-populate clean headline if empty
@@ -86,7 +87,6 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(null);
     setPreviewUrl(null);
-    setMediaType(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -137,7 +137,7 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
       <input
         ref={cameraInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic"
         capture="environment"
         className="hidden"
         onChange={handleCameraChange}
@@ -145,7 +145,7 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic"
         className="hidden"
         onChange={handleBrowseChange}
       />
@@ -254,10 +254,10 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                     </div>
 
                     <p className="text-xs font-bold text-slate-900">
-                      Drag & drop footage here
+                      Drag & drop photos here
                     </p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      MP4, MOV, JPG, PNG, HEIC (Up to 500MB)
+                      JPG, PNG, WebP, HEIC (High-Resolution Wire Photo)
                     </p>
 
                     <div className="flex items-center justify-center gap-2 mt-3.5">
@@ -281,21 +281,13 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                     </div>
                   </div>
                 ) : (
-                  /* Clean Image/Video Preview */
+                  /* Clean Image Preview */
                   <div className="relative rounded-2xl overflow-hidden border border-slate-200/90 bg-slate-50/50 shadow-2xs">
-                    {mediaType === 'video' ? (
-                      <video
-                        src={previewUrl!}
-                        controls
-                        className="max-h-72 w-full object-contain mx-auto"
-                      />
-                    ) : (
-                      <img
-                        src={previewUrl!}
-                        alt="Preview"
-                        className="max-h-72 w-full object-contain mx-auto"
-                      />
-                    )}
+                    <img
+                      src={previewUrl!}
+                      alt="Preview"
+                      className="max-h-72 w-full object-contain mx-auto"
+                    />
 
                     {/* Minimal Clear Button */}
                     <button

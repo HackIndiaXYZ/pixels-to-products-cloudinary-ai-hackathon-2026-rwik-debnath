@@ -136,6 +136,10 @@ class IntakeService:
         - moderation="webpurify" or perception_point
         - legal broadcast waiver logging
         """
+        lower_name = (filename or "").lower()
+        if resource_type == "video" or any(lower_name.endswith(ext) for ext in [".mp4", ".mov", ".avi", ".webm", ".mkv", ".m4v"]):
+            raise ValueError("Video uploads are not supported. PressWire Wire Intake exclusively processes high-resolution photo journalism (JPEG, PNG, WebP, HEIC).")
+
         now = datetime.datetime.utcnow()
         if not incident_type or not incident_type.strip():
             incident_type = "uncategorized"
@@ -147,9 +151,9 @@ class IntakeService:
 
         upload_options = {
             "public_id": public_id,
-            "resource_type": resource_type,
+            "resource_type": "image",
             "image_metadata": True,
-            "faces": True if resource_type != "video" else False,
+            "faces": True,
             "tags": ["presswire", incident_type, urgency],
             "context": {
                 "incident_type": incident_type,
@@ -231,8 +235,6 @@ class IntakeService:
         # Determine wire review status
         if mod_status == "quarantined":
             review_status = "quarantined"
-        elif resource_type == "video":
-            review_status = "action_required"  # Videos always require editorial review and privacy audit
         elif faces_list:
             review_status = "action_required"  # Needs privacy triage
         else:
@@ -243,7 +245,7 @@ class IntakeService:
             public_id=res["public_id"],
             headline=headline,
             pixelate_bystanders=True,
-            resource_type=resource_type
+            resource_type="image"
         )
 
         # Determine Spatio-Temporal Event Cluster
@@ -258,7 +260,7 @@ class IntakeService:
             public_id=res["public_id"],
             asset_id=res.get("asset_id"),
             format=res.get("format", "jpg"),
-            resource_type=resource_type,
+            resource_type="image",
             width=res.get("width", 1920),
             height=res.get("height", 1080),
             bytes=res.get("bytes", len(file_bytes)),
@@ -271,10 +273,11 @@ class IntakeService:
             urgency=urgency,
             headline=headline,
             syndication_urls=syndication_urls,
-            duration=float(res["duration"]) if res.get("duration") is not None else None,
-            frame_rate=float(res["frame_rate"]) if res.get("frame_rate") is not None else None,
+            duration=None,
+            frame_rate=None,
             event_id=event_id,
             event_title=event_title,
+            pixelate_bystanders=True,
             created_at=now.isoformat()
         )
 

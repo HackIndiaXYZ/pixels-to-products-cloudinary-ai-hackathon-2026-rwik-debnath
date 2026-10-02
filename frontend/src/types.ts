@@ -52,7 +52,6 @@ export type MediaAsset = {
     social_9_16?: string;
     feed_1_1?: string;
     clean_master?: string;
-    video_highlight_6s?: string;
   };
   is_archived?: boolean;
   pixelate_bystanders?: boolean;

@@ -21,6 +21,10 @@ export const PublicIntake: React.FC<PublicIntakeProps> = ({ onUploadSuccess }) =
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selected = e.target.files[0];
+      if (selected.type.startsWith('video') || /\.(mp4|mov|avi|webm|mkv|m4v)$/i.test(selected.name)) {
+        setStatusMessage('Video uploads are not supported. PressWire Wire Intake exclusively accepts high-resolution photo journalism (JPEG, PNG, WebP, HEIC).');
+        return;
+      }
       setFile(selected);
       setPreviewUrl(URL.createObjectURL(selected));
     }
@@ -89,12 +93,12 @@ export const PublicIntake: React.FC<PublicIntakeProps> = ({ onUploadSuccess }) =
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-2">
-            Upload Media File (Photo or Video Clip)
+            Upload Wire Photo (JPEG, PNG, WebP, HEIC)
           </label>
           <div className="border-2 border-dashed border-slate-200 hover:border-blue-500/50 rounded-2xl p-8 text-center cursor-pointer transition-all bg-slate-50/50 hover:bg-blue-50/30 relative group">
             <input
               type="file"
-              accept="image/*,video/*"
+              accept="image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp,.heic"
               onChange={handleFileChange}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
@@ -109,7 +113,7 @@ export const PublicIntake: React.FC<PublicIntakeProps> = ({ onUploadSuccess }) =
                   <UploadCloud className="w-6 h-6" />
                 </div>
                 <p className="text-sm text-slate-800 font-semibold">Click to select files or drag and drop</p>
-                <p className="text-xs text-slate-400">Smartphone cameras, eyewitness videos, dashcam footage</p>
+                <p className="text-xs text-slate-400">High-resolution photos, smartphone captures, DSLR dispatches</p>
               </div>
             )}
           </div>
