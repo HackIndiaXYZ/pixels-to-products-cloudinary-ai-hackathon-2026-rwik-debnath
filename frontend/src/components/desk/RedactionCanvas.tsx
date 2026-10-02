@@ -1040,7 +1040,11 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                         isSelected
                           ? 'border-blue-500 ring-2 ring-blue-500/50 shadow-xl'
                           : isHovered
-                          ? 'border-rose-400 ring-1 ring-rose-400/40 shadow-md'
+                          ? f.kind === 'license_plate'
+                            ? 'border-amber-400 ring-1 ring-amber-400/40 shadow-md'
+                            : 'border-rose-400 ring-1 ring-rose-400/40 shadow-md'
+                          : f.kind === 'license_plate'
+                          ? 'border-amber-400/90 shadow-xs'
                           : 'border-rose-400/90 shadow-xs'
                       } ${
                         isBlurPreviewVisible
@@ -1049,10 +1053,35 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                       }`}
                     >
                       {/* High-Tech Viewfinder Corner Accents */}
-                      <span className={`absolute -top-[1.5px] -left-[1.5px] w-2 h-2 border-t-2 border-l-2 pointer-events-none rounded-tl-xs ${isSelected ? 'border-blue-500' : 'border-rose-500'}`} />
-                      <span className={`absolute -top-[1.5px] -right-[1.5px] w-2 h-2 border-t-2 border-r-2 pointer-events-none rounded-tr-xs ${isSelected ? 'border-blue-500' : 'border-rose-500'}`} />
-                      <span className={`absolute -bottom-[1.5px] -left-[1.5px] w-2 h-2 border-b-2 border-l-2 pointer-events-none rounded-bl-xs ${isSelected ? 'border-blue-500' : 'border-rose-500'}`} />
-                      <span className={`absolute -bottom-[1.5px] -right-[1.5px] w-2 h-2 border-b-2 border-r-2 pointer-events-none rounded-br-xs ${isSelected ? 'border-blue-500' : 'border-rose-500'}`} />
+                      <span className={`absolute -top-[1.5px] -left-[1.5px] w-2 h-2 border-t-2 border-l-2 pointer-events-none rounded-tl-xs ${
+                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : 'border-rose-500'
+                      }`} />
+                      <span className={`absolute -top-[1.5px] -right-[1.5px] w-2 h-2 border-t-2 border-r-2 pointer-events-none rounded-tr-xs ${
+                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : 'border-rose-500'
+                      }`} />
+                      <span className={`absolute -bottom-[1.5px] -left-[1.5px] w-2 h-2 border-b-2 border-l-2 pointer-events-none rounded-bl-xs ${
+                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : 'border-rose-500'
+                      }`} />
+                      <span className={`absolute -bottom-[1.5px] -right-[1.5px] w-2 h-2 border-b-2 border-r-2 pointer-events-none rounded-br-xs ${
+                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : 'border-rose-500'
+                      }`} />
+
+                      {/* Categorized Micro-Tag on Hover/Select */}
+                      {(isHovered || isSelected) && (
+                        <span className={`absolute -top-5 left-0 text-white text-[9px] font-mono font-medium px-1.5 py-0.5 rounded shadow-sm pointer-events-none tracking-wider select-none whitespace-nowrap z-30 ${
+                          f.kind === 'license_plate'
+                            ? 'bg-amber-600/95'
+                            : f.kind === 'pii_document'
+                            ? 'bg-rose-600/95'
+                            : 'bg-slate-900/90'
+                        }`}>
+                          {f.kind === 'license_plate'
+                            ? (f.detected_text ? `Plate: ${f.detected_text}` : 'Vehicle Plate')
+                            : f.kind === 'pii_document'
+                            ? (f.label || 'Sensitive PII')
+                            : `Face #${idx + 1}`}
+                        </span>
+                      )}
 
                       {/* Discrete Remove Button at Top-Right Corner */}
                       <button

@@ -213,8 +213,33 @@ class IntakeService:
                 w=f[2],
                 h=f[3],
                 is_redacted=True,  # Default to civilian bystander protection
-                label="Bystander" if idx > 0 else "Primary Subject"
+                label="Bystander" if idx > 0 else "Primary Subject",
+                kind="face"
             ))
+
+        # Scan for sensitive scene text (Indian vehicle plates, PAN/Aadhaar/Phone)
+        has_ocr_boxes = False
+        if resource_type != "video":
+            try:
+                from app.services.ocr_service import OCRService
+                ocr_regions = OCRService.scan_for_sensitive_regions(file_bytes)
+                for ocr_idx, reg in enumerate(ocr_regions):
+                    faces_list.append(FaceCoordinate(
+                        id=f"ocr_{ocr_idx}",
+                        x=reg["x"],
+                        y=reg["y"],
+                        w=reg["w"],
+                        h=reg["h"],
+                        is_redacted=True,
+                        label=reg["label"],
+                        kind=reg["kind"],
+                        detected_text=reg.get("detected_text")
+                    ))
+                if ocr_regions:
+                    has_ocr_boxes = True
+            except Exception as ocr_err:
+                import logging
+                logging.warning(f"[IntakeService] OCR scene scan bypassed: {ocr_err}")
 
         # Extract telemetry
         raw_meta = res.get("image_metadata", {})
@@ -275,8 +300,16 @@ class IntakeService:
                 logging.warning(f"[Cloudinary] Failed to unlock quarantined delivery for newsroom review: {e}")
         elif faces_list:
             review_status = "action_required"  # Needs privacy triage
-        else:
-            review_status = "approved"
+        # If OCR detected sensitive license plates or PII, register explicit face_coordinates immediately
+        if has_ocr_boxes:
+            try:
+                from app.services.redaction_service import RedactionService
+                red_coords = [[f.x, f.y, f.w, f.h] for f in faces_list if f.is_redacted]
+                if red_coords:
+                    RedactionService.update_selective_faces(res["public_id"], red_coords)
+            except Exception as red_err:
+                import logging
+                logging.warning(f"[IntakeService] Initial explicit OCR coordinates registration bypassed: {red_err}")
 
         # Generate live dynamic syndication packaging URLs
         syndication_urls = PackagingService.generate_broadcast_urls(

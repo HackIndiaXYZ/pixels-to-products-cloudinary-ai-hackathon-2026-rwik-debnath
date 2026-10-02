@@ -6,6 +6,8 @@ export type FaceCoordinate = {
   h: number;
   is_redacted: boolean;
   label?: string;
+  kind?: 'face' | 'license_plate' | 'pii_document';
+  detected_text?: string;
 };
 
 export type TelemetryData = {
