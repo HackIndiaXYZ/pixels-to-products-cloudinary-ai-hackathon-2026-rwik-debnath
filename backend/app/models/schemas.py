@@ -55,6 +55,8 @@ class MediaAssetResponse(BaseModel):
     event_id: Optional[str] = None
     event_title: Optional[str] = None
     cluster_radius_km: Optional[float] = 1.5
+    package_window_hours: Optional[float] = 1.0
+    package_status: Optional[str] = "active"
     created_at: str
 
 class RedactionUpdateRequest(BaseModel):
@@ -107,3 +109,42 @@ class MetadataUpdateRequest(BaseModel):
     event_id: Optional[str] = None
     event_title: Optional[str] = None
     cluster_radius_km: Optional[float] = None
+
+class GeotagRequest(BaseModel):
+    public_id: str
+    lat: float
+    lng: float
+    location_name: Optional[str] = None
+
+class PackageRadiusRequest(BaseModel):
+    event_id: str
+    cluster_radius_km: float
+
+class PackageCreateRequest(BaseModel):
+    event_title: str
+    incident_type: str = "uncategorized"
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    cluster_radius_km: float = 1.5
+
+class PackageAssignRequest(BaseModel):
+    public_id: str
+    event_id: Optional[str] = None
+    event_title: Optional[str] = None
+
+class PackageUpdateRequest(BaseModel):
+    event_id: str
+    event_title: Optional[str] = None
+    incident_type: Optional[str] = None
+    cluster_radius_km: Optional[float] = None
+    package_window_hours: Optional[float] = None
+    package_status: Optional[str] = None
+
+class PackageDisbandRequest(BaseModel):
+    event_id: str
+
+class BatchPackageAssignRequest(BaseModel):
+    public_ids: List[str]
+    event_id: Optional[str] = None
+    event_title: Optional[str] = None
+

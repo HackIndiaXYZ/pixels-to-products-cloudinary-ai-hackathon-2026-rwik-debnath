@@ -30,10 +30,10 @@ class IntakeService:
         lon: Optional[float],
         upload_time: datetime.datetime,
         default_headline: str
-    ) -> Tuple[str, str]:
+    ) -> Tuple[Optional[str], Optional[str]]:
         """
-        Scans WIRE_STORE to find an active breaking event within 1.5 km and 1 hour.
-        Returns (event_id, event_title).
+        Scans WIRE_STORE to find an active breaking event within each package's radius and 1 hour.
+        Returns (event_id, event_title). If media has no GPS, returns (None, None).
         """
         if lat is not None and lon is not None:
             for asset in WIRE_STORE.values():
@@ -51,19 +51,27 @@ class IntakeService:
                 except Exception:
                     time_delta_sec = 0
 
-                # Spatial threshold: 1.5 km (~1 mile); Temporal threshold: 1 hour (3600s)
-                if dist_km <= 1.5 and time_delta_sec <= 3600:
+                # Match against the existing cluster's configured radius and configured window
+                threshold_km = asset.cluster_radius_km if asset.cluster_radius_km is not None else 1.5
+                window_hours = getattr(asset, "package_window_hours", 1.0) or 1.0
+                is_locked = getattr(asset, "package_status", "active") in ("locked", "concluded")
+
+                if not is_locked and dist_km <= threshold_km and time_delta_sec <= (window_hours * 3600):
                     cluster_id = asset.event_id or f"evt_{asset.public_id.split('/')[-1]}"
                     cluster_title = asset.event_title or asset.headline or default_headline
                     return cluster_id, cluster_title
 
-        new_id = f"evt_{upload_time.strftime('%Y%m%d')}_{uuid.uuid4().hex[:6]}"
-        return new_id, default_headline
+            # First event at this GPS location
+            new_id = f"evt_{upload_time.strftime('%Y%m%d')}_{uuid.uuid4().hex[:6]}"
+            return new_id, default_headline
+
+        # Media has no GPS: remains standalone wire media
+        return None, None
     @staticmethod
     def _parse_telemetry(raw_metadata: Dict[str, Any], upload_time: datetime.datetime) -> TelemetryData:
         """Parses raw EXIF/IPTC tags into structured newsroom telemetry."""
-        make = raw_metadata.get("Make") or raw_metadata.get("Make", "Unknown Camera")
-        model = raw_metadata.get("Model") or raw_metadata.get("Model", "Citizen Device")
+        make = raw_metadata.get("Make")
+        model = raw_metadata.get("Model")
         software = raw_metadata.get("Software")
         
         # Datetime original
@@ -146,18 +154,21 @@ class IntakeService:
         try:
             res = cloudinary.uploader.upload(file_bytes, **upload_options)
         except Exception as e:
-            # When running without live credentials or offline in mock mode:
+            # Check if uploaded file is a screenshot / desktop graphic
+            lower_name = (filename or "").lower()
+            is_screenshot = any(k in lower_name for k in ["screenshot", "screen_shot", "capture", "snip", "record"]) or lower_name.endswith(".png")
+
             res = {
                 "public_id": public_id,
                 "asset_id": str(uuid.uuid4()),
-                "format": "jpg" if resource_type == "image" else "mp4",
+                "format": "png" if lower_name.endswith(".png") else ("mp4" if resource_type == "video" else "jpg"),
                 "resource_type": resource_type,
                 "width": 1920,
                 "height": 1080,
                 "bytes": len(file_bytes),
                 "secure_url": f"https://res.cloudinary.com/demo/{resource_type}/upload/{public_id}.jpg",
-                "faces": [] if resource_type == "video" else [[400, 250, 180, 180], [920, 280, 190, 190]], # Demo detected faces for photos only
-                "image_metadata": {
+                "faces": [] if (resource_type == "video" or is_screenshot) else [[400, 250, 180, 180], [920, 280, 190, 190]],
+                "image_metadata": {} if is_screenshot else {
                     "Make": "Apple",
                     "Model": "iPhone 15 Pro",
                     "DateTimeOriginal": (now - datetime.timedelta(minutes=14)).strftime("%Y:%m:%d %H:%M:%S")

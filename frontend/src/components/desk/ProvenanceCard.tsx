@@ -15,20 +15,26 @@ import {
   Download,
   Copy,
   Layers,
+  Pencil,
 } from 'lucide-react';
 import {
   CATEGORY_LIST,
   getCategoryMeta,
 } from '../../utils/categories';
+import { GeotagModal } from './GeotagModal';
 
 interface ProvenanceCardProps {
   asset: MediaAsset;
+  allAssets?: MediaAsset[];
+  onAssignPackage?: (publicId: string, eventId: string | null, eventTitle?: string | null) => Promise<void>;
   onUpdateAsset?: (updated: MediaAsset) => void;
   onClose?: () => void;
 }
 
 export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   asset,
+  allAssets,
+  onAssignPackage,
   onUpdateAsset,
   onClose,
 }) => {
@@ -36,8 +42,35 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   const [incidentType, setIncidentType] = useState(asset.incident_type || 'uncategorized');
   const [urgency, setUrgency] = useState<'breaking' | 'standard'>((asset.urgency as 'breaking' | 'standard') || 'breaking');
   const [eventTitle, setEventTitle] = useState(asset.event_title || '');
-  const [clusterRadius, setClusterRadius] = useState<number>(asset.cluster_radius_km ?? 1.5);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [isGeotagModalOpen, setIsGeotagModalOpen] = useState(false);
+
+  // Package Reassignment State
+  const [isPackageDropdownOpen, setIsPackageDropdownOpen] = useState(false);
+  const [isAssigningPackage, setIsAssigningPackage] = useState(false);
+  const packageDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Compute unique active packages from allAssets
+  const availablePackages = React.useMemo(() => {
+    if (!allAssets) return [];
+    const map = new Map<string, { event_id: string; title: string; count: number; radius_km?: number }>();
+    allAssets.forEach((a) => {
+      if (a.event_id) {
+        const existing = map.get(a.event_id);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          map.set(a.event_id, {
+            event_id: a.event_id,
+            title: a.event_title || a.headline || `Package #${a.event_id.replace(/^evt_/, '')}`,
+            count: 1,
+            radius_km: a.cluster_radius_km,
+          });
+        }
+      }
+    });
+    return Array.from(map.values());
+  }, [allAssets]);
 
   const handleCopy = (key: string, text?: string) => {
     if (!text) return;
@@ -55,8 +88,41 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     setIncidentType(asset.incident_type || 'uncategorized');
     setUrgency((asset.urgency as 'breaking' | 'standard') || 'breaking');
     setEventTitle(asset.event_title || '');
-    setClusterRadius(asset.cluster_radius_km ?? 1.5);
-  }, [asset.public_id, asset.headline, asset.incident_type, asset.urgency, asset.event_title, asset.cluster_radius_km]);
+  }, [asset.public_id, asset.headline, asset.incident_type, asset.urgency, asset.event_title]);
+
+  // Click outside and Escape handler for Package Dropdown
+  useEffect(() => {
+    if (!isPackageDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (packageDropdownRef.current && !packageDropdownRef.current.contains(e.target as Node)) {
+        setIsPackageDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsPackageDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isPackageDropdownOpen]);
+
+  const handleAssignTo = async (targetEventId: string | null, targetTitle?: string | null) => {
+    if (!onAssignPackage) return;
+    setIsAssigningPackage(true);
+    setIsPackageDropdownOpen(false);
+    try {
+      await onAssignPackage(asset.public_id, targetEventId, targetTitle);
+    } catch (err) {
+      console.error('Failed to assign package:', err);
+    } finally {
+      setIsAssigningPackage(false);
+    }
+  };
 
   // Click outside and Escape handler for Beat Dropdown
   useEffect(() => {
@@ -89,14 +155,12 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     newHeadline?: string,
     newIncidentType?: string,
     newUrgency?: 'breaking' | 'standard',
-    newEventTitle?: string,
-    newRadius?: number
+    newEventTitle?: string
   ) => {
     const finalHeadline = (newHeadline !== undefined ? newHeadline : headline).trim() || 'Breaking News';
     const finalIncidentType = newIncidentType !== undefined ? newIncidentType : incidentType;
     const finalUrgency = newUrgency !== undefined ? newUrgency : urgency;
     const finalEventTitle = (newEventTitle !== undefined ? newEventTitle : eventTitle).trim();
-    const finalRadius = newRadius !== undefined ? newRadius : clusterRadius;
 
     try {
       const res = await fetch('/api/v1/editorial/metadata', {
@@ -109,7 +173,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
           urgency: finalUrgency,
           event_id: asset.event_id,
           event_title: finalEventTitle,
-          cluster_radius_km: finalRadius,
+          cluster_radius_km: asset.cluster_radius_km,
         }),
       });
       if (res.ok) {
@@ -121,20 +185,6 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     }
   };
 
-  const handleRadiusChange = (val: number) => {
-    setClusterRadius(val);
-    if (onUpdateAsset) {
-      onUpdateAsset({
-        ...asset,
-        cluster_radius_km: val,
-      });
-    }
-  };
-
-  const handleRadiusCommit = (val: number) => {
-    persistStoryMetadata(headline, incidentType, urgency, eventTitle, val);
-  };
-
   const handleSaveMetadata = () => {
     if (onUpdateAsset) {
       onUpdateAsset({
@@ -143,10 +193,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
         incident_type: incidentType,
         urgency,
         event_title: eventTitle,
-        cluster_radius_km: clusterRadius,
       });
     }
-    persistStoryMetadata(headline, incidentType, urgency, eventTitle, clusterRadius);
+    persistStoryMetadata(headline, incidentType, urgency, eventTitle);
   };
 
   const handleSelectCategory = (catId: string) => {
@@ -199,9 +248,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     ? (telemetry.time_delta_seconds / 60).toFixed(1)
     : null;
 
-  const lat = telemetry.gps_latitude || 37.7749;
-  const lng = telemetry.gps_longitude || -122.4194;
-  const hasCoords = Boolean(telemetry.has_gps && telemetry.gps_latitude && telemetry.gps_longitude);
+  const lat = telemetry.gps_latitude ?? null;
+  const lng = telemetry.gps_longitude ?? null;
+  const hasCoords = Boolean(telemetry.has_gps && lat !== null && lng !== null);
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-white select-none">
@@ -373,10 +422,33 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
             </div>
           </div>
 
-          {/* Autonomous Event Package Cluster */}
-          {asset.event_id && (
-            <div className="bg-slate-50/60 border border-slate-200/80 rounded-xl p-2.5 space-y-2">
-              <div className="flex items-center justify-between text-xs">
+          {/* Autonomous Event Package Cluster / Assignment */}
+          <div className="relative" ref={packageDropdownRef}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-semibold text-slate-700">
+                Package Dossier
+              </span>
+              {onAssignPackage && (
+                <button
+                  type="button"
+                  disabled={isAssigningPackage}
+                  onClick={() => setIsPackageDropdownOpen((prev) => !prev)}
+                  className="p-1 -mr-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer disabled:opacity-50 flex items-center"
+                  title={asset.event_id ? 'Change or detach package' : 'Assign to package'}
+                >
+                  {asset.event_id ? (
+                    <Pencil className="w-3 h-3 text-slate-400 hover:text-slate-700" />
+                  ) : (
+                    <span className="text-[10px] font-semibold text-blue-600 hover:text-blue-800">
+                      + Assign
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {asset.event_id ? (
+              <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between text-xs">
                 <div className="flex items-center space-x-1.5 min-w-0">
                   <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                   <span className="text-[11px] font-semibold text-slate-800 truncate" title={eventTitle || headline}>
@@ -387,53 +459,79 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                   #{asset.event_id.replace(/^evt_/, '')}
                 </span>
               </div>
-
-              <div className="flex items-center justify-between pt-1.5 border-t border-slate-200/50 text-xs">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
-                  Radius
-                </span>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="10.0"
-                    step="0.1"
-                    value={clusterRadius}
-                    onChange={(e) => handleRadiusChange(parseFloat(e.target.value) || 0.1)}
-                    onMouseUp={(e) => handleRadiusCommit(parseFloat((e.target as HTMLInputElement).value) || 0.1)}
-                    onTouchEnd={(e) => handleRadiusCommit(parseFloat((e.target as HTMLInputElement).value) || 0.1)}
-                    className="w-24 sm:w-28 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 transition"
-                    title="Drag to adjust cluster radius"
-                  />
-                  <div className="relative flex items-center">
-                    <input
-                      type="number"
-                      min="0.1"
-                      max="10.0"
-                      step="0.1"
-                      value={clusterRadius}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        if (!isNaN(val)) {
-                          const clamped = Math.min(10.0, Math.max(0.1, val));
-                          handleRadiusChange(clamped);
-                        }
-                      }}
-                      onBlur={() => handleRadiusCommit(clusterRadius)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                      }}
-                      className="w-16 h-6 bg-white border border-slate-200/90 focus:border-blue-500 rounded-md text-left pl-2 pr-5 text-[11px] font-mono font-semibold text-slate-800 focus:outline-none transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-2xs"
-                      title="Cluster radius in km"
-                    />
-                    <span className="absolute right-1.5 text-[9px] font-mono font-medium text-slate-400 pointer-events-none">
-                      km
-                    </span>
-                  </div>
+            ) : (
+              <div className="bg-slate-50/50 border border-slate-200/60 rounded-xl px-3 py-2 flex items-center justify-between text-xs">
+                <div className="flex items-center space-x-1.5 text-slate-500">
+                  <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="text-[11px] font-medium text-slate-600">Standalone Wire Story</span>
                 </div>
+                <span className="text-[10px] text-slate-400 font-mono">Independent</span>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Package Selector Dropdown Menu */}
+            {isPackageDropdownOpen && (
+              <div className="absolute left-0 top-full mt-1.5 w-full bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-100 max-h-56 overflow-y-auto">
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Wire Assignment
+                </div>
+                
+                {/* Detach Option */}
+                <button
+                  type="button"
+                  onClick={() => handleAssignTo(null)}
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition text-left ${
+                    !asset.event_id
+                      ? 'bg-blue-50 text-blue-900 font-semibold'
+                      : 'hover:bg-slate-100 text-slate-700 font-medium'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2 truncate">
+                    <Layers className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">Standalone Story (Detach)</span>
+                  </div>
+                </button>
+
+                {availablePackages.length > 0 && (
+                  <>
+                    <div className="border-t border-slate-100 my-1 pt-1 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Active Dossiers ({availablePackages.length})
+                    </div>
+                    {availablePackages.map((pkg) => {
+                      const isSelected = asset.event_id === pkg.event_id;
+                      return (
+                        <button
+                          key={pkg.event_id}
+                          type="button"
+                          onClick={() => handleAssignTo(pkg.event_id, pkg.title)}
+                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition text-left ${
+                            isSelected
+                              ? 'bg-blue-50 text-blue-900 font-semibold'
+                              : 'hover:bg-slate-100 text-slate-700 font-medium'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2 truncate min-w-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                            <span className="truncate text-[11px]">{pkg.title}</span>
+                          </div>
+                          <div className="flex items-center space-x-1.5 shrink-0 ml-2">
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {pkg.count} item{pkg.count !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+                {availablePackages.length === 0 && (
+                  <div className="px-2.5 py-2 text-[11px] text-slate-400 italic">
+                    No active packages available yet. Create one in Wire Queue.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Section 1: Provenance & Audit Specification Grid */}
@@ -494,7 +592,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
               </div>
               <div className="flex items-center space-x-1.5">
                 <span className="font-semibold text-slate-800 text-[11px] truncate max-w-[190px]">
-                  {telemetry.make ? `${telemetry.make} ${telemetry.model || ''}` : 'Direct Smartphone Ingest'}
+                  {telemetry.make ? `${telemetry.make} ${telemetry.model || ''}` : 'Unspecified Device'}
                 </span>
               </div>
             </div>
@@ -525,20 +623,45 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
                 <span>GPS Coordinates</span>
               </div>
-              <div className="flex items-center space-x-1.5 font-mono text-[11px]">
-                <span className="text-slate-800 font-medium">
-                  {lat.toFixed(4)}° N, {lng.toFixed(4)}° W
-                </span>
-                {hasCoords && (
-                  <a
-                    href={`https://www.google.com/maps?q=${lat},${lng}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-600 hover:text-blue-700 p-0.5 rounded hover:bg-blue-50 transition"
-                    title="Open location on Google Maps"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
+              <div className="flex items-center space-x-2 font-mono text-[11px]">
+                {hasCoords && lat !== null && lng !== null ? (
+                  <>
+                    <span className="text-slate-800 font-medium">
+                      {lat.toFixed(4)}° N, {lng.toFixed(4)}° W
+                    </span>
+                    <a
+                      href={`https://www.google.com/maps?q=${lat},${lng}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 hover:text-blue-700 p-0.5 rounded hover:bg-blue-50 transition"
+                      title="Open location on Google Maps"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setIsGeotagModalOpen(true)}
+                      className="text-[10px] font-sans font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer ml-1"
+                      title="Edit location"
+                    >
+                      Edit
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-slate-400 font-normal italic font-sans text-[11px]">
+                      No GPS Tagged
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsGeotagModalOpen(true)}
+                      className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md text-[10px] font-sans font-semibold transition cursor-pointer flex items-center space-x-1 border border-blue-200/60 shadow-2xs"
+                      title="Assign GPS location manually"
+                    >
+                      <MapPin className="w-2.5 h-2.5" />
+                      <span>Set Location</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -658,6 +781,18 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* Geotag Modal */}
+      {isGeotagModalOpen && (
+        <GeotagModal
+          asset={asset}
+          isOpen={isGeotagModalOpen}
+          onClose={() => setIsGeotagModalOpen(false)}
+          onGeotagSuccess={(updated) => {
+            if (onUpdateAsset) onUpdateAsset(updated);
+          }}
+        />
       )}
     </div>
   );

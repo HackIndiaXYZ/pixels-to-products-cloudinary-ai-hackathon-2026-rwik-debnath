@@ -36,24 +36,16 @@ class PackagingService:
 
         redaction_trans = [{"effect": "pixelate_faces:10"}] if pixelate_bystanders else []
 
-        # 1. 16:9 Linear TV Broadcast with lower-third overlay
-        tv_transformations = [
+        # 1. 16:9 Clean Linear TV Broadcast (Redacted, 16:9 crop, NO burned-in lower-third - standard for TV stations)
+        tv_clean_transformations = [
             *redaction_trans,
             {"aspect_ratio": "16:9", "crop": "fill", "gravity": "auto:subject"},
-            {
-                "overlay": {"font_family": "Arial", "font_size": 34, "font_weight": "bold", "text": enc_headline},
-                "color": "#FFFFFF",
-                "background": "#D90429",
-                "gravity": "south_west",
-                "x": 40,
-                "y": 40
-            },
             {"fetch_format": "auto", "quality": "auto"}
         ]
         tv_16_9_url, _ = cloudinary_url(
             public_id,
             resource_type=resource_type,
-            transformation=tv_transformations,
+            transformation=tv_clean_transformations,
             cloud_name=cloud_name,
             secure=True
         )

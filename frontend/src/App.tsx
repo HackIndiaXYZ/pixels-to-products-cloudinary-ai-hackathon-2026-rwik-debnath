@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { MediaAsset } from './types';
 import { WireQueue } from './components/desk/WireQueue';
 import { ProvenanceCard } from './components/desk/ProvenanceCard';
+import { PackageInspector } from './components/desk/PackageInspector';
 import { RedactionCanvas } from './components/desk/RedactionCanvas';
 import { SubmitPortal } from './components/portal/SubmitPortal';
 import { BrandHome } from './components/brand/BrandHome';
@@ -11,6 +12,7 @@ import { PressWireLogo } from './components/brand/PressWireLogo';
 export function App() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [showInspector, setShowInspector] = useState(false);
   const [tipLinkCopied, setTipLinkCopied] = useState(false);
 
@@ -101,7 +103,12 @@ export function App() {
                   prev.is_archived !== matching.is_archived ||
                   prev.urgency !== matching.urgency ||
                   prev.headline !== matching.headline ||
-                  prev.incident_type !== matching.incident_type
+                  prev.incident_type !== matching.incident_type ||
+                  prev.event_id !== matching.event_id ||
+                  prev.event_title !== matching.event_title ||
+                  prev.cluster_radius_km !== matching.cluster_radius_km ||
+                  prev.telemetry?.gps_latitude !== matching.telemetry?.gps_latitude ||
+                  prev.telemetry?.gps_longitude !== matching.telemetry?.gps_longitude
                 ) {
                   return matching;
                 }
@@ -277,6 +284,104 @@ export function App() {
     }
   };
 
+  const handleAssignPackage = async (public_id: string, event_id: string | null, event_title?: string | null) => {
+    try {
+      const res = await fetch('/api/v1/editorial/package/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ public_id, event_id, event_title }),
+      });
+      if (res.ok) {
+        const updatedAsset: MediaAsset = await res.json();
+        setAssets((prev) => prev.map((a) => (a.public_id === public_id ? updatedAsset : a)));
+        if (selectedAsset?.public_id === public_id) {
+          setSelectedAsset(updatedAsset);
+        }
+        await fetchQueue();
+      }
+    } catch (err) {
+      console.error('Failed to assign package:', err);
+    }
+  };
+
+  const handleBatchAssignPackage = async (
+    public_ids: string[],
+    event_id: string | null,
+    event_title?: string | null
+  ) => {
+    try {
+      const res = await fetch('/api/v1/editorial/package/batch-assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ public_ids, event_id, event_title }),
+      });
+      if (res.ok) {
+        await fetchQueue();
+      }
+    } catch (err) {
+      console.error('Failed to batch assign package:', err);
+    }
+  };
+
+  const handleSelectPackage = (packageId: string) => {
+    setSelectedPackageId(packageId);
+    const firstAsset = assets.find((a) => a.event_id === packageId);
+    if (firstAsset) {
+      setSelectedAsset(firstAsset);
+      selectedIdRef.current = firstAsset.public_id;
+    }
+    setShowInspector(true);
+  };
+
+  const handleUpdatePackage = async (eventId: string, updates: {
+    event_title?: string;
+    incident_type?: string;
+    cluster_radius_km?: number;
+    package_window_hours?: number;
+    package_status?: 'active' | 'concluded';
+  }) => {
+    try {
+      setAssets((prev) =>
+        prev.map((a) => (a.event_id === eventId ? { ...a, ...updates } : a))
+      );
+      if (selectedAsset?.event_id === eventId) {
+        setSelectedAsset((prev) => (prev ? { ...prev, ...updates } : null));
+      }
+      const res = await fetch('/api/v1/editorial/package/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_id: eventId, ...updates }),
+      });
+      if (res.ok) {
+        await fetchQueue();
+      }
+    } catch (err) {
+      console.error('Failed to update package:', err);
+    }
+  };
+
+  const handleDisbandPackage = async (eventId: string) => {
+    try {
+      setAssets((prev) =>
+        prev.map((a) => (a.event_id === eventId ? { ...a, event_id: undefined, event_title: undefined } : a))
+      );
+      if (selectedAsset?.event_id === eventId) {
+        setSelectedAsset((prev) => (prev ? { ...prev, event_id: undefined, event_title: undefined } : null));
+      }
+      setSelectedPackageId(null);
+      const res = await fetch('/api/v1/editorial/package/disband', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_id: eventId }),
+      });
+      if (res.ok) {
+        await fetchQueue();
+      }
+    } catch (err) {
+      console.error('Failed to disband package:', err);
+    }
+  };
+
   const [isUploadingDirect, setIsUploadingDirect] = useState(false);
   const handleDirectUpload = async (files: FileList | File[]) => {
     setIsUploadingDirect(true);
@@ -285,11 +390,18 @@ export function App() {
       for (const file of fileArray) {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('headline', `EYEWITNESS INGEST: ${file.name.replace(/\.[^/.]+$/, '').toUpperCase()}`);
+        // Clean human-readable headline from file basename (e.g., "market_st_crowd.jpg" -> "Market St Crowd")
+        const baseName = file.name
+          .replace(/\.[^/.]+$/, '')
+          .replace(/[_-]+/g, ' ')
+          .trim();
+        const formattedHeadline = baseName
+          ? baseName.charAt(0).toUpperCase() + baseName.slice(1)
+          : 'Wire Media Submission';
+
+        formData.append('headline', formattedHeadline);
         formData.append('incident_type', 'uncategorized');
         formData.append('urgency', 'standard');
-        formData.append('lat', '37.7749');
-        formData.append('lng', '-122.4194');
 
         const res = await fetch('/api/v1/intake/upload', {
           method: 'POST',
@@ -388,10 +500,13 @@ export function App() {
             <WireQueue
               assets={assets}
               selectedId={selectedAsset?.public_id || null}
+              selectedPackageId={selectedPackageId}
               onSelect={(a) => {
                 setSelectedAsset(a);
                 selectedIdRef.current = a.public_id;
+                setSelectedPackageId(null);
               }}
+              onSelectPackage={handleSelectPackage}
               onDeleteSingle={handleDeleteSingle}
               onDeleteBatch={handleDeleteBatch}
               onArchiveToggle={handleArchiveToggle}
@@ -400,6 +515,9 @@ export function App() {
               onDirectUpload={handleDirectUpload}
               isUploading={isUploadingDirect}
               onUpdateStatus={handleUpdateStatus}
+              onAssignPackage={handleAssignPackage}
+              onBatchAssignPackage={handleBatchAssignPackage}
+              onRefreshQueue={fetchQueue}
             />
           </div>
 
@@ -431,11 +549,14 @@ export function App() {
       </main>
 
       {/* Slide-Over Inspector Drawer for Provenance & Export Deliverables */}
-      {selectedAsset && (
+      {(selectedPackageId || selectedAsset) && (
         <>
           {/* Subtle click-outside backdrop when drawer is open */}
           <div
-            onClick={() => setShowInspector(false)}
+            onClick={() => {
+              setShowInspector(false);
+              setSelectedPackageId(null);
+            }}
             className={`fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px] transition-opacity duration-300 ${
               showInspector ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
@@ -447,11 +568,45 @@ export function App() {
               showInspector ? 'translate-x-0' : 'translate-x-full pointer-events-none'
             }`}
           >
-            <ProvenanceCard
-              asset={selectedAsset}
-              onUpdateAsset={handleUpdateAsset}
-              onClose={() => setShowInspector(false)}
-            />
+            {selectedPackageId && assets.some((a) => a.event_id === selectedPackageId) ? (
+              (() => {
+                const pkgAssets = assets.filter((a) => a.event_id === selectedPackageId);
+                const leadAsset = pkgAssets[0];
+                return (
+                  <PackageInspector
+                    packageId={selectedPackageId}
+                    packageTitle={leadAsset?.event_title || 'Untitled Package'}
+                    incidentType={leadAsset?.incident_type || 'breaking_news'}
+                    clusterRadiusKm={leadAsset?.cluster_radius_km ?? 2.5}
+                    packageWindowHours={leadAsset?.package_window_hours ?? 1.0}
+                    packageStatus={leadAsset?.package_status ?? 'active'}
+                    assets={pkgAssets}
+                    onUpdatePackage={handleUpdatePackage}
+                    onDisbandPackage={handleDisbandPackage}
+                    onDetachAsset={async (publicId) => {
+                      await handleAssignPackage(publicId, null);
+                    }}
+                    onSelectAsset={(asset) => {
+                      setSelectedAsset(asset);
+                      selectedIdRef.current = asset.public_id;
+                      setSelectedPackageId(null);
+                    }}
+                    onClose={() => {
+                      setShowInspector(false);
+                      setSelectedPackageId(null);
+                    }}
+                  />
+                );
+              })()
+            ) : selectedAsset ? (
+              <ProvenanceCard
+                asset={selectedAsset}
+                allAssets={assets}
+                onAssignPackage={handleAssignPackage}
+                onUpdateAsset={handleUpdateAsset}
+                onClose={() => setShowInspector(false)}
+              />
+            ) : null}
           </aside>
         </>
       )}
