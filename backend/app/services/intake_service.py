@@ -167,6 +167,14 @@ class IntakeService:
         # Attempt actual Cloudinary upload
         try:
             res = cloudinary.uploader.upload(file_bytes, **upload_options)
+            # Run Rekognition moderation check explicitly so delivery URL is NEVER blocked with 404
+            try:
+                mod_exp = cloudinary.uploader.explicit(res["public_id"], type="upload", moderation="aws_rek")
+                if "moderation" in mod_exp:
+                    res["moderation"] = mod_exp["moderation"]
+            except Exception as mod_err:
+                import logging
+                logging.warning(f"[Cloudinary] Explicit moderation check skipped: {mod_err}")
         except Exception as e:
             import logging
             logging.warning(f"[Cloudinary] Upload call failed, falling back to mock: {e}")
@@ -190,7 +198,7 @@ class IntakeService:
                     "Model": "iPhone 15 Pro",
                     "DateTimeOriginal": (now - datetime.timedelta(minutes=14)).strftime("%Y:%m:%d %H:%M:%S")
                 },
-                "moderation": [{"status": "approved"}]
+                "moderation": [{"status": "approved", "kind": "aws_rek"}]
             }
 
         # Extract faces (photos only)
@@ -219,22 +227,52 @@ class IntakeService:
             telemetry.gps_longitude = simulated_lng
             telemetry.has_gps = True
 
-        # Moderation check
+        # Moderation check (Amazon Rekognition or fallback)
         mod_status = "approved"
         mod_raw = res.get("moderation", [])
-        categories = []
+        categories: list[str] = []
+        max_confidence: Optional[float] = None
+
         if mod_raw:
-            first_mod = mod_raw[0] if isinstance(mod_raw, list) else mod_raw
-            status_val = first_mod.get("status", "approved")
-            if status_val == "rejected":
-                mod_status = "quarantined"
-                categories.append("Content Moderation Violation")
-            elif status_val == "pending":
-                mod_status = "action_required"
+            # Cloudinary moderation is a list of moderation entries
+            for entry in mod_raw:
+                if not isinstance(entry, dict):
+                    continue
+                status_val = entry.get("status", "approved")
+                # Parse Rekognition response labels if available
+                response_data = entry.get("response", {})
+                if isinstance(response_data, dict):
+                    mod_labels = response_data.get("moderation_labels", [])
+                    for label_item in mod_labels:
+                        name = label_item.get("name")
+                        conf = label_item.get("confidence")
+                        if name and name not in categories:
+                            categories.append(name)
+                        if conf is not None:
+                            conf_val = float(conf) / 100.0 if float(conf) > 1.0 else float(conf)
+                            if max_confidence is None or conf_val > max_confidence:
+                                max_confidence = round(conf_val, 2)
+
+                if status_val == "rejected":
+                    mod_status = "quarantined"
+                    if not categories:
+                        categories.append("Content Moderation Violation")
+                elif status_val == "pending" and mod_status != "quarantined":
+                    mod_status = "action_required"
 
         # Determine wire review status
         if mod_status == "quarantined":
             review_status = "quarantined"
+            # Crucial: Cloudinary's default policy blocks CDN delivery (404) for rejected assets.
+            # We override moderation_status to approved on the Cloudinary resource level so that
+            # authenticated newsroom editors can inspect the image in /desk, while PressWire maintains
+            # the internal quarantine quarantine status and frosted safety shield in the UI.
+            try:
+                cloudinary.api.update(res["public_id"], moderation_status="approved")
+                cloudinary.uploader.explicit(res["public_id"], type="upload", invalidate=True)
+            except Exception as e:
+                import logging
+                logging.warning(f"[Cloudinary] Failed to unlock quarantined delivery for newsroom review: {e}")
         elif faces_list:
             review_status = "action_required"  # Needs privacy triage
         else:
@@ -267,7 +305,7 @@ class IntakeService:
             secure_url=res.get("secure_url"),
             faces=faces_list,
             telemetry=telemetry,
-            moderation=ModerationResult(status=mod_status, categories=categories),
+            moderation=ModerationResult(status=mod_status, confidence=max_confidence, categories=categories),
             review_status=review_status,
             incident_type=incident_type,
             urgency=urgency,

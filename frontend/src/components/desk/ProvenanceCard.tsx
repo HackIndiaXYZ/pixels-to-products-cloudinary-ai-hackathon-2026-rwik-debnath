@@ -582,10 +582,14 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 )}
                 <span className="text-[10px] font-bold">Safety</span>
               </div>
-              <span className={`text-[9px] font-medium block ${
+              <span className={`text-[9px] font-medium block truncate max-w-[85px] mx-auto ${
                 moderation.status === 'approved' ? 'text-emerald-600/90' : 'text-rose-600 font-bold'
-              }`}>
-                {moderation.status === 'approved' ? 'Clean Feed' : moderation.status}
+              }`} title={moderation.categories?.join(', ') || moderation.status}>
+                {moderation.status === 'approved' 
+                  ? 'Clean Feed' 
+                  : moderation.confidence 
+                  ? `${Math.round(moderation.confidence * 100)}% Flag` 
+                  : moderation.status}
               </span>
             </div>
           </div>

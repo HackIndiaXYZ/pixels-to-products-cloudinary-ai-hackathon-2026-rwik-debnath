@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Layers,
   Loader2,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface RedactionCanvasProps {
@@ -57,6 +58,12 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isBlurPreviewVisible, setIsBlurPreviewVisible] = useState<boolean>(true);
+  const [isQuarantineRevealed, setIsQuarantineRevealed] = useState<boolean>(false);
+
+  // Reset quarantine reveal when selected asset changes
+  useEffect(() => {
+    setIsQuarantineRevealed(false);
+  }, [asset.public_id]);
 
   useEffect(() => {
     return () => {
@@ -825,7 +832,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                 )}
               </button>
               <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-white text-[10px] font-medium rounded-md shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                {isBlurPreviewVisible ? 'Privacy blur active (Click to inspect raw faces)' : 'Raw faces visible (Click to preview blur)'}
+                {isBlurPreviewVisible ? 'Privacy blur active (Click to inspect unblurred)' : 'Raw image visible (Click to preview blur)'}
               </div>
             </div>
 
@@ -915,16 +922,43 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               <div
                 ref={containerRef}
                 onMouseDown={handleContainerMouseDown}
-                className={`relative inline-block ${isDrawingMode ? 'cursor-crosshair' : ''}`}
+                className={`relative inline-block ${
+                  displayDims.width === 0 ? 'min-w-[320px] min-h-[220px]' : ''
+                } ${isDrawingMode ? 'cursor-crosshair' : ''}`}
               >
                 <img
                   ref={imgRef}
                   src={asset.secure_url}
                   alt="Subject Triage"
                   onLoad={handleImageLoad}
-                  className="max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10"
+                  className={`max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10 transition-all duration-300 ${
+                    asset.review_status === 'quarantined' && !isQuarantineRevealed
+                      ? 'blur-lg opacity-85'
+                      : ''
+                  }`}
                   draggable={false}
                 />
+
+                {/* Minimal Light Quarantine Audit Pill */}
+                {asset.review_status === 'quarantined' && (
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 px-3 py-1 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-full shadow-sm text-xs text-slate-700 animate-in fade-in duration-150 select-none whitespace-nowrap">
+                    <ShieldAlert className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    <span className="font-medium text-[11px] text-slate-700">
+                      Quarantined
+                      {asset.moderation?.categories && asset.moderation.categories.length > 0
+                        ? ` (${asset.moderation.categories.slice(0, 2).join(', ')})`
+                        : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsQuarantineRevealed(!isQuarantineRevealed)}
+                      className="ml-1 px-2 py-0.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-full text-[10px] font-semibold transition cursor-pointer flex items-center space-x-1 border border-slate-200/80"
+                    >
+                      <Eye className="w-3 h-3 text-slate-500" />
+                      <span>{isQuarantineRevealed ? 'Re-blur' : 'Inspect'}</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Clean Editorial Focal Target Reticle */}
                 {(isFocalMode || (asset.focal_x != null && asset.focal_y != null)) && displayDims.width > 0 && (() => {
@@ -1004,13 +1038,13 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                           : 'cursor-grab active:cursor-grabbing'
                       } ${
                         isSelected
-                          ? 'border-blue-500 ring-2 ring-blue-500/40 shadow-xl'
+                          ? 'border-blue-500 ring-2 ring-blue-500/50 shadow-xl'
                           : isHovered
-                          ? 'border-rose-400 ring-1 ring-rose-400/30 shadow-md'
-                          : 'border-rose-400/80 shadow-xs'
+                          ? 'border-rose-400 ring-1 ring-rose-400/40 shadow-md'
+                          : 'border-rose-400/90 shadow-xs'
                       } ${
                         isBlurPreviewVisible
-                          ? 'backdrop-blur-md bg-slate-900/10 hover:bg-slate-900/5'
+                          ? 'frosted-privacy-glass'
                           : 'bg-transparent'
                       }`}
                     >
@@ -1019,13 +1053,6 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                       <span className={`absolute -top-[1.5px] -right-[1.5px] w-2 h-2 border-t-2 border-r-2 pointer-events-none rounded-tr-xs ${isSelected ? 'border-blue-500' : 'border-rose-500'}`} />
                       <span className={`absolute -bottom-[1.5px] -left-[1.5px] w-2 h-2 border-b-2 border-l-2 pointer-events-none rounded-bl-xs ${isSelected ? 'border-blue-500' : 'border-rose-500'}`} />
                       <span className={`absolute -bottom-[1.5px] -right-[1.5px] w-2 h-2 border-b-2 border-r-2 pointer-events-none rounded-br-xs ${isSelected ? 'border-blue-500' : 'border-rose-500'}`} />
-
-                      {/* Minimalist Micro-Tag on Hover/Select */}
-                      {(isHovered || isSelected) && (
-                        <span className="absolute -top-5 left-0 bg-slate-900/90 text-white text-[9px] font-mono font-medium px-1.5 py-0.5 rounded shadow-sm pointer-events-none tracking-wider select-none whitespace-nowrap">
-                          Face #{idx + 1}
-                        </span>
-                      )}
 
                       {/* Discrete Remove Button at Top-Right Corner */}
                       <button
@@ -1097,7 +1124,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               style={{ width: `${sliderPosition}%` }}
             >
               <img
-                src={asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.clean_master || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
+                src={asset.syndication_urls?.clean_master || asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
                 alt=""
                 className="absolute inset-0 w-full h-full object-contain filter"
                 style={{ width: `${100 / (sliderPosition / 100)}%`, maxWidth: 'none' }}

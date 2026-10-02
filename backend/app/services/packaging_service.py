@@ -38,7 +38,7 @@ class PackagingService:
         - Clean Master Delivery with selective privacy redactions
         """
         cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
-        redaction_trans = [{"effect": "pixelate_faces:10"}] if pixelate_bystanders else []
+        redaction_trans = [{"effect": "blur_faces:400"}] if pixelate_bystanders else []
 
         has_custom_focal = focal_x is not None and focal_y is not None
 
