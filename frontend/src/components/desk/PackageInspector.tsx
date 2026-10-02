@@ -5,16 +5,19 @@ import {
   X,
   Lock,
   Trash2,
-  Check,
   ChevronDown,
   Film,
   ImageIcon,
   Copy,
+  MapPin,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import {
   CATEGORY_LIST,
   getCategoryMeta,
 } from '../../utils/categories';
+import { parseMapUrlOrCoords, resolveMapUrlViaBackend } from '../../utils/mapParser';
 
 interface PackageInspectorProps {
   packageId: string;
@@ -23,6 +26,8 @@ interface PackageInspectorProps {
   clusterRadiusKm: number;
   packageWindowHours?: number;
   packageStatus?: 'active' | 'concluded' | 'locked';
+  lat?: number | null;
+  lng?: number | null;
   assets: MediaAsset[];
   onUpdatePackage: (eventId: string, updates: {
     event_title?: string;
@@ -30,6 +35,9 @@ interface PackageInspectorProps {
     cluster_radius_km?: number;
     package_window_hours?: number;
     package_status?: 'active' | 'concluded';
+    lat?: number | null;
+    lng?: number | null;
+    clear_location?: boolean;
   }) => Promise<void>;
   onDisbandPackage: (eventId: string) => Promise<void>;
   onDetachAsset: (publicId: string) => Promise<void>;
@@ -44,6 +52,8 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
   clusterRadiusKm,
   packageWindowHours = 1.0,
   packageStatus = 'active',
+  lat,
+  lng,
   assets,
   onUpdatePackage,
   onDisbandPackage,
@@ -58,6 +68,12 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
   const [status, setStatus] = useState<'active' | 'concluded'>(
     packageStatus === 'locked' || packageStatus === 'concluded' ? 'concluded' : 'active'
   );
+  const [geoLat, setGeoLat] = useState<number | null>(lat ?? null);
+  const [geoLng, setGeoLng] = useState<number | null>(lng ?? null);
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
+  const [locationInput, setLocationInput] = useState('');
+  const [isResolvingLocation, setIsResolvingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [isBeatDropdownOpen, setIsBeatDropdownOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -70,7 +86,9 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
     setRadius(clusterRadiusKm);
     setWindowHours(packageWindowHours);
     setStatus(packageStatus === 'locked' || packageStatus === 'concluded' ? 'concluded' : 'active');
-  }, [packageTitle, incidentType, clusterRadiusKm, packageWindowHours, packageStatus]);
+    setGeoLat(lat ?? null);
+    setGeoLng(lng ?? null);
+  }, [packageTitle, incidentType, clusterRadiusKm, packageWindowHours, packageStatus, lat, lng]);
 
   // Click outside for beat dropdown
   useEffect(() => {
@@ -115,6 +133,57 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
   const handleWindowChange = async (hours: number) => {
     setWindowHours(hours);
     await onUpdatePackage(packageId, { package_window_hours: hours });
+  };
+
+  const handleSaveLocation = async () => {
+    const trimmed = locationInput.trim();
+    if (!trimmed) {
+      setLocationError('Please enter a map link or coordinates');
+      return;
+    }
+    setIsResolvingLocation(true);
+    setLocationError(null);
+    try {
+      let resolved = parseMapUrlOrCoords(trimmed);
+      if (!resolved && (trimmed.startsWith('http://') || trimmed.startsWith('https://'))) {
+        const backendRes = await resolveMapUrlViaBackend(trimmed);
+        if (backendRes.success && backendRes.lat !== undefined && backendRes.lng !== undefined) {
+          resolved = { lat: backendRes.lat, lng: backendRes.lng, source: 'google' };
+        } else {
+          setLocationError(backendRes.error || 'Could not parse coordinates from link');
+          return;
+        }
+      }
+
+      if (!resolved) {
+        setLocationError('Could not parse coordinates. Format: lat, lng or map URL');
+        return;
+      }
+
+      setGeoLat(resolved.lat);
+      setGeoLng(resolved.lng);
+      setIsEditingLocation(false);
+      setLocationInput('');
+      await onUpdatePackage(packageId, {
+        lat: resolved.lat,
+        lng: resolved.lng,
+      });
+    } catch (err) {
+      setLocationError(err instanceof Error ? err.message : 'Failed to update location');
+    } finally {
+      setIsResolvingLocation(false);
+    }
+  };
+
+  const handleClearLocation = async () => {
+    setGeoLat(null);
+    setGeoLng(null);
+    setIsEditingLocation(false);
+    setLocationInput('');
+    setLocationError(null);
+    await onUpdatePackage(packageId, {
+      clear_location: true,
+    });
   };
 
   const handleToggleStatus = async () => {
@@ -280,7 +349,7 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
                         <span className={`w-2 h-2 rounded-full shrink-0 ${c.dotColor}`} />
                         <span className="truncate">{c.label}</span>
                       </div>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />}
+                      {isSelected && <span className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Active</span>}
                     </button>
                   );
                 })}
@@ -289,105 +358,257 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
           </div>
         </div>
 
-        {/* Section: Spatiotemporal Perimeter (Symmetrical Twin Sliders) */}
+        {/* Section: Spatiotemporal Perimeter */}
         <div className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-3 space-y-3.5">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Spatiotemporal Perimeter
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Spatiotemporal Perimeter
+            </div>
+            {!isEditingLocation && (
+              geoLat !== null && geoLng !== null ? (
+                <div className="flex items-center space-x-1.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationInput(`${geoLat}, ${geoLng}`);
+                      setIsEditingLocation(true);
+                      setLocationError(null);
+                    }}
+                    className="text-slate-500 hover:text-slate-800 font-medium transition cursor-pointer"
+                  >
+                    Edit
+                  </button>
+                  <span className="text-slate-300">·</span>
+                  <button
+                    type="button"
+                    onClick={handleClearLocation}
+                    className="text-slate-400 hover:text-rose-600 font-medium transition cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocationInput('');
+                    setIsEditingLocation(true);
+                    setLocationError(null);
+                  }}
+                  className="text-[11px] text-blue-600 hover:text-blue-700 font-medium transition cursor-pointer"
+                >
+                  Set Anchor
+                </button>
+              )
+            )}
           </div>
+
+          {/* Geo Anchor Display or Inline Edit */}
+          {isEditingLocation ? (
+            <div className="space-y-2 pt-1 border-t border-slate-200/60">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-600 font-medium">Geo Anchor</span>
+                <span className="text-[10px] text-slate-400">URL or lat, lng</span>
+              </div>
+              <div className="flex items-center space-x-1.5">
+                <input
+                  type="text"
+                  value={locationInput}
+                  onChange={(e) => {
+                    setLocationInput(e.target.value);
+                    if (locationError) setLocationError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveLocation();
+                    if (e.key === 'Escape') {
+                      setIsEditingLocation(false);
+                      setLocationError(null);
+                    }
+                  }}
+                  placeholder="Google Maps link or lat, lng..."
+                  autoFocus
+                  disabled={isResolvingLocation}
+                  className="flex-1 bg-white border border-slate-200 hover:border-slate-300 focus:border-blue-500 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  disabled={isResolvingLocation || !locationInput.trim()}
+                  onClick={handleSaveLocation}
+                  className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition disabled:opacity-50 cursor-pointer shrink-0 flex items-center space-x-1"
+                >
+                  {isResolvingLocation && <Loader2 className="w-3 h-3 animate-spin" />}
+                  <span>Save</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isResolvingLocation}
+                  onClick={() => {
+                    setIsEditingLocation(false);
+                    setLocationError(null);
+                  }}
+                  className="px-2 py-1.5 text-slate-500 hover:text-slate-800 text-xs font-medium rounded-lg transition cursor-pointer shrink-0"
+                >
+                  Cancel
+                </button>
+              </div>
+              {locationError && (
+                <p className="text-[11px] text-rose-600 font-medium">{locationError}</p>
+              )}
+            </div>
+          ) : geoLat !== null && geoLng !== null ? (
+            <div className="flex items-center justify-between text-xs pt-0.5 pb-1 border-b border-slate-200/60">
+              <div className="flex items-center space-x-1.5 text-slate-700 min-w-0">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="font-mono text-[11px] text-slate-800">
+                  {geoLat.toFixed(5)}°, {geoLng.toFixed(5)}°
+                </span>
+              </div>
+              <a
+                href={`https://www.google.com/maps?q=${geoLat},${geoLng}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-600 hover:text-blue-700 font-medium text-[11px] flex items-center space-x-1 shrink-0 ml-2"
+              >
+                <span>View Map</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5 pb-1 border-b border-slate-200/60">
+              <span className="italic">No geo anchor configured</span>
+            </div>
+          )}
 
           {/* Slider 1: Clustering Radius */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-600 font-medium">Clustering Radius</span>
-              <div className="flex items-center space-x-1">
-                <input
-                  type="number"
-                  min="0.1"
-                  max="10.0"
-                  step="0.1"
-                  value={radius}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    if (!isNaN(val)) {
-                      setRadius(val);
-                      if (val >= 0.1 && val <= 10.0) handleRadiusChange(val);
-                    }
-                  }}
-                  onBlur={() => {
-                    const clamped = Math.min(10.0, Math.max(0.1, radius));
-                    handleRadiusChange(clamped);
-                  }}
-                  className="w-12 h-5 bg-white border border-slate-200 rounded px-1 text-center text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <span className="text-[11px] font-medium text-slate-400">km</span>
-              </div>
-            </div>
+          {(() => {
+            const hasLocation = geoLat !== null && geoLng !== null;
+            return (
+              <>
+                <div className={`space-y-1.5 transition-opacity ${hasLocation ? 'opacity-100' : 'opacity-40 select-none'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-medium ${hasLocation ? 'text-slate-600' : 'text-slate-400'}`}>
+                      Clustering Radius
+                    </span>
+                    <div className="flex items-center space-x-1">
+                      <input
+                        type="number"
+                        disabled={!hasLocation}
+                        min="0.1"
+                        max="10.0"
+                        step="0.1"
+                        value={radius}
+                        onChange={(e) => {
+                          if (!hasLocation) return;
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val)) {
+                            setRadius(val);
+                            if (val >= 0.1 && val <= 10.0) handleRadiusChange(val);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!hasLocation) return;
+                          const clamped = Math.min(10.0, Math.max(0.1, radius));
+                          handleRadiusChange(clamped);
+                        }}
+                        className={`w-12 h-5 border rounded px-1 text-center text-xs font-mono font-semibold focus:outline-none ${
+                          hasLocation
+                            ? 'bg-white border-slate-200 text-slate-900 focus:ring-1 focus:ring-blue-500'
+                            : 'bg-slate-100/70 border-slate-200/60 text-slate-400 cursor-not-allowed'
+                        }`}
+                      />
+                      <span className="text-[11px] font-medium text-slate-400">km</span>
+                    </div>
+                  </div>
 
-            <input
-              type="range"
-              min="0.1"
-              max="10.0"
-              step="0.1"
-              value={radius}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                handleRadiusChange(val);
-              }}
-              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:outline-none"
-            />
-            <div className="flex justify-between text-[9px] font-mono text-slate-400 select-none">
-              <span>0.1 km</span>
-              <span>5.0 km</span>
-              <span>10.0 km</span>
-            </div>
-          </div>
+                  <input
+                    type="range"
+                    disabled={!hasLocation}
+                    min="0.1"
+                    max="10.0"
+                    step="0.1"
+                    value={radius}
+                    onChange={(e) => {
+                      if (!hasLocation) return;
+                      const val = parseFloat(e.target.value);
+                      handleRadiusChange(val);
+                    }}
+                    className={`w-full h-1.5 rounded-lg appearance-none transition focus:outline-none ${
+                      hasLocation
+                        ? 'bg-slate-200 cursor-pointer accent-blue-600'
+                        : 'bg-slate-200/60 cursor-not-allowed accent-slate-400'
+                    }`}
+                  />
+                  <div className="flex justify-between text-[9px] font-mono text-slate-400 select-none">
+                    <span>0.1 km</span>
+                    <span>5.0 km</span>
+                    <span>10.0 km</span>
+                  </div>
+                </div>
 
-          {/* Slider 2: Ingestion Time Window */}
-          <div className="space-y-1.5 pt-2.5 border-t border-slate-200/60">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-600 font-medium">Ingestion Time Window</span>
-              <div className="flex items-center space-x-1">
-                <input
-                  type="number"
-                  min="0.5"
-                  max="24.0"
-                  step="0.5"
-                  value={windowHours}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    if (!isNaN(val)) {
-                      setWindowHours(val);
-                      if (val >= 0.5 && val <= 24.0) handleWindowChange(val);
-                    }
-                  }}
-                  onBlur={() => {
-                    const clamped = Math.min(24.0, Math.max(0.5, windowHours));
-                    handleWindowChange(clamped);
-                  }}
-                  className="w-12 h-5 bg-white border border-slate-200 rounded px-1 text-center text-xs font-mono font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <span className="text-[11px] font-medium text-slate-400">hrs</span>
-              </div>
-            </div>
+                {/* Slider 2: Ingestion Time Window */}
+                <div className={`space-y-1.5 pt-2.5 border-t border-slate-200/60 transition-opacity ${hasLocation ? 'opacity-100' : 'opacity-40 select-none'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-medium ${hasLocation ? 'text-slate-600' : 'text-slate-400'}`}>
+                      Ingestion Time Window
+                    </span>
+                    <div className="flex items-center space-x-1">
+                      <input
+                        type="number"
+                        disabled={!hasLocation}
+                        min="0.5"
+                        max="24.0"
+                        step="0.5"
+                        value={windowHours}
+                        onChange={(e) => {
+                          if (!hasLocation) return;
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val)) {
+                            setWindowHours(val);
+                            if (val >= 0.5 && val <= 24.0) handleWindowChange(val);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!hasLocation) return;
+                          const clamped = Math.min(24.0, Math.max(0.5, windowHours));
+                          handleWindowChange(clamped);
+                        }}
+                        className={`w-12 h-5 border rounded px-1 text-center text-xs font-mono font-semibold focus:outline-none ${
+                          hasLocation
+                            ? 'bg-white border-slate-200 text-slate-900 focus:ring-1 focus:ring-blue-500'
+                            : 'bg-slate-100/70 border-slate-200/60 text-slate-400 cursor-not-allowed'
+                        }`}
+                      />
+                      <span className="text-[11px] font-medium text-slate-400">hrs</span>
+                    </div>
+                  </div>
 
-            <input
-              type="range"
-              min="0.5"
-              max="24.0"
-              step="0.5"
-              value={windowHours}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                handleWindowChange(val);
-              }}
-              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:outline-none"
-            />
-            <div className="flex justify-between text-[9px] font-mono text-slate-400 select-none">
-              <span>0.5 h (30m)</span>
-              <span>12.0 h</span>
-              <span>24.0 h (All Day)</span>
-            </div>
-          </div>
+                  <input
+                    type="range"
+                    disabled={!hasLocation}
+                    min="0.5"
+                    max="24.0"
+                    step="0.5"
+                    value={windowHours}
+                    onChange={(e) => {
+                      if (!hasLocation) return;
+                      const val = parseFloat(e.target.value);
+                      handleWindowChange(val);
+                    }}
+                    className={`w-full h-1.5 rounded-lg appearance-none transition focus:outline-none ${
+                      hasLocation
+                        ? 'bg-slate-200 cursor-pointer accent-blue-600'
+                        : 'bg-slate-200/60 cursor-not-allowed accent-slate-400'
+                    }`}
+                  />
+                  <div className="flex justify-between text-[9px] font-mono text-slate-400 select-none">
+                    <span>0.5 h (30m)</span>
+                    <span>12.0 h</span>
+                    <span>24.0 h (All Day)</span>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Section: Member Takes & Angles Gallery */}
@@ -397,64 +618,73 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
           </div>
 
           <div className="space-y-1.5">
-            {assets.map((asset) => {
-              const thumbUrl =
-                asset.resource_type === 'video'
-                  ? asset.secure_url?.includes('/video/upload/')
-                    ? asset.secure_url.replace('/video/upload/', '/video/upload/so_0,c_fill,ar_1:1,w_100,h_100/').replace(/\.(mp4|mov|webm)$/i, '.jpg')
-                    : asset.syndication_urls?.feed_1_1 && !asset.syndication_urls.feed_1_1.endsWith('.mp4')
-                    ? asset.syndication_urls.feed_1_1
-                    : asset.secure_url?.replace(/\.(mp4|mov|webm)$/i, '.jpg')
-                  : asset.secure_url || asset.syndication_urls?.feed_1_1;
+            {assets.length === 0 ? (
+              <div className="py-6 px-4 border border-dashed border-slate-200/90 rounded-xl text-center bg-slate-50/50">
+                <p className="text-xs text-slate-500 font-semibold">No takes in this package yet</p>
+                <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                  Drag and drop wire stories onto this package in the queue to cluster them.
+                </p>
+              </div>
+            ) : (
+              assets.map((asset) => {
+                const thumbUrl =
+                  asset.resource_type === 'video'
+                    ? asset.secure_url?.includes('/video/upload/')
+                      ? asset.secure_url.replace('/video/upload/', '/video/upload/so_0,c_fill,ar_1:1,w_100,h_100/').replace(/\.(mp4|mov|webm)$/i, '.jpg')
+                      : asset.syndication_urls?.feed_1_1 && !asset.syndication_urls.feed_1_1.endsWith('.mp4')
+                      ? asset.syndication_urls.feed_1_1
+                      : asset.secure_url?.replace(/\.(mp4|mov|webm)$/i, '.jpg')
+                    : asset.secure_url || asset.syndication_urls?.feed_1_1;
 
-              return (
-                <div
-                  key={asset.public_id}
-                  onClick={() => onSelectAsset && onSelectAsset(asset)}
-                  className="bg-slate-50/70 hover:bg-slate-50 border border-slate-200/80 hover:border-slate-300 rounded-xl p-2 flex items-center space-x-2.5 transition cursor-pointer group shadow-2xs"
-                >
-                  {/* Thumbnail */}
-                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 shrink-0 flex items-center justify-center relative">
-                    {thumbUrl ? (
-                      <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
-                    ) : asset.resource_type === 'video' ? (
-                      <Film className="w-4 h-4 text-slate-400" />
-                    ) : (
-                      <ImageIcon className="w-4 h-4 text-slate-400" />
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                      {asset.headline || asset.public_id}
-                    </p>
-                    <div className="flex items-center space-x-1.5 text-[10px] text-slate-400 font-mono">
-                      <span>{new Date(asset.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      {asset.telemetry?.make && (
-                        <>
-                          <span>·</span>
-                          <span className="truncate max-w-[120px]">{asset.telemetry.make}</span>
-                        </>
+                return (
+                  <div
+                    key={asset.public_id}
+                    onClick={() => onSelectAsset && onSelectAsset(asset)}
+                    className="bg-slate-50/70 hover:bg-slate-50 border border-slate-200/80 hover:border-slate-300 rounded-xl p-2 flex items-center space-x-2.5 transition cursor-pointer group shadow-2xs"
+                  >
+                    {/* Thumbnail */}
+                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 shrink-0 flex items-center justify-center relative">
+                      {thumbUrl ? (
+                        <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+                      ) : asset.resource_type === 'video' ? (
+                        <Film className="w-4 h-4 text-slate-400" />
+                      ) : (
+                        <ImageIcon className="w-4 h-4 text-slate-400" />
                       )}
                     </div>
-                  </div>
 
-                  {/* Detach Action */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDetachAsset(asset.public_id);
-                    }}
-                    className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition cursor-pointer shrink-0"
-                    title="Detach from package into standalone story"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              );
-            })}
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                        {asset.headline || asset.public_id}
+                      </p>
+                      <div className="flex items-center space-x-1.5 text-[10px] text-slate-400 font-mono">
+                        <span>{new Date(asset.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        {asset.telemetry?.make && (
+                          <>
+                            <span>·</span>
+                            <span className="truncate max-w-[120px]">{asset.telemetry.make}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Detach Action */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDetachAsset(asset.public_id);
+                      }}
+                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition cursor-pointer shrink-0"
+                      title="Detach from package into standalone story"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
@@ -468,10 +698,7 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
           title="Copy package manifest JSON"
         >
           {copiedKey === 'manifest' ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Copied JSON</span>
-            </>
+            <span className="text-blue-600 font-semibold">Copied JSON</span>
           ) : (
             <>
               <Copy className="w-3.5 h-3.5 text-slate-500" />

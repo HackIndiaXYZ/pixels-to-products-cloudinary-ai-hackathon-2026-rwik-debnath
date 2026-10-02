@@ -4,11 +4,12 @@ import uuid
 from typing import Optional, Dict, Any, List, Tuple
 import cloudinary.uploader
 from app.core.config import settings
-from app.models.schemas import MediaAssetResponse, FaceCoordinate, TelemetryData, ModerationResult
+from app.models.schemas import MediaAssetResponse, FaceCoordinate, TelemetryData, ModerationResult, StoryPackageResponse
 from app.services.packaging_service import PackagingService
 
 # In-memory wire store for demonstration & fallback
 WIRE_STORE: Dict[str, MediaAssetResponse] = {}
+PACKAGE_STORE: Dict[str, StoryPackageResponse] = {}
 
 class IntakeService:
     @staticmethod
@@ -32,10 +33,19 @@ class IntakeService:
         default_headline: str
     ) -> Tuple[Optional[str], Optional[str]]:
         """
-        Scans WIRE_STORE to find an active breaking event within each package's radius and 1 hour.
+        Scans PACKAGE_STORE and WIRE_STORE to find an active breaking event within each package's radius and window.
         Returns (event_id, event_title). If media has no GPS, returns (None, None).
         """
         if lat is not None and lon is not None:
+            # 1. Match against registered packages in PACKAGE_STORE
+            for pkg in PACKAGE_STORE.values():
+                if pkg.package_status not in ("locked", "concluded") and pkg.lat is not None and pkg.lng is not None:
+                    dist_km = cls._haversine_km(lat, lon, pkg.lat, pkg.lng)
+                    threshold_km = pkg.cluster_radius_km if pkg.cluster_radius_km is not None else 1.5
+                    if dist_km <= threshold_km:
+                        return pkg.event_id, pkg.event_title
+
+            # 2. Match against active assets in WIRE_STORE
             for asset in WIRE_STORE.values():
                 if not asset.telemetry or not asset.telemetry.has_gps:
                     continue
@@ -154,9 +164,12 @@ class IntakeService:
         try:
             res = cloudinary.uploader.upload(file_bytes, **upload_options)
         except Exception as e:
+            import logging
+            logging.warning(f"[Cloudinary] Upload call failed, falling back to mock: {e}")
             # Check if uploaded file is a screenshot / desktop graphic
             lower_name = (filename or "").lower()
             is_screenshot = any(k in lower_name for k in ["screenshot", "screen_shot", "capture", "snip", "record"]) or lower_name.endswith(".png")
+            cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
 
             res = {
                 "public_id": public_id,
@@ -166,7 +179,7 @@ class IntakeService:
                 "width": 1920,
                 "height": 1080,
                 "bytes": len(file_bytes),
-                "secure_url": f"https://res.cloudinary.com/demo/{resource_type}/upload/{public_id}.jpg",
+                "secure_url": f"https://res.cloudinary.com/{cloud_name}/{resource_type}/upload/{public_id}.jpg",
                 "faces": [] if (resource_type == "video" or is_screenshot) else [[400, 250, 180, 180], [920, 280, 190, 190]],
                 "image_metadata": {} if is_screenshot else {
                     "Make": "Apple",

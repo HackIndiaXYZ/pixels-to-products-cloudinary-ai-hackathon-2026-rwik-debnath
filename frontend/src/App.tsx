@@ -1,20 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
-import type { MediaAsset } from './types';
+import type { MediaAsset, StoryPackage } from './types';
 import { WireQueue } from './components/desk/WireQueue';
 import { ProvenanceCard } from './components/desk/ProvenanceCard';
 import { PackageInspector } from './components/desk/PackageInspector';
 import { RedactionCanvas } from './components/desk/RedactionCanvas';
 import { SubmitPortal } from './components/portal/SubmitPortal';
 import { BrandHome } from './components/brand/BrandHome';
-import { Clock, Share2, Check } from 'lucide-react';
+import { Clock, Share2, Check, UploadCloud } from 'lucide-react';
 import { PressWireLogo } from './components/brand/PressWireLogo';
 
 export function App() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const [packages, setPackages] = useState<StoryPackage[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [showInspector, setShowInspector] = useState(false);
   const [tipLinkCopied, setTipLinkCopied] = useState(false);
+  const [isDragOverCenter, setIsDragOverCenter] = useState(false);
+  const centralFileInputRef = useRef<HTMLInputElement>(null);
 
   // Global hotkey: 'i' or 'I' toggles the Provenance/Export inspector drawer, 'Escape' closes it
   useEffect(() => {
@@ -82,6 +85,18 @@ export function App() {
     selectedIdRef.current = selectedAsset?.public_id || null;
   }, [selectedAsset]);
 
+  const fetchPackages = async () => {
+    try {
+      const res = await fetch('/api/v1/editorial/packages');
+      if (res.ok) {
+        const data: StoryPackage[] = await res.json();
+        setPackages(data);
+      }
+    } catch (err) {
+      console.error('Error fetching story packages:', err);
+    }
+  };
+
   const fetchQueue = async () => {
     try {
       const res = await fetch('/api/v1/editorial/queue');
@@ -118,7 +133,10 @@ export function App() {
           } else {
             setSelectedAsset(data[0]);
           }
+        } else {
+          setSelectedAsset(null);
         }
+        await fetchPackages();
       }
     } catch (err) {
       console.error('Error fetching wire queue:', err);
@@ -127,7 +145,11 @@ export function App() {
 
   useEffect(() => {
     fetchQueue();
-    const interval = setInterval(() => fetchQueue(), 10000);
+    fetchPackages();
+    const interval = setInterval(() => {
+      fetchQueue();
+      fetchPackages();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -286,6 +308,33 @@ export function App() {
 
   const handleAssignPackage = async (public_id: string, event_id: string | null, event_title?: string | null) => {
     try {
+      const matchedPkg = event_id ? packages.find((p) => p.event_id === event_id) : null;
+      setAssets((prev) =>
+        prev.map((a) => {
+          if (a.public_id === public_id) {
+            return {
+              ...a,
+              event_id: event_id || undefined,
+              event_title: (matchedPkg ? matchedPkg.event_title : event_title) || undefined,
+              incident_type: (matchedPkg && matchedPkg.incident_type) ? matchedPkg.incident_type : a.incident_type,
+            };
+          }
+          return a;
+        })
+      );
+      if (selectedAsset?.public_id === public_id) {
+        setSelectedAsset((prev) =>
+          prev
+            ? {
+                ...prev,
+                event_id: event_id || undefined,
+                event_title: (matchedPkg ? matchedPkg.event_title : event_title) || undefined,
+                incident_type: (matchedPkg && matchedPkg.incident_type) ? matchedPkg.incident_type : prev.incident_type,
+              }
+            : null
+        );
+      }
+
       const res = await fetch('/api/v1/editorial/package/assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -297,7 +346,7 @@ export function App() {
         if (selectedAsset?.public_id === public_id) {
           setSelectedAsset(updatedAsset);
         }
-        await fetchQueue();
+        await Promise.all([fetchQueue(), fetchPackages()]);
       }
     } catch (err) {
       console.error('Failed to assign package:', err);
@@ -310,13 +359,40 @@ export function App() {
     event_title?: string | null
   ) => {
     try {
+      const matchedPkg = event_id ? packages.find((p) => p.event_id === event_id) : null;
+      setAssets((prev) =>
+        prev.map((a) => {
+          if (public_ids.includes(a.public_id)) {
+            return {
+              ...a,
+              event_id: event_id || undefined,
+              event_title: (matchedPkg ? matchedPkg.event_title : event_title) || undefined,
+              incident_type: (matchedPkg && matchedPkg.incident_type) ? matchedPkg.incident_type : a.incident_type,
+            };
+          }
+          return a;
+        })
+      );
+      if (selectedAsset && public_ids.includes(selectedAsset.public_id)) {
+        setSelectedAsset((prev) =>
+          prev
+            ? {
+                ...prev,
+                event_id: event_id || undefined,
+                event_title: (matchedPkg ? matchedPkg.event_title : event_title) || undefined,
+                incident_type: (matchedPkg && matchedPkg.incident_type) ? matchedPkg.incident_type : prev.incident_type,
+              }
+            : null
+        );
+      }
+
       const res = await fetch('/api/v1/editorial/package/batch-assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ public_ids, event_id, event_title }),
       });
       if (res.ok) {
-        await fetchQueue();
+        await Promise.all([fetchQueue(), fetchPackages()]);
       }
     } catch (err) {
       console.error('Failed to batch assign package:', err);
@@ -329,6 +405,9 @@ export function App() {
     if (firstAsset) {
       setSelectedAsset(firstAsset);
       selectedIdRef.current = firstAsset.public_id;
+    } else {
+      setSelectedAsset(null);
+      selectedIdRef.current = null;
     }
     setShowInspector(true);
   };
@@ -339,6 +418,9 @@ export function App() {
     cluster_radius_km?: number;
     package_window_hours?: number;
     package_status?: 'active' | 'concluded';
+    lat?: number | null;
+    lng?: number | null;
+    clear_location?: boolean;
   }) => {
     try {
       setAssets((prev) =>
@@ -347,13 +429,28 @@ export function App() {
       if (selectedAsset?.event_id === eventId) {
         setSelectedAsset((prev) => (prev ? { ...prev, ...updates } : null));
       }
+      setPackages((prev) =>
+        prev.map((p) => {
+          if (p.event_id !== eventId) return p;
+          const updated = { ...p, ...updates };
+          if (updates.clear_location) {
+            updated.lat = null;
+            updated.lng = null;
+          }
+          return updated;
+        })
+      );
       const res = await fetch('/api/v1/editorial/package/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ event_id: eventId, ...updates }),
       });
       if (res.ok) {
-        await fetchQueue();
+        await Promise.all([fetchQueue(), fetchPackages()]);
+      } else {
+        const errData = await res.json().catch(() => null);
+        alert(errData?.detail || 'Failed to update package');
+        await Promise.all([fetchQueue(), fetchPackages()]);
       }
     } catch (err) {
       console.error('Failed to update package:', err);
@@ -368,6 +465,7 @@ export function App() {
       if (selectedAsset?.event_id === eventId) {
         setSelectedAsset((prev) => (prev ? { ...prev, event_id: undefined, event_title: undefined } : null));
       }
+      setPackages((prev) => prev.filter((p) => p.event_id !== eventId));
       setSelectedPackageId(null);
       const res = await fetch('/api/v1/editorial/package/disband', {
         method: 'POST',
@@ -375,7 +473,7 @@ export function App() {
         body: JSON.stringify({ event_id: eventId }),
       });
       if (res.ok) {
-        await fetchQueue();
+        await Promise.all([fetchQueue(), fetchPackages()]);
       }
     } catch (err) {
       console.error('Failed to disband package:', err);
@@ -383,7 +481,10 @@ export function App() {
   };
 
   const [isUploadingDirect, setIsUploadingDirect] = useState(false);
-  const handleDirectUpload = async (files: FileList | File[]) => {
+  const handleDirectUpload = async (
+    files: FileList | File[],
+    targetPackage?: { event_id: string; event_title?: string }
+  ) => {
     setIsUploadingDirect(true);
     try {
       const fileArray = Array.from(files);
@@ -411,8 +512,12 @@ export function App() {
           const newAsset: MediaAsset = await res.json();
           setAssets((prev) => [newAsset, ...prev]);
           setSelectedAsset(newAsset);
+          if (targetPackage?.event_id) {
+            await handleAssignPackage(newAsset.public_id, targetPackage.event_id, targetPackage.event_title);
+          }
         }
       }
+      await Promise.all([fetchQueue(), fetchPackages()]);
     } catch (err) {
       console.error('Direct upload failed:', err);
     } finally {
@@ -499,6 +604,7 @@ export function App() {
           <div className="w-full min-w-0 flex flex-col h-full min-h-0 overflow-hidden">
             <WireQueue
               assets={assets}
+              packages={packages}
               selectedId={selectedAsset?.public_id || null}
               selectedPackageId={selectedPackageId}
               onSelect={(a) => {
@@ -536,6 +642,136 @@ export function App() {
                 onToggleInspector={() => setShowInspector((prev) => !prev)}
                 isInspectorOpen={showInspector}
               />
+            ) : assets.length === 0 ? (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.dataTransfer.dropEffect = 'copy';
+                  if (!isDragOverCenter) setIsDragOverCenter(true);
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setIsDragOverCenter(false);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragOverCenter(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleDirectUpload(e.dataTransfer.files);
+                  }
+                }}
+                className={`border rounded-2xl p-12 flex flex-col items-center justify-center flex-1 text-center transition-all duration-200 select-none relative ${
+                  isDragOverCenter
+                    ? 'border-blue-500 bg-blue-50/40 shadow-xs ring-2 ring-blue-400/20'
+                    : 'bg-white border-slate-200/80 shadow-2xs hover:border-slate-300'
+                }`}
+              >
+                {/* Minimalist Newsroom Media Vector Illustration */}
+                <div className="relative mb-5">
+                  <svg
+                    className={`w-32 h-28 transition-transform duration-300 ${
+                      isDragOverCenter ? 'scale-110' : 'hover:scale-105'
+                    }`}
+                    viewBox="0 0 140 110"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    {/* Background angled card */}
+                    <rect
+                      x="32"
+                      y="14"
+                      width="76"
+                      height="54"
+                      rx="8"
+                      fill="#f8fafc"
+                      stroke="#e2e8f0"
+                      strokeWidth="1.5"
+                      transform="rotate(-5 32 14)"
+                    />
+                    {/* Foreground card */}
+                    <rect
+                      x="26"
+                      y="26"
+                      width="88"
+                      height="62"
+                      rx="8"
+                      fill="#ffffff"
+                      stroke="#cbd5e1"
+                      strokeWidth="1.5"
+                    />
+                    {/* Viewfinder frame */}
+                    <rect
+                      x="34"
+                      y="34"
+                      width="72"
+                      height="46"
+                      rx="5"
+                      fill="#f8fafc"
+                      stroke="#e2e8f0"
+                      strokeWidth="1"
+                      strokeDasharray="3 3"
+                    />
+                    {/* Subtle focus corners (editorial camera motif) */}
+                    <path
+                      d="M38 42v-4h4 M102 42v-4h-4 M38 72v4h4 M102 72v4h-4"
+                      stroke="#94a3b8"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    {/* Center aperture / media symbol */}
+                    <circle cx="70" cy="57" r="11" stroke="#94a3b8" strokeWidth="1.5" />
+                    <circle cx="70" cy="57" r="4.5" fill="#94a3b8" />
+                    <path d="M63 47h14" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" />
+
+                    {/* Small accent upload badge */}
+                    <circle cx="114" cy="30" r="11" fill="#eff6ff" stroke="#bfdbfe" strokeWidth="1.5" />
+                    <path
+                      d="M114 34V26M111 29l3-3 3 3"
+                      stroke="#2563eb"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+
+                {/* Minimal & Concise Typography */}
+                <h3 className="text-sm font-semibold text-slate-800 tracking-tight">
+                  {isDragOverCenter ? 'Release files to import' : 'Wire queue is empty'}
+                </h3>
+                <p className="text-xs text-slate-400 max-w-xs mt-1 leading-relaxed">
+                  Drop breaking photos or video dispatches here, or browse from your computer.
+                </p>
+
+                {/* Single Concise Button */}
+                <button
+                  type="button"
+                  onClick={() => centralFileInputRef.current?.click()}
+                  disabled={isUploadingDirect}
+                  className="mt-4 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-50 inline-flex items-center space-x-1.5"
+                >
+                  <UploadCloud className="w-3.5 h-3.5 text-slate-500" />
+                  <span>{isUploadingDirect ? 'Importing...' : 'Browse files'}</span>
+                </button>
+
+                <input
+                  type="file"
+                  ref={centralFileInputRef}
+                  className="hidden"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleDirectUpload(e.target.files);
+                    }
+                    e.target.value = '';
+                  }}
+                />
+              </div>
             ) : (
               <div className="bg-white border border-slate-200/80 rounded-2xl p-16 text-center text-slate-400 space-y-2 shadow-sm flex flex-col items-center justify-center flex-1">
                 <p className="text-sm font-semibold text-slate-700">NO ACTIVE MEDIA BUFFER SELECTED</p>
@@ -568,18 +804,21 @@ export function App() {
               showInspector ? 'translate-x-0' : 'translate-x-full pointer-events-none'
             }`}
           >
-            {selectedPackageId && assets.some((a) => a.event_id === selectedPackageId) ? (
+            {selectedPackageId ? (
               (() => {
                 const pkgAssets = assets.filter((a) => a.event_id === selectedPackageId);
                 const leadAsset = pkgAssets[0];
+                const matchedPkg = packages.find((p) => p.event_id === selectedPackageId);
                 return (
                   <PackageInspector
                     packageId={selectedPackageId}
-                    packageTitle={leadAsset?.event_title || 'Untitled Package'}
-                    incidentType={leadAsset?.incident_type || 'breaking_news'}
-                    clusterRadiusKm={leadAsset?.cluster_radius_km ?? 2.5}
-                    packageWindowHours={leadAsset?.package_window_hours ?? 1.0}
-                    packageStatus={leadAsset?.package_status ?? 'active'}
+                    packageTitle={matchedPkg?.event_title || leadAsset?.event_title || 'Untitled Package'}
+                    incidentType={matchedPkg?.incident_type || leadAsset?.incident_type || 'uncategorized'}
+                    clusterRadiusKm={matchedPkg?.cluster_radius_km ?? leadAsset?.cluster_radius_km ?? 1.5}
+                    packageWindowHours={matchedPkg?.package_window_hours ?? leadAsset?.package_window_hours ?? 1.0}
+                    packageStatus={matchedPkg?.package_status ?? leadAsset?.package_status ?? 'active'}
+                    lat={matchedPkg?.lat ?? leadAsset?.telemetry?.gps_latitude ?? null}
+                    lng={matchedPkg?.lng ?? leadAsset?.telemetry?.gps_longitude ?? null}
                     assets={pkgAssets}
                     onUpdatePackage={handleUpdatePackage}
                     onDisbandPackage={handleDisbandPackage}
@@ -602,6 +841,7 @@ export function App() {
               <ProvenanceCard
                 asset={selectedAsset}
                 allAssets={assets}
+                packages={packages}
                 onAssignPackage={handleAssignPackage}
                 onUpdateAsset={handleUpdateAsset}
                 onClose={() => setShowInspector(false)}

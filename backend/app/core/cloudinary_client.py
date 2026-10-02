@@ -13,12 +13,15 @@ def init_cloudinary():
     if settings.CLOUDINARY_URL:
         os.environ["CLOUDINARY_URL"] = settings.CLOUDINARY_URL
         cloudinary.reset_config()
-
-    cloudinary.config(
-        cloud_name=cloud_name,
-        api_key=api_key,
-        api_secret=api_secret,
-        secure=True
-    )
+        cfg = cloudinary.config()
+        if cfg.cloud_name:
+            settings.CLOUDINARY_CLOUD_NAME = cfg.cloud_name
+    else:
+        cloudinary.config(
+            cloud_name=cloud_name,
+            api_key=api_key,
+            api_secret=api_secret,
+            secure=True
+        )
 
 init_cloudinary()

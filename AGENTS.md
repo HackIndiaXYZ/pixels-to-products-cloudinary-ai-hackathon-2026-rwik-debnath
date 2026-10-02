@@ -39,6 +39,17 @@ When working on this repository, agents must adhere to the following roles and r
 - **Newsroom Layout & Taxonomy Standards**:
   - The editorial desk (`/desk`) is a full-bleed workspace application (`w-full` edge-to-edge). Never clamp containers with arbitrary `max-w-[1720px]` caps that create empty side gutters on ultrawide viewports.
   - News classification strictly adheres to **7 fixed news desks** (`Breaking News`, `Public Safety`, `Severe Weather`, `Politics & Civic`, `Transit & Infrastructure`, `Metro & Local`, `General Wire`). Never re-introduce ad-hoc user-created categories or color pickers.
+- **Spatiotemporal Clustering & Geo-Anchor Engine**:
+  - Packages support dynamic spatiotemporal clustering based on an editable geo-anchor (`lat`, `lng`) and perimeter radius (`cluster_radius_km`).
+  - Google Maps links (including shortened `maps.app.goo.gl` and query parameters) are automatically resolved to coordinates via `/api/v1/editorial/resolve-map`.
+  - When no geo-anchor is set on a package, perimeter sliders remain locked (disabled, unmovable, and greyed out).
+- **Direct OS File Drop Ingestion**:
+  - Dropping media files from the desktop/file explorer directly onto empty or existing story packages in `/desk` automatically ingests them to Cloudinary and clusters them into that package.
+  - Drag-and-drop overlays must unconditionally reset on drop/dragend via container and window-level listeners to prevent stuck overlay screens.
+- **Minimalist UI & Triage Standards**:
+  - Strictly avoid tick marks (`✓`, `Check` icons) on action buttons and status badges; use clean typography or subtle active highlights.
+  - Avoid bulky dark pill containers, heavy borders, or opaque overlays; face bounding boxes and canvas overlays must remain transparent so the underlying imagery is visible.
+  - Triage canvas displays transient autosave feedback in the lower-left corner that cleanly fades away.
 - **Production Audit & Legal Mandates**:
   - See `docs/production-readiness-audit.md` for production operational standards.
   - Enforce video face tracking (`e_pixelate_faces`) across dynamic video uploads.

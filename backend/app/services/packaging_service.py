@@ -1,4 +1,5 @@
 import urllib.parse
+import cloudinary
 from cloudinary.utils import cloudinary_url
 from app.core.cloudinary_client import init_cloudinary
 from app.core.config import settings
@@ -22,7 +23,8 @@ class PackagingService:
         headline: str = "Breaking News",
         subheadline: str = "Eyewitness Report",
         pixelate_bystanders: bool = True,
-        resource_type: str = "image"
+        resource_type: str = "image",
+        version: Optional[int] = None
     ) -> dict:
         """
         Generates dynamic syndication URLs according to PressWire specs:
@@ -32,7 +34,7 @@ class PackagingService:
         - 6s Autonomous Video Highlight (if video)
         """
         enc_headline = cls.sanitize_text(headline)
-        cloud_name = settings.CLOUDINARY_CLOUD_NAME
+        cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
 
         redaction_trans = [{"effect": "pixelate_faces:10"}] if pixelate_bystanders else []
 
@@ -47,7 +49,8 @@ class PackagingService:
             resource_type=resource_type,
             transformation=tv_clean_transformations,
             cloud_name=cloud_name,
-            secure=True
+            secure=True,
+            version=version
         )
 
         # 1b. Clean 16:9 Linear Broadcast (Redacted, 16:9 crop, NO lower-third banner - for TV Networks)
@@ -61,7 +64,8 @@ class PackagingService:
             resource_type=resource_type,
             transformation=tv_clean_transformations,
             cloud_name=cloud_name,
-            secure=True
+            secure=True,
+            version=version
         )
 
         # 2. 9:16 Vertical Social Story / Reel with Context Blur Fill
@@ -80,7 +84,8 @@ class PackagingService:
             resource_type=resource_type,
             transformation=social_transformations,
             cloud_name=cloud_name,
-            secure=True
+            secure=True,
+            version=version
         )
 
         # 3. 1:1 Fast-Loading Wire Index Card / Micro-Thumbnail
@@ -96,7 +101,8 @@ class PackagingService:
             format="jpg" if resource_type == "video" else None,
             transformation=feed_transformations,
             cloud_name=cloud_name,
-            secure=True
+            secure=True,
+            version=version
         )
 
         # 4. Clean Master Delivery (Raw subject crop without banner)
@@ -105,7 +111,8 @@ class PackagingService:
             resource_type=resource_type,
             transformation=[*redaction_trans, {"fetch_format": "auto", "quality": "auto"}],
             cloud_name=cloud_name,
-            secure=True
+            secure=True,
+            version=version
         )
 
         urls = {
@@ -127,7 +134,8 @@ class PackagingService:
                     {"fetch_format": "auto", "quality": "auto"}
                 ],
                 cloud_name=cloud_name,
-                secure=True
+                secure=True,
+                version=version
             )
             urls["video_highlight_6s"] = video_preview_url
 

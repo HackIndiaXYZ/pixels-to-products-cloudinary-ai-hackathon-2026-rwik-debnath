@@ -115,6 +115,18 @@ class GeotagRequest(BaseModel):
     lat: float
     lng: float
     location_name: Optional[str] = None
+    map_url: Optional[str] = None
+
+class ResolveMapRequest(BaseModel):
+    url: str
+
+class ResolveMapResponse(BaseModel):
+    success: bool
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    resolved_url: Optional[str] = None
+    location_name: Optional[str] = None
+    error: Optional[str] = None
 
 class PackageRadiusRequest(BaseModel):
     event_id: str
@@ -139,6 +151,9 @@ class PackageUpdateRequest(BaseModel):
     cluster_radius_km: Optional[float] = None
     package_window_hours: Optional[float] = None
     package_status: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    clear_location: Optional[bool] = False
 
 class PackageDisbandRequest(BaseModel):
     event_id: str
@@ -147,4 +162,18 @@ class BatchPackageAssignRequest(BaseModel):
     public_ids: List[str]
     event_id: Optional[str] = None
     event_title: Optional[str] = None
+
+class StoryPackageResponse(BaseModel):
+    success: bool = True
+    event_id: str
+    event_title: str
+    incident_type: str = "uncategorized"
+    cluster_radius_km: float = 1.5
+    package_window_hours: float = 1.0
+    package_status: str = "active"
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    created_at: str
+    asset_count: int = 0
+    clustered_assets: int = 0
 

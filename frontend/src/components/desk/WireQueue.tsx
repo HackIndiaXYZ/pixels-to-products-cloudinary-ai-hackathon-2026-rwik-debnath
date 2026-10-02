@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { MediaAsset } from '../../types';
+import type { MediaAsset, StoryPackage } from '../../types';
 import {
   Film,
   Image as ImageIcon,
@@ -22,6 +22,7 @@ import {
   Lock,
   Plus,
   FolderInput,
+  Radio,
 } from 'lucide-react';
 import { CATEGORY_LIST, getCategoryMeta } from '../../utils/categories';
 import { WireContextMenu } from './WireContextMenu';
@@ -39,6 +40,7 @@ const SORT_OPTIONS: { id: SortOption; label: string; shortLabel: string }[] = [
 
 interface WireQueueProps {
   assets: MediaAsset[];
+  packages?: StoryPackage[];
   selectedId: string | null;
   selectedPackageId?: string | null;
   onSelect: (asset: MediaAsset) => void;
@@ -48,7 +50,7 @@ interface WireQueueProps {
   onArchiveToggle?: (public_id: string, is_archived: boolean) => void;
   onBatchArchive?: (public_ids: string[], is_archived: boolean) => void;
   onSweepApproved?: () => void;
-  onDirectUpload?: (files: FileList | File[]) => Promise<void>;
+  onDirectUpload?: (files: FileList | File[], targetPackage?: { event_id: string; event_title?: string }) => Promise<void>;
   isUploading?: boolean;
   onUpdateStatus?: (public_id: string, status: 'approved' | 'action_required') => void;
   onAssignPackage?: (public_id: string, event_id: string | null, event_title?: string | null) => Promise<void>;
@@ -58,6 +60,7 @@ interface WireQueueProps {
 
 export const WireQueue: React.FC<WireQueueProps> = ({
   assets,
+  packages = [],
   selectedId,
   selectedPackageId,
   onSelect,
@@ -251,8 +254,38 @@ export const WireQueue: React.FC<WireQueueProps> = ({
         assets: MediaAsset[];
       };
     } = {};
+
+    // 1. Pre-populate from packages prop
+    if (packages && packages.length > 0) {
+      packages.forEach((pkg) => {
+        if (search.trim()) {
+          const q = search.toLowerCase().trim();
+          const matches =
+            pkg.event_title.toLowerCase().includes(q) ||
+            pkg.event_id.toLowerCase().includes(q) ||
+            pkg.incident_type.toLowerCase().includes(q);
+          if (!matches) return;
+        }
+        if (selectedBeat !== 'all') {
+          const cat = getCategoryMeta(pkg.incident_type);
+          if (pkg.incident_type !== selectedBeat && cat.id !== selectedBeat) {
+            return;
+          }
+        }
+        packagesMap[pkg.event_id] = {
+          event_id: pkg.event_id,
+          event_title: pkg.event_title,
+          incident_type: pkg.incident_type,
+          cluster_radius_km: pkg.cluster_radius_km ?? 1.5,
+          package_status: pkg.package_status || 'active',
+          assets: [],
+        };
+      });
+    }
+
     const standalone: MediaAsset[] = [];
 
+    // 2. Distribute filteredAssets
     filteredAssets.forEach((a) => {
       if (a.event_id) {
         if (!packagesMap[a.event_id]) {
@@ -278,11 +311,22 @@ export const WireQueue: React.FC<WireQueueProps> = ({
       eventPackages: Object.values(packagesMap),
       standaloneStories: standalone,
     };
-  }, [filteredAssets]);
+  }, [filteredAssets, packages, search, selectedBeat]);
 
   // Unique active packages for batch move destinations
   const availablePackages = React.useMemo(() => {
     const map = new Map<string, PackageOption>();
+    if (packages && packages.length > 0) {
+      packages.forEach((pkg) => {
+        map.set(pkg.event_id, {
+          event_id: pkg.event_id,
+          title: pkg.event_title,
+          count: 0,
+          incident_type: pkg.incident_type,
+          package_status: pkg.package_status || 'active',
+        });
+      });
+    }
     assets.forEach((a) => {
       if (a.event_id && !a.is_archived) {
         const existing = map.get(a.event_id);
@@ -300,7 +344,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
       }
     });
     return Array.from(map.values());
-  }, [assets]);
+  }, [assets, packages]);
 
   const activeBeatMeta = selectedBeat !== 'all' ? getCategoryMeta(selectedBeat) : null;
   const allFilteredIds = filteredAssets.map((a) => a.public_id);
@@ -344,6 +388,21 @@ export const WireQueue: React.FC<WireQueueProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedIds.length, filteredAssets, selectedId, onSelect]);
+
+  // Window-level safety cleanup to guarantee drag overlay never gets stuck on screen
+  useEffect(() => {
+    const handleWindowDragEndOrDrop = () => {
+      setIsDraggingOver(false);
+      setDragOverPackageId(null);
+      setIsDragOverStandalone(false);
+    };
+    window.addEventListener('dragend', handleWindowDragEndOrDrop);
+    window.addEventListener('drop', handleWindowDragEndOrDrop);
+    return () => {
+      window.removeEventListener('dragend', handleWindowDragEndOrDrop);
+      window.removeEventListener('drop', handleWindowDragEndOrDrop);
+    };
+  }, []);
 
   const isExternalFilesDrag = (e: React.DragEvent) => {
     if (isDraggingCard) return false;
@@ -622,6 +681,45 @@ export const WireQueue: React.FC<WireQueueProps> = ({
       </div>
     );
   };
+
+  const renderEmptyState = () => (
+    <div className="text-center py-16 px-4 flex flex-col items-center select-none">
+      {activeTab === 'archive' ? (
+        <>
+          <Archive className="w-5 h-5 text-slate-300 mb-2 stroke-[1.5]" />
+          <p className="text-xs font-semibold text-slate-600">Archive is empty</p>
+          <p className="text-[11px] text-slate-400 mt-1">
+            Archived wire stories and packages will appear here
+          </p>
+        </>
+      ) : activeFilterCount > 0 ? (
+        <>
+          <AlertCircle className="w-5 h-5 text-slate-300 mb-2 stroke-[1.5]" />
+          <p className="text-xs font-semibold text-slate-600">No matching stories</p>
+          <p className="text-[11px] text-slate-400 mt-1">
+            Try adjusting or resetting your filter criteria
+          </p>
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="mt-3 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
+          >
+            Reset Filters
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="w-7 h-7 rounded-full bg-slate-100/90 flex items-center justify-center text-slate-400 mb-2">
+            <Radio className="w-3.5 h-3.5 text-slate-400" />
+          </div>
+          <p className="text-xs font-semibold text-slate-500">Wire Buffer Empty</p>
+          <p className="text-[11px] text-slate-400 mt-0.5 max-w-[190px]">
+            Standby for field dispatches or public tip line submissions
+          </p>
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -1208,58 +1306,48 @@ export const WireQueue: React.FC<WireQueueProps> = ({
         className="flex-1 overflow-y-auto modern-scrollbar p-2 space-y-2 min-h-0"
         style={{ scrollbarGutter: 'stable' }}
       >
-        {filteredAssets.length === 0 ? (
-          <div className="text-center py-12 px-4">
-            <AlertCircle className="w-6 h-6 mx-auto text-slate-300 mb-2" />
-            <p className="text-xs font-medium text-slate-500">
-              {activeTab === 'archive' ? 'No items in archive' : 'No items match current filters'}
-            </p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              {activeFilterCount > 0
-                ? 'Try resetting your filter or search criteria'
-                : 'Drop media files here or submit via mobile tip line'}
-            </p>
-            {activeFilterCount > 0 ? (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="mt-3 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
-              >
-                Reset Filters
-              </button>
-            ) : activeTab !== 'archive' && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-3 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer inline-flex items-center space-x-1.5"
-              >
-                <UploadCloud className="w-3.5 h-3.5 text-slate-500" />
-                <span>Import Local Media</span>
-              </button>
-            )}
-          </div>
-        ) : viewMode === 'packages' ? (
-          <div className="space-y-3">
-            {/* Packages Bar with [+ New] */}
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                Story Packages
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsNewPackageModalOpen(true)}
-                className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 transition cursor-pointer flex items-center space-x-1"
-                title="Create a new named package dossier"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>New</span>
-              </button>
+        {viewMode === 'packages' ? (
+          eventPackages.length === 0 && standaloneStories.length === 0 ? (
+            <div className="space-y-3">
+              {/* Packages Bar with [+ New] */}
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  Story Packages
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsNewPackageModalOpen(true)}
+                  className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 transition cursor-pointer flex items-center space-x-1"
+                  title="Create a new named package dossier"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>New</span>
+                </button>
+              </div>
+              {renderEmptyState()}
             </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Packages Bar with [+ New] */}
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  Story Packages
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsNewPackageModalOpen(true)}
+                  className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 transition cursor-pointer flex items-center space-x-1"
+                  title="Create a new named package dossier"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>New</span>
+                </button>
+              </div>
 
-            {/* 1. Clustered Multi-Angle Event Dossiers */}
-            {eventPackages.map((pkg) => {
-              const cat = getCategoryMeta(pkg.incident_type);
-              const isAnySelected = pkg.assets.some((a) => a.public_id === selectedId);
+              {/* 1. Clustered Multi-Angle Event Dossiers */}
+              {eventPackages.map((pkg) => {
+                const cat = getCategoryMeta(pkg.incident_type);
+                const isAnySelected = pkg.assets.some((a) => a.public_id === selectedId);
               const isDragOverThis = dragOverPackageId === pkg.event_id;
               const isCollapsed = collapsedPackageIds.has(pkg.event_id);
               const isPkgSelected = selectedPackageId === pkg.event_id;
@@ -1270,8 +1358,12 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                   key={pkg.event_id}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    e.stopPropagation();
-                    e.dataTransfer.dropEffect = 'move';
+                    if (isExternalFilesDrag(e)) {
+                      e.dataTransfer.dropEffect = 'copy';
+                    } else {
+                      e.stopPropagation();
+                      e.dataTransfer.dropEffect = 'move';
+                    }
                     if (dragOverPackageId !== pkg.event_id) setDragOverPackageId(pkg.event_id);
                   }}
                   onDragLeave={(e) => {
@@ -1285,6 +1377,14 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                     setDragOverPackageId(null);
                     setIsDraggingCard(false);
                     setDraggedCount(0);
+                    setIsDraggingOver(false);
+
+                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                      if (onDirectUpload) {
+                        await onDirectUpload(e.dataTransfer.files, { event_id: pkg.event_id, event_title: pkg.event_title });
+                      }
+                      return;
+                    }
 
                     const batchRaw = e.dataTransfer.getData('application/x-presswire-batch');
                     let pids: string[] = [];
@@ -1344,7 +1444,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                           }`}
                         />
                       </button>
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${cat.dotColor}`} />
+                      <span className={`w-2 h-2 rounded-full shrink-0 translate-y-[1px] ${cat.dotColor}`} />
                       <span
                         className={`text-xs font-bold truncate transition-colors ${
                           isPkgSelected ? 'text-blue-700' : 'text-slate-900 group-hover:text-blue-600'
@@ -1381,7 +1481,13 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                   {/* Child Takes (Collapsible) */}
                   {!isCollapsed && (
                     <div className="p-1.5 space-y-1.5">
-                      {pkg.assets.map((asset, idx) => renderAssetCard(asset, true, idx))}
+                      {pkg.assets.length === 0 ? (
+                        <div className="py-3 px-2 text-center border border-dashed border-slate-200/90 rounded-xl text-[11px] text-slate-400 font-medium bg-white/50">
+                          {isDraggingCard ? 'Drop card here to add to package' : 'Empty package · Drop stories here'}
+                        </div>
+                      ) : (
+                        pkg.assets.map((asset, idx) => renderAssetCard(asset, true, idx))
+                      )}
                     </div>
                   )}
                 </div>
@@ -1392,8 +1498,12 @@ export const WireQueue: React.FC<WireQueueProps> = ({
             <div
               onDragOver={(e) => {
                 e.preventDefault();
-                e.stopPropagation();
-                e.dataTransfer.dropEffect = 'move';
+                if (isExternalFilesDrag(e)) {
+                  e.dataTransfer.dropEffect = 'copy';
+                } else {
+                  e.stopPropagation();
+                  e.dataTransfer.dropEffect = 'move';
+                }
                 setIsDragOverStandalone(true);
               }}
               onDragLeave={(e) => {
@@ -1407,6 +1517,14 @@ export const WireQueue: React.FC<WireQueueProps> = ({
                 setIsDragOverStandalone(false);
                 setIsDraggingCard(false);
                 setDraggedCount(0);
+                setIsDraggingOver(false);
+
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  if (onDirectUpload) {
+                    await onDirectUpload(e.dataTransfer.files);
+                  }
+                  return;
+                }
 
                 const batchRaw = e.dataTransfer.getData('application/x-presswire-batch');
                 let pids: string[] = [];
@@ -1471,6 +1589,8 @@ export const WireQueue: React.FC<WireQueueProps> = ({
               )}
             </div>
           </div>
+        )) : filteredAssets.length === 0 ? (
+          renderEmptyState()
         ) : (
           filteredAssets.map((asset) => renderAssetCard(asset, false))
         )}
@@ -1505,8 +1625,11 @@ export const WireQueue: React.FC<WireQueueProps> = ({
       {isNewPackageModalOpen && (
         <NewPackageModal
           isOpen={isNewPackageModalOpen}
+          existingPackages={availablePackages}
           onClose={() => setIsNewPackageModalOpen(false)}
-          onSuccess={() => {
+          onSuccess={(newPkg) => {
+            setViewMode('packages');
+            if (onSelectPackage) onSelectPackage(newPkg.event_id);
             if (onRefreshQueue) onRefreshQueue();
           }}
         />

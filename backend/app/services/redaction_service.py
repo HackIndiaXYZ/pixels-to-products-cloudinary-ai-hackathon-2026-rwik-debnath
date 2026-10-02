@@ -24,17 +24,21 @@ class RedactionService:
             result = cloudinary.uploader.explicit(
                 public_id,
                 type="upload",
-                face_coordinates=sanitized_coords
+                face_coordinates=sanitized_coords,
+                faces=True,
+                invalidate=True
             )
             return {
                 "success": True,
                 "public_id": public_id,
                 "applied_bystander_count": len(sanitized_coords),
                 "faces": sanitized_coords,
+                "version": result.get("version"),
                 "raw": result
             }
         except Exception as e:
-            # Fallback / graceful error capture
+            import logging
+            logging.error(f"[RedactionService] Cloudinary explicit update failed: {e}")
             return {
                 "success": False,
                 "public_id": public_id,

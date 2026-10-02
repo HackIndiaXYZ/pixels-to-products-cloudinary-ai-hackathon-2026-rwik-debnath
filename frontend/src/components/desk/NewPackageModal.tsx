@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Layers, X, Check, Link2, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Layers, X, Link2, ExternalLink, Loader2 } from 'lucide-react';
 import { CATEGORY_LIST } from '../../utils/categories';
-import { parseMapUrlOrCoords } from '../../utils/mapParser';
+import { parseMapUrlOrCoords, resolveMapUrlViaBackend } from '../../utils/mapParser';
 
 interface NewPackageModalProps {
   isOpen: boolean;
+  existingPackages?: { event_id: string; title?: string; event_title?: string }[];
   onClose: () => void;
   onSuccess: (newPackage: { event_id: string; event_title: string }) => void;
 }
@@ -13,19 +14,67 @@ const RADIUS_OPTIONS = [0.5, 1.0, 1.5, 3.0, 5.0];
 
 export const NewPackageModal: React.FC<NewPackageModalProps> = ({
   isOpen,
+  existingPackages = [],
   onClose,
   onSuccess,
 }) => {
   const [title, setTitle] = useState('');
-  const [incidentType, setIncidentType] = useState('breaking');
+  const [incidentType, setIncidentType] = useState('uncategorized');
   const [mapInput, setMapInput] = useState('');
+  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [isResolvingUrl, setIsResolvingUrl] = useState(false);
   const [radius, setRadius] = useState<number>(1.5);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const trimmed = mapInput.trim();
+    if (!trimmed) {
+      setGeoCoords(null);
+      setIsResolvingUrl(false);
+      return;
+    }
+
+    const syncParsed = parseMapUrlOrCoords(trimmed);
+    if (syncParsed) {
+      setGeoCoords({ lat: syncParsed.lat, lng: syncParsed.lng });
+      setIsResolvingUrl(false);
+      return;
+    }
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      setIsResolvingUrl(true);
+      const timer = setTimeout(async () => {
+        try {
+          const res = await resolveMapUrlViaBackend(trimmed);
+          if (res.success && res.lat !== undefined && res.lng !== undefined) {
+            setGeoCoords({ lat: res.lat, lng: res.lng });
+          } else {
+            setGeoCoords(null);
+          }
+        } catch {
+          setGeoCoords(null);
+        } finally {
+          setIsResolvingUrl(false);
+        }
+      }, 350);
+
+      return () => clearTimeout(timer);
+    } else {
+      setGeoCoords(null);
+      setIsResolvingUrl(false);
+    }
+  }, [mapInput]);
+
   if (!isOpen) return null;
 
-  const parsed = parseMapUrlOrCoords(mapInput);
+  const isDuplicateTitle = Boolean(
+    title.trim() &&
+    existingPackages?.some((p) => {
+      const name = (p.title || p.event_title || '').trim().toLowerCase();
+      return name === title.trim().toLowerCase();
+    })
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,24 +84,43 @@ export const NewPackageModal: React.FC<NewPackageModalProps> = ({
       return;
     }
 
+    if (isDuplicateTitle) {
+      setError(`A package named "${trimmedTitle}" already exists. Package titles must be unique.`);
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
+    const effectiveIncidentType =
+      incidentType && incidentType.trim() && incidentType !== 'breaking'
+        ? incidentType
+        : 'uncategorized';
+
     try {
+      let effectiveCoords = geoCoords;
+      if (!effectiveCoords && mapInput.trim().startsWith('http')) {
+        const res = await resolveMapUrlViaBackend(mapInput.trim());
+        if (res.success && res.lat !== undefined && res.lng !== undefined) {
+          effectiveCoords = { lat: res.lat, lng: res.lng };
+        }
+      }
+
       const res = await fetch('/api/v1/editorial/package/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           event_title: trimmedTitle,
-          incident_type: incidentType,
-          lat: parsed?.lat ?? null,
-          lng: parsed?.lng ?? null,
+          incident_type: effectiveIncidentType,
+          lat: effectiveCoords?.lat ?? null,
+          lng: effectiveCoords?.lng ?? null,
           cluster_radius_km: radius,
         }),
       });
 
       if (!res.ok) {
-        throw new Error(`Failed to create package: ${res.statusText}`);
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.detail || `Failed to create package: ${res.statusText}`);
       }
 
       const data = await res.json();
@@ -114,12 +182,22 @@ export const NewPackageModal: React.FC<NewPackageModalProps> = ({
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (error) setError(null);
+              }}
               placeholder="e.g. City Hall Briefing, Downtown Warehouse Fire"
               autoFocus
               required
-              className="w-full bg-slate-50 border border-slate-200/90 hover:border-slate-300 focus:bg-white rounded-xl px-3 py-2 text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+              className={`w-full bg-slate-50 border hover:border-slate-300 focus:bg-white rounded-xl px-3 py-2 text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs ${
+                isDuplicateTitle ? 'border-amber-400 bg-amber-50/20' : 'border-slate-200/90'
+              }`}
             />
+            {isDuplicateTitle && (
+              <p className="text-[11px] text-amber-600 font-medium mt-1">
+                A package with this headline already exists. Package titles must be unique.
+              </p>
+            )}
           </div>
 
           {/* News Beat */}
@@ -164,17 +242,22 @@ export const NewPackageModal: React.FC<NewPackageModalProps> = ({
                 className="w-full bg-slate-50 border border-slate-200/90 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
               />
             </div>
-            {parsed && (
-              <div className="mt-1.5 flex items-center justify-between text-[10.5px] text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                <div className="flex items-center space-x-1">
-                  <Check className="w-3 h-3 text-emerald-600" />
-                  <span>Anchor Coordinates: {parsed.lat.toFixed(4)}°, {parsed.lng.toFixed(4)}°</span>
-                </div>
+            {isResolvingUrl && (
+              <div className="mt-1.5 flex items-center space-x-1.5 text-[11px] text-slate-500">
+                <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                <span>Resolving map coordinates...</span>
+              </div>
+            )}
+            {!isResolvingUrl && geoCoords && (
+              <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-600 px-2.5 py-1 bg-slate-50 border border-slate-200/80 rounded-lg">
+                <span className="font-mono text-[10.5px] text-slate-700">
+                  {geoCoords.lat.toFixed(5)}°, {geoCoords.lng.toFixed(5)}°
+                </span>
                 <a
-                  href={`https://www.google.com/maps?q=${parsed.lat},${parsed.lng}`}
+                  href={`https://www.google.com/maps?q=${geoCoords.lat},${geoCoords.lng}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-emerald-800 font-semibold flex items-center space-x-0.5 hover:underline"
+                  className="text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
                 >
                   <span>Map</span>
                   <ExternalLink className="w-2.5 h-2.5" />
@@ -221,10 +304,10 @@ export const NewPackageModal: React.FC<NewPackageModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !title.trim()}
+              disabled={isSubmitting || !title.trim() || isDuplicateTitle}
               className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
             >
-              <Check className="w-3.5 h-3.5" />
+              {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>{isSubmitting ? 'Creating...' : 'Create Package'}</span>
             </button>
           </div>

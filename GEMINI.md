@@ -39,3 +39,14 @@ PressWire is an autonomous breaking newsroom intake, verification, selective fac
    - **Frontend**: Clean component architecture, TypeScript interfaces matching backend models, responsive Tailwind CSS styling with an authoritative broadcast theme.
    - **Production Readiness**: Enforce video face tracking (`e_pixelate_faces`), mandatory broadcast rights waivers on `/submit`, and 1-click master downloads to protect against public egress bandwidth spikes (see `docs/production-readiness-audit.md`).
    - **API Secrets**: Cloudinary credentials must only be consumed in the backend. The frontend must never expose the API Secret.
+
+7. **Spatiotemporal Geo-Anchor & Direct File Ingestion**:
+   - Editorial packages dynamically cluster incoming wire media based on an editable geo-anchor (`lat`, `lng`) and perimeter radius (`cluster_radius_km`).
+   - Backend endpoint `/api/v1/editorial/resolve-map` resolves full and shortened Google Maps links (`maps.app.goo.gl`) into canonical coordinates.
+   - When no geo-anchor is configured on a package, the spatiotemporal sliders must remain locked (disabled, unmovable, and greyed out).
+   - Dropping files directly from the desktop/file explorer onto any package card immediately ingests and clusters the files, with drag overlays unconditionally reset on drop/dragend.
+
+8. **Minimalist UX & Visual Hygiene**:
+   - Never use tick marks (`✓`, `<Check />` icons) for confirmation badges or button icons; rely on clean, unobtrusive typography and subtle active states.
+   - Keep overlays and bounding box canvases transparent so that underlying media remains visible.
+   - Use transient, corner-docked autosave feedback that automatically fades out after persistence.

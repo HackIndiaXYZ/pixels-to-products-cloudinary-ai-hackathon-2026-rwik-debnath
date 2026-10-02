@@ -77,3 +77,11 @@ results = cloudinary.Search() \
 download_url = delivery_url.replace('/upload/', '/upload/fl_attachment/')
 ```
 
+## 7. Spatiotemporal Perimeter Clustering
+```python
+# Cluster incoming field dispatches around a package's geo-anchor:
+if haversine_km(anchor_lat, anchor_lng, asset_lat, asset_lng) <= package.cluster_radius_km:
+    asset.event_id = package.event_id
+    asset.event_title = package.event_title
+```
+

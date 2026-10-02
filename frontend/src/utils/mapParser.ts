@@ -34,7 +34,17 @@ export function parseMapUrlOrCoords(input: string): ParsedCoordinates | null {
     }
   }
 
-  // 3. OpenStreetMap: #map=zoom/lat/lng
+  // 3. Google Maps Protobuf coordinates: !3d<lat>!4d<lng>
+  const protobufMatch = trimmed.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+  if (protobufMatch) {
+    const lat = parseFloat(protobufMatch[1]);
+    const lng = parseFloat(protobufMatch[2]);
+    if (isValidLatLng(lat, lng)) {
+      return { lat, lng, source: 'google' };
+    }
+  }
+
+  // 4. OpenStreetMap: #map=zoom/lat/lng
   const osmMatch = trimmed.match(/#map=\d+\/(-?\d{1,2}\.\d+)\/(-?\d{1,3}\.\d+)/);
   if (osmMatch) {
     const lat = parseFloat(osmMatch[1]);
@@ -44,7 +54,7 @@ export function parseMapUrlOrCoords(input: string): ParsedCoordinates | null {
     }
   }
 
-  // 4. Raw coordinate string: e.g. "37.7749, -122.4194" or "37.7749 -122.4194" or "37.7749° N, 122.4194° W"
+  // 5. Raw coordinate string: e.g. "37.7749, -122.4194" or "37.7749 -122.4194" or "37.7749° N, 122.4194° W"
   const rawDmsMatch = trimmed.match(/^(-?\d{1,2}(?:\.\d+)?)[°\s]*([NSns])?[,\s]+(-?\d{1,3}(?:\.\d+)?)[°\s]*([EWew])?$/);
   if (rawDmsMatch) {
     let lat = parseFloat(rawDmsMatch[1]);
@@ -61,6 +71,29 @@ export function parseMapUrlOrCoords(input: string): ParsedCoordinates | null {
   }
 
   return null;
+}
+
+export async function resolveMapUrlViaBackend(url: string): Promise<{
+  success: boolean;
+  lat?: number;
+  lng?: number;
+  location_name?: string;
+  error?: string;
+}> {
+  try {
+    const res = await fetch('/api/v1/editorial/resolve-map', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => null);
+      return { success: false, error: err?.detail || `Server error (${res.status})` };
+    }
+    return await res.json();
+  } catch {
+    return { success: false, error: 'Network request failed to resolve map link' };
+  }
 }
 
 function isValidLatLng(lat: number, lng: number): boolean {

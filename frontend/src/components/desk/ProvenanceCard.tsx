@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { MediaAsset } from '../../types';
+import type { MediaAsset, StoryPackage } from '../../types';
 import {
   Camera,
   MapPin,
@@ -26,6 +26,7 @@ import { GeotagModal } from './GeotagModal';
 interface ProvenanceCardProps {
   asset: MediaAsset;
   allAssets?: MediaAsset[];
+  packages?: StoryPackage[];
   onAssignPackage?: (publicId: string, eventId: string | null, eventTitle?: string | null) => Promise<void>;
   onUpdateAsset?: (updated: MediaAsset) => void;
   onClose?: () => void;
@@ -34,6 +35,7 @@ interface ProvenanceCardProps {
 export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   asset,
   allAssets,
+  packages,
   onAssignPackage,
   onUpdateAsset,
   onClose,
@@ -50,27 +52,38 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   const [isAssigningPackage, setIsAssigningPackage] = useState(false);
   const packageDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Compute unique active packages from allAssets
+  // Compute unique active packages from packages prop and allAssets
   const availablePackages = React.useMemo(() => {
-    if (!allAssets) return [];
     const map = new Map<string, { event_id: string; title: string; count: number; radius_km?: number }>();
-    allAssets.forEach((a) => {
-      if (a.event_id) {
-        const existing = map.get(a.event_id);
-        if (existing) {
-          existing.count += 1;
-        } else {
-          map.set(a.event_id, {
-            event_id: a.event_id,
-            title: a.event_title || a.headline || `Package #${a.event_id.replace(/^evt_/, '')}`,
-            count: 1,
-            radius_km: a.cluster_radius_km,
-          });
+    if (packages) {
+      packages.forEach((pkg) => {
+        map.set(pkg.event_id, {
+          event_id: pkg.event_id,
+          title: pkg.event_title,
+          count: 0,
+          radius_km: pkg.cluster_radius_km,
+        });
+      });
+    }
+    if (allAssets) {
+      allAssets.forEach((a) => {
+        if (a.event_id) {
+          const existing = map.get(a.event_id);
+          if (existing) {
+            existing.count += 1;
+          } else {
+            map.set(a.event_id, {
+              event_id: a.event_id,
+              title: a.event_title || a.headline || `Package #${a.event_id.replace(/^evt_/, '')}`,
+              count: 1,
+              radius_km: a.cluster_radius_km,
+            });
+          }
         }
-      }
-    });
+      });
+    }
     return Array.from(map.values());
-  }, [allAssets]);
+  }, [allAssets, packages]);
 
   const handleCopy = (key: string, text?: string) => {
     if (!text) return;
@@ -434,15 +447,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                   disabled={isAssigningPackage}
                   onClick={() => setIsPackageDropdownOpen((prev) => !prev)}
                   className="p-1 -mr-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer disabled:opacity-50 flex items-center"
-                  title={asset.event_id ? 'Change or detach package' : 'Assign to package'}
+                  title={asset.event_id ? 'Change or detach package' : 'Assign to package dossier'}
                 >
-                  {asset.event_id ? (
-                    <Pencil className="w-3 h-3 text-slate-400 hover:text-slate-700" />
-                  ) : (
-                    <span className="text-[10px] font-semibold text-blue-600 hover:text-blue-800">
-                      + Assign
-                    </span>
-                  )}
+                  <Pencil className="w-3 h-3 text-slate-400 hover:text-slate-700" />
                 </button>
               )}
             </div>

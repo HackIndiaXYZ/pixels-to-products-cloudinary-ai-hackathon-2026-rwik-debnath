@@ -10,8 +10,7 @@ init_cloudinary()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Seed initial breaking news assets for instant newsroom showcase
-    await seed_initial_assets()
+    # Desk starts completely clean and empty
     yield
 
 app = FastAPI(

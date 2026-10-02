@@ -719,5 +719,241 @@ def test_package_batch_assign():
     assert WIRE_STORE["presswire/batch_item_3"].event_id == "evt_downtown_parade"
 
 
+def test_packages_store_persistence_and_list():
+    """Verifies empty package creation, listing via GET /packages, updating, and disbanding."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.services.intake_service import PACKAGE_STORE
+
+    client = TestClient(app)
+
+    # 1. Create an empty package (no assets in area)
+    res = client.post("/api/v1/editorial/package/create", json={
+        "event_title": "Empty Test Package",
+        "incident_type": "Breaking News",
+        "lat": 10.0,
+        "lng": 20.0,
+        "cluster_radius_km": 1.0
+    })
+    assert res.status_code == 200
+    created = res.json()
+    evt_id = created["event_id"]
+    assert created["success"] is True
+    assert created["clustered_assets"] == 0
+
+    # 2. Verify it is listed in GET /api/v1/editorial/packages
+    res_list = client.get("/api/v1/editorial/packages")
+    assert res_list.status_code == 200
+    packages = res_list.json()
+    matched = next((p for p in packages if p["event_id"] == evt_id), None)
+    assert matched is not None
+    assert matched["event_title"] == "Empty Test Package"
+    assert matched["asset_count"] == 0
+
+    # 3. Update the package
+    res_update = client.post("/api/v1/editorial/package/update", json={
+        "event_id": evt_id,
+        "event_title": "Renamed Test Package",
+        "package_status": "locked"
+    })
+    assert res_update.status_code == 200
+    assert PACKAGE_STORE[evt_id].event_title == "Renamed Test Package"
+    assert PACKAGE_STORE[evt_id].package_status == "locked"
+
+    # 4. Disband package
+    res_disband = client.post("/api/v1/editorial/package/disband", json={
+        "event_id": evt_id
+    })
+    assert res_disband.status_code == 200
+    assert evt_id not in PACKAGE_STORE
+
+    # 5. Verify it is no longer returned in GET /api/v1/editorial/packages
+    res_list_after = client.get("/api/v1/editorial/packages")
+    assert res_list_after.status_code == 200
+    packages_after = res_list_after.json()
+    assert not any(p["event_id"] == evt_id for p in packages_after)
+
+
+def test_package_name_and_id_conflict_prevention():
+    """Verifies that packages cannot share conflicting names, and that event_ids are strictly unique."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.services.intake_service import PACKAGE_STORE
+
+    client = TestClient(app)
+
+    # 1. Create first package
+    res1 = client.post("/api/v1/editorial/package/create", json={
+        "event_title": "City Hall Press Briefing",
+        "incident_type": "Politics & Civic"
+    })
+    assert res1.status_code == 200
+    pkg1 = res1.json()
+    assert pkg1["event_title"] == "City Hall Press Briefing"
+    evt1_id = pkg1["event_id"]
+
+    # 2. Duplicate name creation must be rejected with 400
+    res_dup = client.post("/api/v1/editorial/package/create", json={
+        "event_title": "  city hall press briefing  ",
+        "incident_type": "General Wire"
+    })
+    assert res_dup.status_code == 400
+    assert "already exists" in res_dup.json()["detail"]
+
+    # 3. Create second distinct package
+    res2 = client.post("/api/v1/editorial/package/create", json={
+        "event_title": "City Hall Press Briefing - Take 2",
+        "incident_type": "Politics & Civic"
+    })
+    assert res2.status_code == 200
+    pkg2 = res2.json()
+    evt2_id = pkg2["event_id"]
+    assert evt2_id != evt1_id
+
+    # 4. Attempting to rename Package 2 to Package 1's title must be rejected with 400
+    res_rename_conflict = client.post("/api/v1/editorial/package/update", json={
+        "event_id": evt2_id,
+        "event_title": "City Hall Press Briefing"
+    })
+    assert res_rename_conflict.status_code == 400
+    assert "already titled" in res_rename_conflict.json()["detail"]
+
+    # Clean up test packages from PACKAGE_STORE
+    PACKAGE_STORE.pop(evt1_id, None)
+    PACKAGE_STORE.pop(evt2_id, None)
+
+
+def test_package_assign_inherits_package_beat():
+    """
+    Verifies that when a media file with General Wire or any news beat is assigned
+    or batch-assigned to a package (e.g. Transit & Infrastructure), its news beat
+    is properly overridden and synchronized to match the target package's beat.
+    """
+    from app.services.intake_service import WIRE_STORE, PACKAGE_STORE
+    from app.models.schemas import MediaAssetResponse, ModerationResult, TelemetryData
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    now = datetime.datetime.now(datetime.UTC).isoformat()
+
+    # 1. Create a Transit package with no assets in it
+    res_pkg = client.post("/api/v1/editorial/package/create", json={
+        "event_title": "Subway Derailment",
+        "incident_type": "transit"
+    })
+    assert res_pkg.status_code == 200
+    pkg_data = res_pkg.json()
+    evt_id = pkg_data["event_id"]
+    assert pkg_data["incident_type"] == "transit"
+
+    # 2. Create a media file with General Wire / uncategorized beat
+    subway_shot_id = "presswire/subway_shot_1"
+    WIRE_STORE[subway_shot_id] = MediaAssetResponse(
+        public_id=subway_shot_id,
+        format="png",
+        resource_type="image",
+        width=1920,
+        height=1080,
+        bytes=100000,
+        secure_url="https://res.cloudinary.com/demo/image/upload/subway.png",
+        telemetry=TelemetryData(has_gps=False),
+        moderation=ModerationResult(),
+        headline="Screenshot (1)",
+        incident_type="uncategorized",
+        event_id=None,
+        event_title=None,
+        created_at=now
+    )
+
+    # 3. Assign the General Wire asset to the Transit package
+    res_assign = client.post("/api/v1/editorial/package/assign", json={
+        "public_id": subway_shot_id,
+        "event_id": evt_id,
+        "event_title": "Subway Derailment"
+    })
+    assert res_assign.status_code == 200
+    assigned_data = res_assign.json()
+    assert assigned_data["event_id"] == evt_id
+    assert assigned_data["event_title"] == "Subway Derailment"
+    # Beat must be overridden to the target package's beat ('transit')!
+    assert assigned_data["incident_type"] == "transit"
+    assert WIRE_STORE[subway_shot_id].incident_type == "transit"
+
+    # 4. Create another asset and test batch assignment
+    batch_shot_id = "presswire/subway_shot_2"
+    WIRE_STORE[batch_shot_id] = MediaAssetResponse(
+        public_id=batch_shot_id,
+        format="png",
+        resource_type="image",
+        width=1920,
+        height=1080,
+        bytes=100000,
+        secure_url="https://res.cloudinary.com/demo/image/upload/subway2.png",
+        telemetry=TelemetryData(has_gps=False),
+        moderation=ModerationResult(),
+        headline="Subway Platform Video",
+        incident_type="general_wire",
+        event_id=None,
+        event_title=None,
+        created_at=now
+    )
+
+    res_batch = client.post("/api/v1/editorial/package/batch-assign", json={
+        "public_ids": [batch_shot_id],
+        "event_id": evt_id,
+        "event_title": "Subway Derailment"
+    })
+    assert res_batch.status_code == 200
+    assert WIRE_STORE[batch_shot_id].incident_type == "transit"
+    assert WIRE_STORE[batch_shot_id].event_id == evt_id
+
+    # Clean up test data
+    PACKAGE_STORE.pop(evt_id, None)
+    WIRE_STORE.pop(subway_shot_id, None)
+    WIRE_STORE.pop(batch_shot_id, None)
+
+
+def test_resolve_map_url():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+
+    # 1. Test fast-path @lat,lng in URL
+    res = client.post("/api/v1/editorial/resolve-map", json={
+        "url": "https://www.google.com/maps/place/City+Hall/@37.7792,-122.4191,17z"
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["success"] is True
+    assert abs(data["lat"] - 37.7792) < 0.0001
+    assert abs(data["lng"] - (-122.4191)) < 0.0001
+
+    # 2. Test query parameter ?q=lat,lng
+    res2 = client.post("/api/v1/editorial/resolve-map", json={
+        "url": "https://maps.google.com/?q=40.7128,-74.0060"
+    })
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["success"] is True
+    assert abs(data2["lat"] - 40.7128) < 0.0001
+    assert abs(data2["lng"] - (-74.0060)) < 0.0001
+
+    # 3. Test raw coordinates
+    res3 = client.post("/api/v1/editorial/resolve-map", json={
+        "url": "34.0522, -118.2437"
+    })
+    assert res3.status_code == 200
+    data3 = res3.json()
+    assert data3["success"] is True
+    assert abs(data3["lat"] - 34.0522) < 0.0001
+
+    # 4. Test invalid input
+    res4 = client.post("/api/v1/editorial/resolve-map", json={
+        "url": "invalid_string_not_a_url"
+    })
+    assert res4.status_code == 200
+    assert res4.json()["success"] is False
+
 
 
