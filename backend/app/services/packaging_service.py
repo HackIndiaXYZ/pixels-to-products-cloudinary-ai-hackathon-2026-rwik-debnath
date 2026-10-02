@@ -38,12 +38,14 @@ class PackagingService:
         - 6s Autonomous Video Highlight (if video)
         """
         cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
-        redaction_trans = [{"effect": "pixelate_faces:10"}] if pixelate_bystanders else []
+        redaction_trans = [{"effect": "pixelate_faces:15" if resource_type == "video" else "pixelate_faces:10"}] if pixelate_bystanders else []
 
         has_custom_focal = focal_x is not None and focal_y is not None
 
         # 1. 16:9 Clean Linear TV Broadcast (Redacted, 16:9 crop)
-        if has_custom_focal:
+        if resource_type == "video":
+            tv_crop = {"aspect_ratio": "16:9", "crop": "fill", "gravity": "auto"}
+        elif has_custom_focal:
             tv_crop = {"aspect_ratio": "16:9", "crop": "fill", "gravity": "xy_center", "x": focal_x, "y": focal_y}
         else:
             tv_crop = {"aspect_ratio": "16:9", "crop": "fill", "gravity": focal_gravity or "auto:subject"}
@@ -56,6 +58,7 @@ class PackagingService:
         tv_16_9_url, _ = cloudinary_url(
             public_id,
             resource_type=resource_type,
+            format="mp4" if resource_type == "video" else None,
             transformation=tv_clean_transformations,
             cloud_name=cloud_name,
             secure=True,
@@ -90,6 +93,7 @@ class PackagingService:
         social_9_16_url, _ = cloudinary_url(
             public_id,
             resource_type=resource_type,
+            format="mp4" if resource_type == "video" else None,
             transformation=social_transformations,
             cloud_name=cloud_name,
             secure=True,
@@ -97,7 +101,9 @@ class PackagingService:
         )
 
         # 3. 1:1 Fast-Loading Wire Index Card / Micro-Thumbnail
-        if has_custom_focal:
+        if resource_type == "video":
+            feed_crop = {"aspect_ratio": "1:1", "crop": "fill", "gravity": "auto"}
+        elif has_custom_focal:
             feed_crop = {"aspect_ratio": "1:1", "crop": "fill", "gravity": "xy_center", "x": focal_x, "y": focal_y}
         else:
             feed_crop = {"aspect_ratio": "1:1", "crop": "fill", "gravity": focal_gravity or "auto:subject"}
@@ -110,7 +116,7 @@ class PackagingService:
         feed_1_1_url, _ = cloudinary_url(
             public_id,
             resource_type=resource_type,
-            format="jpg" if resource_type == "video" else None,
+            format="mp4" if resource_type == "video" else None,
             transformation=feed_transformations,
             cloud_name=cloud_name,
             secure=True,
@@ -121,6 +127,7 @@ class PackagingService:
         clean_master_url, _ = cloudinary_url(
             public_id,
             resource_type=resource_type,
+            format="mp4" if resource_type == "video" else None,
             transformation=[*redaction_trans, {"fetch_format": "auto", "quality": "auto"}],
             cloud_name=cloud_name,
             secure=True,
@@ -140,9 +147,10 @@ class PackagingService:
             video_preview_url, _ = cloudinary_url(
                 public_id,
                 resource_type="video",
+                format="mp4",
                 transformation=[
-                    *redaction_trans,
                     {"effect": "preview:duration_6:max_seg_3"},
+                    *redaction_trans,
                     {"fetch_format": "auto", "quality": "auto"}
                 ],
                 cloud_name=cloud_name,

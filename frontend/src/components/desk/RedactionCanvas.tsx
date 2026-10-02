@@ -12,7 +12,6 @@ import {
   LayoutGrid,
   Info,
   Check,
-  CheckCircle2,
   Copy,
   Download,
   Video,
@@ -728,11 +727,10 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
           {/* Approve for Wire / Editorial Sign-off */}
           {asset.review_status === 'approved' ? (
             <div
-              className="h-8 px-2.5 bg-emerald-50/80 text-emerald-800 border border-emerald-200/70 rounded-lg text-xs font-medium flex items-center space-x-1.5 shadow-2xs select-none"
+              className="h-8 px-2.5 bg-emerald-50/80 text-emerald-800 border border-emerald-200/70 rounded-lg text-xs font-semibold flex items-center shadow-2xs select-none"
               title="Story cleared & ready for wire broadcast"
             >
-              <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-              <span className="font-semibold text-[11px] tracking-tight">Approved for Wire</span>
+              <span className="text-[11px] tracking-tight">Approved for Wire</span>
             </div>
           ) : (
             <button
@@ -748,10 +746,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                   <span>Approving...</span>
                 </>
               ) : (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-white/95 stroke-[2.2]" />
-                  <span>Approve Dispatch</span>
-                </>
+                <span>Approve Dispatch</span>
               )}
             </button>
           )}
@@ -1050,7 +1045,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                     key={`${asset.public_id}_triage_${isVideoRedacted ? 'redacted' : 'clean'}`}
                     src={
                       isVideoRedacted
-                        ? (asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.clean_master || asset.secure_url)
+                        ? (asset.syndication_urls?.clean_master || asset.secure_url)
                         : asset.secure_url
                     }
                     controls
@@ -1346,11 +1341,28 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
         {/* Mode E: 1:1 Wire Card */}
         {!showDiffSlider && activePreviewMode === 'feed_1_1' && (
           <div className="w-full h-full flex flex-col items-center justify-center p-4">
-            <img
-              src={asset.syndication_urls?.feed_1_1 || asset.secure_url}
-              alt="1:1 Micro Card"
-              className="max-h-[480px] aspect-square rounded-xl object-cover shadow-2xl ring-1 ring-slate-900/10 select-none"
-            />
+            {asset.resource_type === 'video' ? (
+              <video
+                key={`${asset.public_id}_feed_${isVideoRedacted ? 'redacted' : 'clean'}`}
+                src={
+                  isVideoRedacted
+                    ? (asset.syndication_urls?.feed_1_1 || asset.secure_url)
+                    : asset.secure_url
+                }
+                controls
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="max-h-[480px] aspect-square rounded-xl object-cover shadow-2xl ring-1 ring-slate-900/10"
+              />
+            ) : (
+              <img
+                src={asset.syndication_urls?.feed_1_1 || asset.secure_url}
+                alt="1:1 Micro Card"
+                className="max-h-[480px] aspect-square rounded-xl object-cover shadow-2xl ring-1 ring-slate-900/10 select-none"
+              />
+            )}
           </div>
         )}
 

@@ -231,8 +231,10 @@ class IntakeService:
         # Determine wire review status
         if mod_status == "quarantined":
             review_status = "quarantined"
+        elif resource_type == "video":
+            review_status = "action_required"  # Videos always require editorial review and privacy audit
         elif faces_list:
-            review_status = "action_required" # Needs privacy triage
+            review_status = "action_required"  # Needs privacy triage
         else:
             review_status = "approved"
 
