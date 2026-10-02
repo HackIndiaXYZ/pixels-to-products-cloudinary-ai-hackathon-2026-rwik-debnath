@@ -28,8 +28,8 @@ PressWire is an autonomous breaking newsroom intake, verification, selective fac
      - `approved`: passed editorial audit and privacy redactions, ready for wire distribution.
 
 4. **Fixed Newsroom Taxonomy**:
-   - Editorial desks are standardized across **7 fixed news desks** (`Breaking News`, `Public Safety`, `Severe Weather`, `Politics & Civic`, `Transit & Infrastructure`, `Metro & Local`, `General Wire`).
-   - Never introduce ad-hoc user-created categories or custom color pickers; downstream wire syndication depends on deterministic, stable IPTC taxonomy.
+   - Editorial desks are standardized across **6 fixed news desks** (`Public Safety`, `Severe Weather`, `Politics & Civic`, `Transit & Infrastructure`, `Metro & Local`, `General Wire`).
+   - Never introduce ad-hoc user-created categories or custom color pickers; breaking status is an orthogonal urgency flag (`urgency`), not a news desk category.
 
 5. **Edge-to-Edge Cockpit Layout**:
    - The newsroom `/desk` interface is a professional workspace application. It must remain **full-bleed edge-to-edge (`w-full`)** without artificial container caps (`max-w-[1720px]`), ensuring ultrawide and zoomed-out viewports expand the inspection canvas rather than rendering empty side gutters.

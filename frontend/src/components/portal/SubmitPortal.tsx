@@ -168,8 +168,8 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
         {submittedAsset ? (
           /* Post-Submission Success State */
           <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-sm text-center space-y-6 my-auto animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 mx-auto rounded-xl bg-slate-950 text-white flex items-center justify-center shadow-md">
-              <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+            <div className="w-12 h-12 mx-auto rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/80 flex items-center justify-center">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
             </div>
 
             <div className="space-y-1.5">
@@ -208,7 +208,7 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
             <div className="space-y-2 pt-1">
               <button
                 onClick={handleResetForNext}
-                className="w-full py-3 bg-slate-950 hover:bg-slate-900 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center space-x-2 active:scale-[0.99]"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs uppercase tracking-wider rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center space-x-2 active:scale-[0.99]"
               >
                 <Camera className="w-4 h-4" />
                 <span>Submit Another Dispatch</span>
@@ -251,8 +251,8 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                         : 'border-slate-200 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50'
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-xl bg-slate-950 text-white flex items-center justify-center shadow-xs mx-auto mb-2.5">
-                      <UploadCloud className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center border border-slate-200/80 mx-auto mb-2.5">
+                      <UploadCloud className="w-5 h-5 text-slate-600" />
                     </div>
 
                     <p className="text-xs font-bold text-slate-900">
@@ -266,16 +266,16 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                       <button
                         type="button"
                         onClick={() => cameraInputRef.current?.click()}
-                        className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition cursor-pointer flex items-center space-x-1.5 shadow-2xs active:scale-95"
+                        className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-semibold text-xs transition cursor-pointer flex items-center space-x-1.5 shadow-2xs active:scale-95"
                       >
-                        <Camera className="w-3.5 h-3.5" />
+                        <Camera className="w-3.5 h-3.5 text-slate-600" />
                         <span>Camera</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer flex items-center space-x-1.5 shadow-2xs active:scale-95"
+                        className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer flex items-center space-x-1.5 shadow-2xs active:scale-95"
                       >
                         <UploadCloud className="w-3.5 h-3.5 text-slate-500" />
                         <span>Browse Files</span>
@@ -360,12 +360,13 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                         key={c.id}
                         type="button"
                         onClick={() => setIncidentType(c.id)}
-                        className={`py-2 px-3 rounded-xl text-xs font-semibold border transition cursor-pointer flex items-center justify-center space-x-1.5 truncate ${
+                        className={`py-2 px-2.5 rounded-xl text-xs transition cursor-pointer flex items-center space-x-2 truncate border ${
                           isSelected
-                            ? 'bg-slate-900 border-slate-900 text-white shadow-2xs font-bold'
-                            : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                            ? 'bg-blue-50/90 border-blue-300 text-blue-900 font-semibold shadow-2xs'
+                            : 'bg-slate-50/60 hover:bg-slate-100/70 border-slate-200/80 text-slate-700 font-medium'
                         }`}
                       >
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.dotColor}`} />
                         <span className="truncate text-[11px]">{c.label}</span>
                       </button>
                     );
@@ -378,28 +379,29 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                 <label className="block text-[11px] font-mono font-bold text-slate-600 uppercase tracking-wider mb-1.5">
                   Urgency
                 </label>
-                <div className="flex bg-slate-100 p-1 rounded-xl">
+                <div className="flex bg-slate-100/90 border border-slate-200/80 p-0.5 rounded-xl">
                   <button
                     type="button"
                     onClick={() => setUrgency('breaking')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition cursor-pointer flex items-center justify-center space-x-1.5 ${
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center justify-center space-x-1.5 ${
                       urgency === 'breaking'
-                        ? 'bg-rose-600 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-white text-rose-700 border border-rose-200/80 shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${urgency === 'breaking' ? 'bg-white' : 'bg-rose-600'}`} />
-                    <span>Breaking News</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                    <span>Breaking Scoop</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setUrgency('standard')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition cursor-pointer ${
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center justify-center space-x-1.5 ${
                       urgency === 'standard'
-                        ? 'bg-slate-900 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-white text-slate-800 border border-slate-200/80 shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
                     <span>Standard Wire</span>
                   </button>
                 </div>
@@ -441,10 +443,10 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
               <button
                 type="submit"
                 disabled={!file || loading || !hasAgreedWaiver}
-                className={`w-full py-3.5 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed ${
+                className={`w-full py-3 font-semibold text-xs uppercase tracking-wider rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed ${
                   urgency === 'breaking'
-                    ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20'
-                    : 'bg-slate-950 hover:bg-slate-900 text-white shadow-slate-900/20'
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/15'
+                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/15'
                 }`}
               >
                 {loading ? (

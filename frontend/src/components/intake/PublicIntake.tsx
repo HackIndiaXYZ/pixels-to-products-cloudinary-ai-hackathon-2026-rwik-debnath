@@ -10,7 +10,7 @@ interface PublicIntakeProps {
 export const PublicIntake: React.FC<PublicIntakeProps> = ({ onUploadSuccess }) => {
   const [file, setFile] = useState<File | null>(null);
   const [headline, setHeadline] = useState('EYEWITNESS REPORT: INCIDENT NEAR CIVIC CENTER');
-  const [incidentType, setIncidentType] = useState('breaking_news');
+  const [incidentType, setIncidentType] = useState('public_safety');
   const [urgency, setUrgency] = useState<'breaking' | 'standard'>('breaking');
   const [useGps, setUseGps] = useState(true);
   const [loading, setLoading] = useState(false);

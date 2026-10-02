@@ -29,4 +29,4 @@ These rules apply whenever code generates, modifies, or consumes Cloudinary asse
    - For linear and digital news distribution, provide 1-click download links (`/fl_attachment/`) for packaged masters (16:9 MP4, social clips), directing stations to host viral media on their own CDN rather than incurring uncapped egress bandwidth bills on origin accounts.
 
 7. **Newsroom Taxonomy Integrity**:
-   - Assets must be categorized into one of the **7 fixed news desks** (`breaking_news`, `public_safety`, `severe_weather`, `politics_civic`, `transit`, `metro_local`, `uncategorized`). Never introduce ad-hoc custom categories.
+   - Assets must be categorized into one of the **6 fixed news desks** (`public_safety`, `severe_weather`, `politics_civic`, `transit`, `metro_local`, `uncategorized`). Never introduce ad-hoc custom categories; breaking status is an urgency flag (`urgency`), not a desk category.

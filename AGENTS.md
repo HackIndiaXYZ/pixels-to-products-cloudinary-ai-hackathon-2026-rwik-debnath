@@ -38,7 +38,7 @@ When working on this repository, agents must adhere to the following roles and r
   5. Syndication URLs apply `e_pixelate_faces` to blur strictly the selected bystanders.
 - **Newsroom Layout & Taxonomy Standards**:
   - The editorial desk (`/desk`) is a full-bleed workspace application (`w-full` edge-to-edge). Never clamp containers with arbitrary `max-w-[1720px]` caps that create empty side gutters on ultrawide viewports.
-  - News classification strictly adheres to **7 fixed news desks** (`Breaking News`, `Public Safety`, `Severe Weather`, `Politics & Civic`, `Transit & Infrastructure`, `Metro & Local`, `General Wire`). Never re-introduce ad-hoc user-created categories or color pickers.
+  - News classification strictly adheres to **6 fixed news desks** (`Public Safety`, `Severe Weather`, `Politics & Civic`, `Transit & Infrastructure`, `Metro & Local`, `General Wire`). Never re-introduce ad-hoc user-created categories or color pickers; breaking status is an urgency flag (`urgency`), not a news desk category.
 - **Spatiotemporal Clustering & Geo-Anchor Engine**:
   - Packages support dynamic spatiotemporal clustering based on an editable geo-anchor (`lat`, `lng`) and perimeter radius (`cluster_radius_km`).
   - Google Maps links (including shortened `maps.app.goo.gl` and query parameters) are automatically resolved to coordinates via `/api/v1/editorial/resolve-map`.
