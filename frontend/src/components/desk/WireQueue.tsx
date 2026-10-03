@@ -140,8 +140,18 @@ export const WireQueue: React.FC<WireQueueProps> = ({
     };
   }, [isSortOpen, isFilterOpen]);
 
-  const liveAssets = assets.filter((a) => !a.is_archived);
-  const archiveAssets = assets.filter((a) => a.is_archived);
+  // Defensive deduplication by public_id so duplicate items can never render
+  const uniqueAssets = React.useMemo(() => {
+    const seen = new Set<string>();
+    return assets.filter((a) => {
+      if (!a.public_id || seen.has(a.public_id)) return false;
+      seen.add(a.public_id);
+      return true;
+    });
+  }, [assets]);
+
+  const liveAssets = uniqueAssets.filter((a) => !a.is_archived);
+  const archiveAssets = uniqueAssets.filter((a) => a.is_archived);
   const countAction = liveAssets.filter((a) => a.review_status === 'action_required').length;
   const countApproved = liveAssets.filter((a) => a.review_status === 'approved').length;
   const countQuarantined = liveAssets.filter((a) => a.review_status === 'quarantined').length;
@@ -199,13 +209,13 @@ export const WireQueue: React.FC<WireQueueProps> = ({
   // Count takes/angles per event cluster across live queue
   const eventCounts = React.useMemo(() => {
     const counts: Record<string, number> = {};
-    assets.forEach((a) => {
+    uniqueAssets.forEach((a) => {
       if (a.event_id) {
         counts[a.event_id] = (counts[a.event_id] || 0) + 1;
       }
     });
     return counts;
-  }, [assets]);
+  }, [uniqueAssets]);
 
   // 3. Sort
   filteredAssets.sort((a, b) => {
@@ -315,7 +325,7 @@ export const WireQueue: React.FC<WireQueueProps> = ({
         });
       });
     }
-    assets.forEach((a) => {
+    uniqueAssets.forEach((a) => {
       if (a.event_id && !a.is_archived) {
         const existing = map.get(a.event_id);
         if (existing) {

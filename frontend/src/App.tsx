@@ -59,6 +59,10 @@ export function App() {
       const targetPath = route === 'submit' ? '/submit' : route === 'desk' ? '/desk' : '/';
       window.history.pushState({ route }, '', targetPath);
     }
+    if (route === 'desk') {
+      fetchQueue();
+      fetchPackages();
+    }
   };
 
   // Sync with browser back/forward buttons
@@ -285,7 +289,12 @@ export function App() {
   }, []);
 
   const handleUploadSuccess = (newAsset: MediaAsset) => {
-    setAssets((prev) => [newAsset, ...prev]);
+    setAssets((prev) => {
+      if (prev.some((a) => a.public_id === newAsset.public_id)) {
+        return prev.map((a) => (a.public_id === newAsset.public_id ? newAsset : a));
+      }
+      return [newAsset, ...prev];
+    });
   };
 
   const handleUpdateAsset = (updated: MediaAsset) => {
@@ -655,7 +664,12 @@ export function App() {
         });
         if (res.ok) {
           const newAsset: MediaAsset = await res.json();
-          setAssets((prev) => [newAsset, ...prev]);
+          setAssets((prev) => {
+            if (prev.some((a) => a.public_id === newAsset.public_id)) {
+              return prev.map((a) => (a.public_id === newAsset.public_id ? newAsset : a));
+            }
+            return [newAsset, ...prev];
+          });
           if (targetPackage?.event_id) {
             await handleAssignPackage(newAsset.public_id, targetPackage.event_id, targetPackage.event_title);
           }
