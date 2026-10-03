@@ -31,6 +31,12 @@ import {
 } from '../../utils/categories';
 import { GeotagModal } from './GeotagModal';
 
+const GRAPHICS_PROFILES = [
+  { id: 'global_wire', label: 'Global Wire', color: '#d90429' },
+  { id: 'metro_24', label: 'Metro 24', color: '#f59e0b' },
+  { id: 'severe_wire', label: 'Severe Alert', color: '#ea580c' },
+] as const;
+
 interface ProvenanceCardProps {
   asset: MediaAsset;
   allAssets?: MediaAsset[];
@@ -918,46 +924,29 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
                   Graphics Profile
                 </span>
-                <div className="grid grid-cols-3 gap-1.5 text-[10px] font-medium">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTheme('global_wire')}
-                    disabled={isApplyingBranding}
-                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center space-x-1.5 transition cursor-pointer ${
-                      brandTheme === 'global_wire'
-                        ? 'border-slate-800 bg-slate-900 text-white font-semibold shadow-2xs'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-600 shrink-0" />
-                    <span>Global Wire</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTheme('metro_24')}
-                    disabled={isApplyingBranding}
-                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center space-x-1.5 transition cursor-pointer ${
-                      brandTheme === 'metro_24'
-                        ? 'border-slate-800 bg-slate-900 text-white font-semibold shadow-2xs'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                    <span>Metro 24</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTheme('severe_wire')}
-                    disabled={isApplyingBranding}
-                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center space-x-1.5 transition cursor-pointer ${
-                      brandTheme === 'severe_wire'
-                        ? 'border-slate-800 bg-slate-900 text-white font-semibold shadow-2xs'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-600 shrink-0" />
-                    <span>Severe Alert</span>
-                  </button>
+                <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                  {GRAPHICS_PROFILES.map((profile) => {
+                    const isSelected = brandTheme === profile.id;
+                    return (
+                      <button
+                        key={profile.id}
+                        type="button"
+                        onClick={() => handleSelectTheme(profile.id)}
+                        disabled={isApplyingBranding}
+                        className={`h-7 px-1.5 rounded-lg border flex items-center justify-center space-x-1.5 transition cursor-pointer select-none active:scale-98 ${
+                          isSelected
+                            ? 'border-slate-400/90 bg-slate-100/90 text-slate-900 font-semibold shadow-2xs ring-1 ring-slate-300/40'
+                            : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0 shadow-2xs"
+                          style={{ backgroundColor: profile.color }}
+                        />
+                        <span>{profile.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
