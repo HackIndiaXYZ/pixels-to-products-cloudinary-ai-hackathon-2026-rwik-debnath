@@ -132,12 +132,14 @@ export function App() {
                 }
                 return prev;
               });
+            } else {
+              setSelectedAsset(null);
+              selectedIdRef.current = null;
             }
-          } else {
-            setSelectedAsset(data[0]);
           }
         } else {
           setSelectedAsset(null);
+          selectedIdRef.current = null;
         }
         await fetchPackages();
       }
@@ -207,7 +209,8 @@ export function App() {
             setAssets((prev) => {
               const next = prev.filter((a) => a.public_id !== public_id);
               if (selectedIdRef.current === public_id) {
-                setSelectedAsset(next.length > 0 ? next[0] : null);
+                setSelectedAsset(null);
+                selectedIdRef.current = null;
               }
               return next;
             });
@@ -224,7 +227,8 @@ export function App() {
             setAssets((prev) => {
               const next = prev.filter((a) => !idSet.has(a.public_id));
               if (selectedIdRef.current && idSet.has(selectedIdRef.current)) {
-                setSelectedAsset(next.length > 0 ? next[0] : null);
+                setSelectedAsset(null);
+                selectedIdRef.current = null;
               }
               return next;
             });
@@ -282,7 +286,6 @@ export function App() {
 
   const handleUploadSuccess = (newAsset: MediaAsset) => {
     setAssets((prev) => [newAsset, ...prev]);
-    setSelectedAsset(newAsset);
   };
 
   const handleUpdateAsset = (updated: MediaAsset) => {
@@ -314,7 +317,8 @@ export function App() {
         setAssets((prev) => {
           const remaining = prev.filter((a) => a.public_id !== public_id);
           if (selectedAsset?.public_id === public_id) {
-            setSelectedAsset(remaining.length > 0 ? remaining[0] : null);
+            setSelectedAsset(null);
+            selectedIdRef.current = null;
           }
           return remaining;
         });
@@ -335,7 +339,8 @@ export function App() {
         setAssets((prev) => {
           const remaining = prev.filter((a) => !public_ids.includes(a.public_id));
           if (selectedAsset && public_ids.includes(selectedAsset.public_id)) {
-            setSelectedAsset(remaining.length > 0 ? remaining[0] : null);
+            setSelectedAsset(null);
+            selectedIdRef.current = null;
           }
           return remaining;
         });
@@ -528,13 +533,21 @@ export function App() {
 
   const handleSelectPackage = (packageId: string) => {
     setSelectedPackageId(packageId);
-    const firstAsset = assets.find((a) => a.event_id === packageId);
-    if (firstAsset) {
-      setSelectedAsset(firstAsset);
-      selectedIdRef.current = firstAsset.public_id;
-    } else {
-      setSelectedAsset(null);
-      selectedIdRef.current = null;
+    // If the currently selected asset already belongs to this package (e.g. bottom card), preserve it!
+    const isAlreadyInPackage = selectedAsset && selectedAsset.event_id === packageId;
+    if (!isAlreadyInPackage) {
+      if (selectedAsset !== null) {
+        // If user already had a card selected from another story, switch to this package's lead take
+        const firstAsset = assets.find((a) => a.event_id === packageId);
+        if (firstAsset) {
+          setSelectedAsset(firstAsset);
+          selectedIdRef.current = firstAsset.public_id;
+        } else {
+          setSelectedAsset(null);
+          selectedIdRef.current = null;
+        }
+      }
+      // If selectedAsset was null, keep it null so no card is auto-opened
     }
     setShowInspector(true);
   };
@@ -643,7 +656,6 @@ export function App() {
         if (res.ok) {
           const newAsset: MediaAsset = await res.json();
           setAssets((prev) => [newAsset, ...prev]);
-          setSelectedAsset(newAsset);
           if (targetPackage?.event_id) {
             await handleAssignPackage(newAsset.public_id, targetPackage.event_id, targetPackage.event_title);
           }
