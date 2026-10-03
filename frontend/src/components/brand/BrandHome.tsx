@@ -354,7 +354,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
               title="PressWire Autonomous Intake & Dispatch Pipeline"
               badge="LIVE WIRE INGESTION • SSE STREAM"
               badgeColor="text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
-              aspectRatio="aspect-[16/8.2]"
+              aspectRatio="aspect-[1432/1080]"
             />
           </div>
 
@@ -364,7 +364,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               <span>Real-time intake stream with live SSE delivery & automated Rekognition moderation</span>
             </div>
-            <span className="text-slate-500">Fast-forwarded 14× during network waiting</span>
+            <span className="text-slate-500">Intake-to-dispatch live sequence</span>
           </div>
         </div>
       </section>
