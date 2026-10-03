@@ -4,13 +4,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.cloudinary_client import init_cloudinary
+from app.db.session import init_db
+from app.services.intake_service import WIRE_STORE, PACKAGE_STORE
 from app.services.seed_data import seed_initial_assets
 
 init_cloudinary()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Desk starts completely clean and empty
+    # 1. Initialize SQLite schema if not created
+    await init_db()
+    # 2. Load persisted state from database into in-memory stores
+    await WIRE_STORE.load_from_db()
+    await PACKAGE_STORE.load_from_db()
+    # 3. Seed realistic demo assets ONLY if database is empty
+    if len(WIRE_STORE) == 0:
+        await seed_initial_assets()
     yield
 
 app = FastAPI(

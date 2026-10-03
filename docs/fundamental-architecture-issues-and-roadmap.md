@@ -8,7 +8,7 @@ This document outlines the core architectural bottlenecks, data durability liabi
 
 | Issue ID | Architectural Area | Problem Description | Severity | Target Resolution |
 | :--- | :--- | :--- | :---: | :--- |
-| **PW-01** | **Data Durability & Sync** | Ephemeral In-Memory `WIRE_STORE` causes total data loss on restart and desync across multiple ASGI workers. | 🚨 **Critical** | State-of-the-art async persistence layer (SQLAlchemy 2.0 + SQLite WAL / PostgreSQL + JSONB). |
+| **PW-01** | **Data Durability & Sync** | Ephemeral In-Memory `WIRE_STORE` causes total data loss on restart and desync across multiple ASGI workers. | ✅ **Resolved** | Resolved via Async SQLAlchemy 2.0 + SQLite WAL persistent store (`PersistentAssetStore`). Survives process restarts with zero-latency in-memory cache. |
 | **PW-02** | **Graphics & Syndication** | Generic burned-in lower-thirds are rejected by broadcast TV control rooms; clean feed vs. packaged social feeds are conflated. | ⚠️ **High** | Dual-Delivery Architecture: Clean Broadcast Master (with sidecar IPTC/JSON) + Branded Social/Digital Derivatives via Cloudinary template overlays. |
 | **PW-03** | **Real-Time Latency** | 10-second polling cycle (`setInterval`) causes ingest lag, missed breaking footage, and state overwrite jitter. | ⚠️ **High** | Server-Sent Events (SSE) / WebSocket pub-sub stream for instant zero-latency wire updates. |
 | **PW-04** | **Multi-Editor Concurrency** | Zero conflict resolution or optimistic locking; simultaneous editor saves cause silent overwrites. | ⚠️ **High** | Optimistic concurrency control via `version_id` / `ETag` headers and field-level patch updates. |

@@ -7,9 +7,11 @@ from app.core.config import settings
 from app.models.schemas import MediaAssetResponse, FaceCoordinate, TelemetryData, ModerationResult, StoryPackageResponse
 from app.services.packaging_service import PackagingService
 
-# In-memory wire store for demonstration & fallback
-WIRE_STORE: Dict[str, MediaAssetResponse] = {}
-PACKAGE_STORE: Dict[str, StoryPackageResponse] = {}
+from app.db.persistence import PersistentAssetStore, PersistentPackageStore
+
+# Persistent wire store backed by SQLite WAL with instant in-memory access
+WIRE_STORE: PersistentAssetStore = PersistentAssetStore()
+PACKAGE_STORE: PersistentPackageStore = PersistentPackageStore()
 
 class IntakeService:
     @staticmethod

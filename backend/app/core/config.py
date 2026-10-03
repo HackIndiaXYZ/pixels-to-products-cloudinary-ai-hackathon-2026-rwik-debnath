@@ -21,5 +21,9 @@ class Settings(BaseSettings):
     
     # Default folder for uploads
     CLOUDINARY_FOLDER: str = "presswire"
+    
+    # Database configuration (SQLite WAL for local/hackathon, PostgreSQL in production)
+    DATABASE_URL: str = "sqlite+aiosqlite:///data/presswire.db"
+    DATABASE_SYNC_URL: str = "sqlite:///data/presswire.db"
 
 settings = Settings()
