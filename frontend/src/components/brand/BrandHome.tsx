@@ -777,7 +777,6 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs font-bold text-white uppercase tracking-wider">Broadcast Network</span>
-                  <span className="text-[10px] font-mono text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">Multi-Circle</span>
                 </div>
                 <div className="flex items-baseline space-x-1 mb-4">
                   <span className="text-4xl font-extrabold text-white tracking-tight">₹1,75,000</span>
