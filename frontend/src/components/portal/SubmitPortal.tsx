@@ -480,23 +480,23 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                   )}
                 </button>
 
-                {/* Small box beside Submit Footage to submit all 4 curated photos */}
+                {/* Small box beside Submit Footage to submit all 5 curated photos */}
                 <button
                   type="button"
                   onClick={handleSimulateBatchIngest}
                   disabled={loading}
                   className="px-3.5 py-3 rounded-xl border border-slate-200/90 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 font-semibold text-xs transition cursor-pointer flex items-center space-x-1.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs shrink-0"
-                  title="Submit all 4 wire takes simultaneously (PM Modi Rally Takes 1 & 2, Highway Patrol Plate OCR, Coastal Storm)"
+                  title="Submit all 5 wire takes simultaneously (Modi Rally 1 & 2, Highway Patrol OCR, Coastal Storm, Accident Incident)"
                 >
                   {isBatchLoading ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-500" />
-                      <span className="text-[11px] font-mono">Ingesting 4...</span>
+                      <span className="text-[11px] font-mono">Ingesting 5...</span>
                     </>
                   ) : (
                     <>
                       <Zap className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="text-[11px] font-mono font-bold">4 Takes</span>
+                      <span className="text-[11px] font-mono font-bold">5 Takes</span>
                     </>
                   )}
                 </button>

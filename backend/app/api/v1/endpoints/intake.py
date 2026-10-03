@@ -108,6 +108,12 @@ async def simulate_batch_intake(request: Request):
             "headline": "Severe Weather Warning: Monsoonal Storm System Detected",
             "incident_type": "severe_weather",
             "urgency": "breaking"
+        },
+        {
+            "file": "accident.png",
+            "headline": "Highway Incident: Multi-Vehicle Collision Reported",
+            "incident_type": "public_safety",
+            "urgency": "breaking"
         }
     ]
 
