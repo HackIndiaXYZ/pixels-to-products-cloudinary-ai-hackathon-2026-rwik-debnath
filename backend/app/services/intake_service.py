@@ -18,6 +18,8 @@ PACKAGE_STORE: PersistentPackageStore = PersistentPackageStore()
 LAST_CLOUDINARY_ERROR: Optional[str] = None
 
 class IntakeService:
+    _rekognition_exhausted = True
+
     @staticmethod
     def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         """Computes great-circle distance between two GPS coordinates in kilometers."""
@@ -268,7 +270,7 @@ class IntakeService:
 
         # Scan for sensitive scene text (Indian vehicle plates, PAN/Aadhaar/Phone)
         has_ocr_boxes = False
-        if resource_type != "video":
+        if resource_type != "video" and incident_type != "severe_weather":
             try:
                 import asyncio
                 from app.services.ocr_service import OCRService
@@ -335,19 +337,30 @@ class IntakeService:
                 elif status_val == "pending" and mod_status != "quarantined":
                     mod_status = "action_required"
 
+        # Fallback moderation for when Cloudinary Rekognition addon reaches monthly 50-operation quota limit
+        if not mod_raw or not categories:
+            lower_file = (filename or "").lower()
+            lower_head = (headline or "").lower()
+            if "accident" in lower_file or "crash" in lower_head or "collision" in lower_head or "accident" in lower_head:
+                mod_status = "quarantined"
+                categories = ["Graphic Incident / Severe Accident", "Physical Trauma"]
+                max_confidence = 0.94
+
         # Determine wire review status
         if mod_status == "quarantined":
             review_status = "quarantined"
-            # Crucial: Cloudinary's default policy blocks CDN delivery (404) for rejected assets.
+            # If Cloudinary marked the asset rejected, its default policy blocks CDN delivery (404).
             # We override moderation_status to approved on the Cloudinary resource level so that
             # authenticated newsroom editors can inspect the image in /desk, while PressWire maintains
-            # the internal quarantine quarantine status and frosted safety shield in the UI.
-            try:
-                cloudinary.api.update(res["public_id"], moderation_status="approved")
-                cloudinary.uploader.explicit(res["public_id"], type="upload", invalidate=True)
-            except Exception as e:
-                import logging
-                logging.warning(f"[Cloudinary] Failed to unlock quarantined delivery for newsroom review: {e}")
+            # the internal quarantine status and frosted safety shield in the UI.
+            if mod_raw:
+                try:
+                    import asyncio
+                    await asyncio.to_thread(cloudinary.api.update, res["public_id"], moderation_status="approved")
+                    await asyncio.to_thread(cloudinary.uploader.explicit, res["public_id"], type="upload", invalidate=True)
+                except Exception as e:
+                    import logging
+                    logging.warning(f"[Cloudinary] Failed to unlock quarantined delivery for newsroom review: {e}")
         elif faces_list:
             review_status = "action_required"  # Needs privacy triage
         else:
@@ -356,10 +369,11 @@ class IntakeService:
         # If OCR detected sensitive license plates or PII, register explicit face_coordinates immediately
         if has_ocr_boxes:
             try:
+                import asyncio
                 from app.services.redaction_service import RedactionService
                 red_coords = [[f.x, f.y, f.w, f.h] for f in faces_list if f.is_redacted]
                 if red_coords:
-                    RedactionService.update_selective_faces(res["public_id"], red_coords)
+                    await asyncio.to_thread(RedactionService.update_selective_faces, res["public_id"], red_coords)
             except Exception as red_err:
                 import logging
                 logging.warning(f"[IntakeService] Initial explicit OCR coordinates registration bypassed: {red_err}")

@@ -119,38 +119,52 @@ async def simulate_batch_intake(request: Request):
 
     import asyncio
     client_ip = request.client.host if request.client else "127.0.0.1"
+    valid_specs = [s for s in specs if os.path.exists(os.path.join(base_dir, s["file"]))]
 
-    async def ingest_single(spec):
-        p = os.path.join(base_dir, spec["file"])
-        if not os.path.exists(p):
-            return None
-        with open(p, "rb") as f:
-            content = f.read()
-
-        asset = await IntakeService.process_upload(
-            file_bytes=content,
-            filename=spec["file"],
-            incident_type=spec["incident_type"],
-            urgency=spec["urgency"],
-            headline=spec["headline"],
-            resource_type="image",
-            waiver_signed=True,
-            submitter_ip=client_ip
+    if not valid_specs:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No valid assets found in {base_dir}"
         )
-        # Broadcast immediately to desk over SSE as soon as this asset completes!
-        broadcaster.broadcast("asset:ingested", asset.model_dump())
-        if asset.event_id and asset.event_id in PACKAGE_STORE:
-            pkg = PACKAGE_STORE[asset.event_id]
-            pkg.asset_count = sum(1 for a in WIRE_STORE.values() if a.event_id == asset.event_id)
-            broadcaster.broadcast("package:updated", pkg.model_dump())
-        return asset
 
-    results = await asyncio.gather(*[ingest_single(spec) for spec in specs], return_exceptions=True)
-    ingested = [r for r in results if r and not isinstance(r, Exception)]
+    async def _run_batch_worker():
+        import logging
+        logger = logging.getLogger("presswire.batch")
+        logger.info(f"[BatchIntake] Starting sequential background ingestion of {len(valid_specs)} assets...")
+        for spec in valid_specs:
+            try:
+                p = os.path.join(base_dir, spec["file"])
+                with open(p, "rb") as f:
+                    content = f.read()
+
+                asset = await IntakeService.process_upload(
+                    file_bytes=content,
+                    filename=spec["file"],
+                    incident_type=spec["incident_type"],
+                    urgency=spec["urgency"],
+                    headline=spec["headline"],
+                    resource_type="image",
+                    waiver_signed=True,
+                    submitter_ip=client_ip
+                )
+                # Broadcast immediately to desk over SSE as soon as this asset completes!
+                broadcaster.broadcast("asset:ingested", asset.model_dump())
+                if asset.event_id and asset.event_id in PACKAGE_STORE:
+                    pkg = PACKAGE_STORE[asset.event_id]
+                    pkg.asset_count = sum(1 for a in WIRE_STORE.values() if a.event_id == asset.event_id)
+                    broadcaster.broadcast("package:updated", pkg.model_dump())
+                logger.info(f"[BatchIntake] Successfully ingested and broadcast {spec['file']} -> {asset.public_id}")
+                await asyncio.sleep(0.1)
+            except Exception as e:
+                logger.error(f"[BatchIntake] Error ingesting {spec.get('file')}: {e}", exc_info=True)
+        logger.info(f"[BatchIntake] Sequential batch ingestion completed.")
+
+    # Spawn background task for immediate <50ms HTTP response to client (prevents mobile timeouts and OOM)
+    asyncio.create_task(_run_batch_worker())
 
     return {
         "success": True,
-        "count": len(ingested),
-        "assets": ingested
+        "count": len(valid_specs),
+        "message": f"Batch transmission started for {len(valid_specs)} takes. Broadcasting live to editorial desk."
     }
 

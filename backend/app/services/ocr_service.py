@@ -86,7 +86,7 @@ class OCRService:
             import io
             img = Image.open(io.BytesIO(image_bytes))
             orig_w, orig_h = img.size
-            max_dim = 1280
+            max_dim = 960
             if max(orig_w, orig_h) > max_dim:
                 scale = max_dim / max(orig_w, orig_h)
                 new_w, new_h = max(1, int(orig_w * scale)), max(1, int(orig_h * scale))
