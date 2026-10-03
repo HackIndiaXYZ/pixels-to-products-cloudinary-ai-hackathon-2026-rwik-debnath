@@ -25,7 +25,6 @@ class RedactionService:
                 public_id,
                 type="upload",
                 face_coordinates=sanitized_coords,
-                faces=True,
                 invalidate=True
             )
             return {

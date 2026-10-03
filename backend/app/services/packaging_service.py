@@ -45,7 +45,7 @@ class PackagingService:
         - clean_master: Raw full-resolution subject crop with selective privacy redactions
         """
         cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
-        redaction_trans = [{"effect": "blur_faces:400"}] if pixelate_bystanders else []
+        redaction_trans = [{"effect": "blur_faces:50"}] if pixelate_bystanders else []
 
         has_custom_focal = focal_x is not None and focal_y is not None
         display_headline = cls.sanitize_text(headline)

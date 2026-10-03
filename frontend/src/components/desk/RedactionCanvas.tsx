@@ -445,13 +445,16 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
     setSyncStatus('syncing');
     const targetStatus: 'approved' | 'action_required' | 'quarantined' =
       newStatus || (newFaces.length === 0 ? 'approved' : asset.review_status);
-    const bystanderCoordinates = newFaces.map((f) => [f.x, f.y, f.w, f.h]);
+    const bystanderCoordinates = newFaces
+      .filter((f) => f.is_redacted !== false)
+      .map((f) => [f.x, f.y, f.w, f.h]);
 
     // 1. Instant optimistic update to parent asset state (queue cards, review indicators, details)
     const optimisticallyUpdated: MediaAsset = {
       ...asset,
       faces: newFaces,
       review_status: targetStatus,
+      pixelate_bystanders: bystanderCoordinates.length > 0,
     };
     onUpdateSuccess(optimisticallyUpdated);
 
@@ -464,6 +467,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
           public_id: asset.public_id,
           face_coordinates: bystanderCoordinates,
           faces: newFaces,
+          pixelate_bystanders: bystanderCoordinates.length > 0,
           headline: asset.headline || 'Breaking News',
           incident_type: asset.incident_type || 'uncategorized',
           urgency: asset.urgency || 'breaking',

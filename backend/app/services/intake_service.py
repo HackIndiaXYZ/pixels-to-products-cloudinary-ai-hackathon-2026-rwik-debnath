@@ -320,8 +320,9 @@ class IntakeService:
         syndication_urls = PackagingService.generate_broadcast_urls(
             public_id=res["public_id"],
             headline=headline,
-            pixelate_bystanders=True,
-            resource_type="image"
+            pixelate_bystanders=bool(faces_list),
+            resource_type="image",
+            version=int(now.timestamp())
         )
 
         # Determine Spatio-Temporal Event Cluster

@@ -20,7 +20,7 @@ def test_packaging_url_generation():
     assert "c_fill" in urls["broadcast_16_9"]
     assert "ar_16:9" in urls["broadcast_16_9"]
     assert "l_text" not in urls["broadcast_16_9"]
-    assert "e_blur_faces:400" in urls["broadcast_16_9"]
+    assert "e_blur_faces:50" in urls["broadcast_16_9"]
 
 def test_video_upload_rejected():
     from fastapi.testclient import TestClient

@@ -170,13 +170,14 @@ async def update_redactions(req: RedactionUpdateRequest):
     asset = WIRE_STORE[req.public_id]
 
     # Update Cloudinary explicit face_coordinates
-    version = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
     update_res = RedactionService.update_selective_faces(
         public_id=req.public_id,
         bystander_coordinates=req.face_coordinates
     )
-    if update_res.get("success") and update_res.get("version"):
-        version = update_res["version"]
+    # Always generate a strictly increasing timestamp for guaranteed CDN and browser cache-busting
+    now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    raw_version = update_res.get("version") if update_res.get("success") else None
+    version = max(now_ts, (raw_version or 0) + 1)
     
     # Update stored face states
     if req.faces is not None:
