@@ -1,6 +1,9 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.cloudinary_client import init_cloudinary
@@ -39,8 +42,8 @@ app.add_middleware(
 
 app.include_router(api_router, prefix="/api/v1")
 
-@app.get("/")
-def root():
+@app.get("/api/health")
+def health_check():
     return {
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
@@ -48,6 +51,41 @@ def root():
         "cloud_name": settings.CLOUDINARY_CLOUD_NAME,
         "docs": "/docs"
     }
+
+# Check possible locations for built frontend dist directory
+possible_dist_dirs = [
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")),
+    os.path.abspath(os.path.join(os.getcwd(), "frontend", "dist")),
+    os.path.abspath(os.path.join(os.getcwd(), "dist")),
+    "/app/frontend/dist",
+    "/app/dist"
+]
+
+frontend_dist = next((p for p in possible_dist_dirs if os.path.exists(p) and os.path.isdir(p)), None)
+
+if frontend_dist:
+    assets_dir = os.path.join(frontend_dist, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="static_assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api/") or full_path in ("docs", "redoc", "openapi.json"):
+            return JSONResponse(status_code=404, content={"detail": "Not Found"})
+        file_path = os.path.join(frontend_dist, full_path)
+        if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
+else:
+    @app.get("/")
+    def root():
+        return {
+            "service": settings.PROJECT_NAME,
+            "version": settings.VERSION,
+            "status": "online",
+            "cloud_name": settings.CLOUDINARY_CLOUD_NAME,
+            "docs": "/docs"
+        }
 
 if __name__ == "__main__":
     import uvicorn

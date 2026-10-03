@@ -6,7 +6,13 @@ from app.core.config import settings
 from app.db.base import Base
 
 # Ensure data directory exists
-os.makedirs("data", exist_ok=True)
+if "sqlite" in settings.DATABASE_URL:
+    db_path = settings.DATABASE_URL.split(":///")[-1]
+    db_dir = os.path.dirname(db_path)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+else:
+    os.makedirs("data", exist_ok=True)
 
 # Async SQLite engine
 async_engine = create_async_engine(

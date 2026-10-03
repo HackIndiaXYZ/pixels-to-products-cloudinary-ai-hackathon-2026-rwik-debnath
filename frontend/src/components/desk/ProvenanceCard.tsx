@@ -7,8 +7,6 @@ import {
   ShieldCheck,
   ShieldAlert,
   ExternalLink,
-  Check,
-  CircleCheck,
   CircleAlert,
   X,
   ChevronDown,
@@ -17,13 +15,10 @@ import {
   Layers,
   Pencil,
   Tv,
-  Sparkles,
   FileCode,
   Upload,
   Smartphone,
   LayoutGrid,
-  ImagePlus,
-  Trash2,
 } from 'lucide-react';
 import {
   CATEGORY_LIST,
@@ -55,10 +50,10 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [isGeotagModalOpen, setIsGeotagModalOpen] = useState(false);
 
-  // Dual-Delivery & Broadcast Station Branding state
-  const [playoutMode, setPlayoutMode] = useState<'clean' | 'branded'>('clean');
+  // Broadcast Station Branding state
   const [brandTheme, setBrandTheme] = useState<string>(asset.brand_theme || 'global_wire');
   const [customStrapId, setCustomStrapId] = useState<string | null>(asset.custom_strap_id || null);
+  const [customBugInput, setCustomBugInput] = useState<string>(asset.custom_strap_id || '');
   const [isApplyingBranding, setIsApplyingBranding] = useState(false);
   const [isUploadingStrap, setIsUploadingStrap] = useState(false);
   const strapFileInputRef = useRef<HTMLInputElement>(null);
@@ -123,9 +118,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     const activeBug = asset.custom_strap_id || savedBug || null;
     setBrandTheme(activeTheme);
     setCustomStrapId(activeBug);
-    if (activeBug || (activeTheme && activeTheme !== 'clean')) {
-      setPlayoutMode('branded');
-    }
+    setCustomBugInput(activeBug || '');
   }, [
     asset.public_id,
     asset.headline,
@@ -145,30 +138,42 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     return `https://res.cloudinary.com/f3dzrk0s/image/upload/c_fit,h_48,w_120/${cleanId}.png`;
   };
 
-  const handleRemoveCustomBug = async () => {
-    setCustomStrapId(null);
-    localStorage.removeItem('presswire_station_bug');
+  const handleApplyCustomBug = async (bugId: string) => {
+    const cleanId = bugId.trim();
     setIsApplyingBranding(true);
     try {
+      if (cleanId) {
+        setCustomStrapId(cleanId);
+        setCustomBugInput(cleanId);
+        localStorage.setItem('presswire_station_bug', cleanId);
+      } else {
+        setCustomStrapId(null);
+        setCustomBugInput('');
+        localStorage.removeItem('presswire_station_bug');
+      }
       const res = await fetch('/api/v1/editorial/branding/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           public_id: asset.public_id,
-          brand_theme: brandTheme === 'custom' ? 'global_wire' : brandTheme,
-          custom_strap_id: '',
+          brand_theme: brandTheme,
+          custom_strap_id: cleanId,
         }),
       });
       if (res.ok) {
         const updated: MediaAsset = await res.json();
-        if (brandTheme === 'custom') setBrandTheme('global_wire');
         if (onUpdateAsset) onUpdateAsset(updated);
       }
     } catch (err) {
-      console.error('Failed to remove custom bug:', err);
+      console.error('Failed to apply station bug:', err);
     } finally {
       setIsApplyingBranding(false);
     }
+  };
+
+  const handleRemoveCustomBug = async () => {
+    setCustomBugInput('');
+    await handleApplyCustomBug('');
   };
 
   const handleCustomStrapUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,8 +190,8 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
       if (uploadRes.ok) {
         const data = await uploadRes.json();
         setCustomStrapId(data.public_id);
+        setCustomBugInput(data.public_id);
         localStorage.setItem('presswire_station_bug', data.public_id);
-        setPlayoutMode('branded');
         const applyRes = await fetch('/api/v1/editorial/branding/apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -205,6 +210,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
       console.error('Failed uploading custom strap:', err);
     } finally {
       setIsUploadingStrap(false);
+      if (strapFileInputRef.current) {
+        strapFileInputRef.current.value = '';
+      }
     }
   };
 
@@ -403,7 +411,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 : 'text-amber-600'
             }`}
           >
-            {reviewStatus === 'approved' && <CircleCheck className="w-3.5 h-3.5" />}
+            {reviewStatus === 'approved' && <ShieldCheck className="w-3.5 h-3.5" />}
             {reviewStatus === 'quarantined' && <ShieldAlert className="w-3.5 h-3.5" />}
             {reviewStatus === 'action_required' && <CircleAlert className="w-3.5 h-3.5" />}
             <span>
@@ -504,7 +512,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                           <span className={`w-2 h-2 rounded-full shrink-0 ${c.dotColor}`} />
                           <span className="truncate">{c.label}</span>
                         </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />}
+                        {isSelected && <span className="text-[10px] font-semibold text-blue-600 shrink-0">Selected</span>}
                       </button>
                     );
                   })}
@@ -666,7 +674,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Provenance & Telemetry
             </span>
-            <span className="text-[9px] font-mono text-slate-400 bg-slate-100/70 border border-slate-200/60 px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-mono text-slate-400">
               Cloudinary EXIF/IPTC
             </span>
           </div>
@@ -698,7 +706,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 moderation.status === 'approved' ? 'text-emerald-700' : 'text-rose-700'
               }`}>
                 {moderation.status === 'approved' ? (
-                  <CircleCheck className="w-3 h-3 text-emerald-600" />
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
                 ) : (
                   <CircleAlert className="w-3 h-3 text-rose-600" />
                 )}
@@ -801,255 +809,187 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
           </div>
         </div>
 
-        {/* Section 2: Playout & Dual-Delivery Deliverables */}
+        {/* Section 2: Playout & Syndication Deliverables */}
         <div className="space-y-3 pt-2.5 border-t border-slate-100">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Broadcast Playout & Syndication
             </span>
-            <span className="text-[9px] font-mono text-slate-400 bg-slate-100/70 border border-slate-200/60 px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-mono text-slate-400">
               Zero-Storage CDN
             </span>
           </div>
 
-          {/* Dual-Delivery Mode Selector (Clean Control Room Feed vs. Branded Digital Feed) */}
-          <div className="grid grid-cols-2 p-0.5 bg-slate-100/80 rounded-xl border border-slate-200/70 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setPlayoutMode('clean')}
-              className={`py-1.5 rounded-lg transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
-                playoutMode === 'clean'
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Tv className="w-3.5 h-3.5 text-blue-600" />
-              <span>Clean MCR</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPlayoutMode('branded')}
-              className={`py-1.5 rounded-lg transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
-                playoutMode === 'branded'
-                  ? 'bg-white text-slate-900 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Branded Feed</span>
-            </button>
-          </div>
+          {/* Master Download Package */}
+          <a
+            href={masterDownloadUrl}
+            download
+            className="w-full h-8.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 border border-slate-200/90 hover:border-slate-300 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-2xs cursor-pointer active:scale-98"
+            title="Download full-resolution clean master for broadcast playout server"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="leading-none">Download Clean Master</span>
+          </a>
 
-          {/* Mode 1: Clean Feed (Zero Overlays for TV Control Rooms) */}
-          {playoutMode === 'clean' ? (
-            <div className="space-y-2">
-              {/* Master Download Package */}
-              <a
-                href={masterDownloadUrl}
-                download
-                className="w-full h-8.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 border border-slate-200/90 hover:border-slate-300 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-2xs cursor-pointer active:scale-98"
-                title="Download full-resolution redacted clean master for broadcast playout server"
-              >
-                <Download className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span className="leading-none">Download Clean Master</span>
-              </a>
-
-              {/* Clean URLs Grid */}
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleCopy('clean_16_9', asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.broadcast_16_9)}
-                  className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2.5 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
-                  title="Copy Clean 16:9 Linear Broadcast feed URL"
-                >
-                  <div className="flex items-center space-x-1.5 truncate">
-                    <Tv className="w-3 h-3 text-slate-400 shrink-0" />
-                    <span className="truncate">Clean 16:9</span>
-                  </div>
-                  {copiedKey === 'clean_16_9' ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
-                  ) : (
-                    <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleCopySidecar}
-                  className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2.5 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
-                  title="Copy IPTC-ready sidecar JSON for Chyron/Vizrt automation"
-                >
-                  <div className="flex items-center space-x-1.5 truncate">
-                    <FileCode className="w-3 h-3 text-slate-400 shrink-0" />
-                    <span className="truncate">Sidecar JSON</span>
-                  </div>
-                  {copiedKey === 'sidecar' ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
-                  ) : (
-                    <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
-                  )}
-                </button>
-              </div>
-
-              {/* Cloudinary Tech Callout */}
-              <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 pt-1 border-t border-slate-100">
-                <span className="flex items-center space-x-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/70 shrink-0" />
-                  <span>Cloudinary MCR: e_pixelate_faces · fl_attachment</span>
-                </span>
-                <span>Pristine Master</span>
-              </div>
+          {/* Station Watermark Bug Field */}
+          <div className="space-y-1.5 pt-0.5">
+            <div className="text-[10px] font-mono uppercase text-slate-400 font-semibold">
+              Station Watermark Bug
             </div>
-          ) : (
-            /* Mode 2: Branded Digital Feed */
-            <div className="space-y-3">
-              {/* Station Watermark Bug Graphic Section */}
-              <div className="space-y-1.5 pt-0.5">
-                <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
-                  Station Logo Bug
-                </span>
 
-                {customStrapId ? (
-                  <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-2 flex items-center justify-between">
-                    <div className="flex items-center space-x-2 min-w-0">
-                      <div className="w-10 h-7 rounded-lg bg-white border border-slate-200/80 flex items-center justify-center p-0.5 shrink-0 overflow-hidden shadow-2xs">
-                        <img
-                          src={getCustomBugThumbnailUrl(customStrapId)}
-                          alt="Station Bug"
-                          className="max-h-full max-w-full object-contain"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center space-x-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                          <span className="text-xs font-semibold text-slate-800 truncate">
-                            Active Bug
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-1 shrink-0 ml-2">
-                      <button
-                        type="button"
-                        onClick={() => strapFileInputRef.current?.click()}
-                        disabled={isApplyingBranding || isUploadingStrap}
-                        className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg transition cursor-pointer shadow-2xs"
-                        title="Upload replacement logo"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleRemoveCustomBug}
-                        disabled={isApplyingBranding}
-                        className="p-1.5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg transition cursor-pointer shadow-2xs"
-                        title="Remove logo bug"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => strapFileInputRef.current?.click()}
-                    disabled={isApplyingBranding || isUploadingStrap}
-                    className="w-full py-2 px-3 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50 rounded-xl text-left transition cursor-pointer flex items-center space-x-2 group"
-                  >
-                    <ImagePlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 transition-colors shrink-0" />
-                    <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900">
-                      {isUploadingStrap ? 'Uploading...' : 'Upload Logo Bug'}
-                    </span>
-                  </button>
-                )}
-
-                {/* Hidden File Input for Custom Bug */}
+            <div className="flex items-center space-x-1.5">
+              {customStrapId && (
+                <div
+                  className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200/80 flex items-center justify-center p-0.5 shrink-0 overflow-hidden shadow-2xs"
+                  title={`Station Logo: ${customStrapId}`}
+                >
+                  <img
+                    src={getCustomBugThumbnailUrl(customStrapId)}
+                    alt="Station Bug"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              )}
+              <div className="relative flex-1">
                 <input
-                  ref={strapFileInputRef}
-                  type="file"
-                  accept="image/png,image/webp,image/svg+xml"
-                  onChange={handleCustomStrapUpload}
-                  className="hidden"
+                  type="text"
+                  value={customBugInput}
+                  onChange={(e) => setCustomBugInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleApplyCustomBug(customBugInput);
+                    }
+                  }}
+                  placeholder="Enter logo ID or upload PNG..."
+                  className="w-full h-8 bg-slate-50/80 border border-slate-200 hover:border-slate-300 focus:bg-white focus:border-slate-400 rounded-xl px-2.5 text-xs font-mono text-slate-800 placeholder:text-slate-400 focus:outline-none transition shadow-2xs"
                 />
               </div>
 
-              {/* Branded Syndication URLs Grid (16:9 Branded, 9:16 Reel, 1:1 Card) */}
-              <div className="grid grid-cols-3 gap-1.5">
+              {customBugInput.trim() !== (customStrapId || '') && (
                 <button
                   type="button"
-                  onClick={() => handleCopy('16_9_branded', asset.syndication_urls?.broadcast_16_9_branded || asset.syndication_urls?.broadcast_16_9)}
-                  className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
-                  title="Copy 16:9 Broadcast feed URL"
+                  onClick={() => handleApplyCustomBug(customBugInput)}
+                  disabled={isApplyingBranding}
+                  className="h-8 px-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-medium transition cursor-pointer shrink-0 disabled:opacity-50 shadow-2xs"
+                  title="Apply logo ID"
                 >
-                  <div className="flex items-center space-x-1.5 truncate">
-                    <Tv className="w-3 h-3 text-slate-400 shrink-0" />
-                    <span className="truncate">16:9 TV</span>
-                  </div>
-                  {copiedKey === '16_9_branded' ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
-                  ) : (
-                    <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
-                  )}
+                  Apply
                 </button>
+              )}
 
+              {customStrapId ? (
                 <button
                   type="button"
-                  onClick={() => handleCopy('9_16', asset.syndication_urls?.social_9_16)}
-                  className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
-                  title="Copy 9:16 Vertical Reel URL"
+                  onClick={handleRemoveCustomBug}
+                  disabled={isApplyingBranding}
+                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0"
+                  title="Remove station logo"
                 >
-                  <div className="flex items-center space-x-1.5 truncate">
-                    <Smartphone className="w-3 h-3 text-slate-400 shrink-0" />
-                    <span className="truncate">9:16 Reel</span>
-                  </div>
-                  {copiedKey === '9_16' ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
-                  ) : (
-                    <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
-                  )}
+                  <X className="w-4 h-4" />
                 </button>
-
+              ) : (
                 <button
                   type="button"
-                  onClick={() => handleCopy('1_1', asset.syndication_urls?.feed_1_1)}
-                  className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
-                  title="Copy 1:1 Wire Index Card URL"
+                  onClick={() => strapFileInputRef.current?.click()}
+                  disabled={isApplyingBranding || isUploadingStrap}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer shrink-0"
+                  title="Upload transparent PNG/SVG logo"
                 >
-                  <div className="flex items-center space-x-1.5 truncate">
-                    <LayoutGrid className="w-3 h-3 text-slate-400 shrink-0" />
-                    <span className="truncate">1:1 Card</span>
-                  </div>
-                  {copiedKey === '1_1' ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
-                  ) : (
-                    <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
-                  )}
+                  <Upload className="w-4 h-4" />
                 </button>
-              </div>
+              )}
 
-              {/* Sidecar JSON */}
-              <button
-                type="button"
-                onClick={handleCopySidecar}
-                className="w-full h-7.5 bg-slate-50/60 hover:bg-slate-100/80 border border-slate-200/70 rounded-xl px-2.5 text-[11px] font-medium text-slate-600 hover:text-slate-800 flex items-center justify-center space-x-1.5 transition cursor-pointer active:scale-98"
-                title="Copy IPTC / CG automation sidecar JSON"
-              >
-                <FileCode className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>Copy Broadcast Sidecar (IPTC / JSON)</span>
-                {copiedKey === 'sidecar' && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />}
-              </button>
-
-              {/* Cloudinary Tech Callout */}
-              <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 pt-1 border-t border-slate-100">
-                <span className="flex items-center space-x-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500/70 shrink-0" />
-                  <span>Cloudinary AI: g_auto:subject · b_auto:predominant</span>
-                </span>
-                <span>f_auto, q_auto</span>
-              </div>
+              <input
+                ref={strapFileInputRef}
+                type="file"
+                accept="image/png,image/webp,image/svg+xml"
+                onChange={handleCustomStrapUpload}
+                className="hidden"
+              />
             </div>
-          )}
+          </div>
+
+          {/* Syndication Feeds Grid (16:9 TV, 9:16 Reel, 1:1 Card) */}
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() =>
+                handleCopy(
+                  '16_9',
+                  customStrapId
+                    ? (asset.syndication_urls?.broadcast_16_9_branded || asset.syndication_urls?.broadcast_16_9)
+                    : (asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.broadcast_16_9)
+                )
+              }
+              className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
+              title={customStrapId ? 'Copy 16:9 Branded Broadcast feed URL' : 'Copy 16:9 Clean Broadcast feed URL'}
+            >
+              <div className="flex items-center space-x-1.5 truncate">
+                <Tv className="w-3 h-3 text-slate-400 shrink-0" />
+                <span className="truncate">16:9 TV</span>
+              </div>
+              {copiedKey === '16_9' ? (
+                <span className="text-[10px] font-semibold text-blue-600 shrink-0 ml-1">Copied</span>
+              ) : (
+                <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleCopy('9_16', asset.syndication_urls?.social_9_16)}
+              className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
+              title="Copy 9:16 Vertical Reel URL"
+            >
+              <div className="flex items-center space-x-1.5 truncate">
+                <Smartphone className="w-3 h-3 text-slate-400 shrink-0" />
+                <span className="truncate">9:16 Reel</span>
+              </div>
+              {copiedKey === '9_16' ? (
+                <span className="text-[10px] font-semibold text-blue-600 shrink-0 ml-1">Copied</span>
+              ) : (
+                <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleCopy('1_1', asset.syndication_urls?.feed_1_1)}
+              className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
+              title="Copy 1:1 Wire Index Card URL"
+            >
+              <div className="flex items-center space-x-1.5 truncate">
+                <LayoutGrid className="w-3 h-3 text-slate-400 shrink-0" />
+                <span className="truncate">1:1 Card</span>
+              </div>
+              {copiedKey === '1_1' ? (
+                <span className="text-[10px] font-semibold text-blue-600 shrink-0 ml-1">Copied</span>
+              ) : (
+                <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
+              )}
+            </button>
+          </div>
+
+          {/* Sidecar JSON */}
+          <button
+            type="button"
+            onClick={handleCopySidecar}
+            className="w-full h-7.5 bg-slate-50/60 hover:bg-slate-100/80 border border-slate-200/70 rounded-xl px-2.5 text-[11px] font-medium text-slate-600 hover:text-slate-800 flex items-center justify-center space-x-1.5 transition cursor-pointer active:scale-98"
+            title="Copy IPTC / CG automation sidecar JSON"
+          >
+            <FileCode className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>Copy Broadcast Sidecar (IPTC / JSON)</span>
+            {copiedKey === 'sidecar' && (
+              <span className="text-[10px] font-semibold text-blue-600 shrink-0 ml-1">Copied</span>
+            )}
+          </button>
+
+          {/* Syndication Tech Specs */}
+          <div className="flex items-center space-x-1.5 text-[9px] font-mono text-slate-400 pt-1 border-t border-slate-100">
+            <span className="w-1 h-1 rounded-full bg-slate-400 shrink-0" />
+            <span>g_auto:subject · b_auto:predominant · f_auto, q_auto</span>
+          </div>
         </div>
       </div>
 

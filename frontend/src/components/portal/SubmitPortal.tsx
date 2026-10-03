@@ -8,6 +8,7 @@ import {
   RefreshCw,
   X,
   Lock,
+  Sparkles,
 } from 'lucide-react';
 import { PressWireLogo } from '../brand/PressWireLogo';
 import { CATEGORY_LIST } from '../../utils/categories';
@@ -84,9 +85,24 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
   };
 
   const handleClearFile = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (previewUrl && !previewUrl.startsWith('http')) URL.revokeObjectURL(previewUrl);
     setFile(null);
     setPreviewUrl(null);
+  };
+
+  const handleLoadSampleMedia = async () => {
+    try {
+      const sampleUrl = 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80';
+      const response = await fetch(sampleUrl);
+      const blob = await response.blob();
+      const sampleFile = new File([blob], 'breaking_press_conference.jpg', { type: 'image/jpeg' });
+      setFile(sampleFile);
+      setPreviewUrl(sampleUrl);
+      setHeadline('Press Briefing: Transit Emergency Declared');
+      setHasAgreedWaiver(true);
+    } catch (err) {
+      console.error('Failed to load sample media:', err);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -260,7 +276,7 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                       JPG, PNG, WebP, HEIC (High-Resolution Wire Photo)
                     </p>
 
-                    <div className="flex items-center justify-center gap-2 mt-3.5">
+                    <div className="flex flex-wrap items-center justify-center gap-2 mt-3.5">
                       <button
                         type="button"
                         onClick={() => cameraInputRef.current?.click()}
@@ -278,11 +294,21 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                         <UploadCloud className="w-3.5 h-3.5 text-slate-500" />
                         <span>Browse Files</span>
                       </button>
+
+                      <button
+                        type="button"
+                        onClick={handleLoadSampleMedia}
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer flex items-center space-x-1.5 active:scale-95"
+                        title="Load verified breaking news photo with faces for judge evaluation"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Demo Asset</span>
+                      </button>
                     </div>
 
                     {/* Subtle Cloudinary Intake Pipeline Micro-Badge */}
                     <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-center space-x-1.5 text-[10px] font-mono text-slate-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/70 shrink-0" />
+                      <span className="w-1 h-1 rounded-full bg-slate-400 shrink-0" />
                       <span>Cloudinary Upload API · AI Moderation · EXIF Telemetry</span>
                     </div>
                   </div>
