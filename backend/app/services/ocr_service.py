@@ -30,16 +30,18 @@ DL_REGEX = re.compile(rf"^({INDIAN_STATES})[0-9]{{11,15}}$", re.IGNORECASE)
 
 class OCRService:
     _engine = None
+    _engine_error = None
 
     @classmethod
     def get_engine(cls):
         """Lazy-initialize RapidOCR ONNX engine."""
-        if cls._engine is None:
+        if cls._engine is None and cls._engine_error is None:
             try:
                 from rapidocr_onnxruntime import RapidOCR
                 cls._engine = RapidOCR()
                 logger.info("[OCRService] RapidOCR ONNX engine loaded successfully.")
             except Exception as e:
+                cls._engine_error = f"{type(e).__name__}: {str(e)}"
                 logger.error(f"[OCRService] Failed to initialize RapidOCR: {e}")
                 return None
         return cls._engine
