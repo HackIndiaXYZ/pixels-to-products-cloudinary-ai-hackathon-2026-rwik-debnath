@@ -210,13 +210,17 @@ class IntakeService:
         try:
             res = cloudinary.uploader.upload(file_bytes, **upload_options)
             # Run Rekognition moderation check explicitly so delivery URL is NEVER blocked with 404
-            try:
-                mod_exp = cloudinary.uploader.explicit(res["public_id"], type="upload", moderation="aws_rek")
-                if "moderation" in mod_exp:
-                    res["moderation"] = mod_exp["moderation"]
-            except Exception as mod_err:
-                import logging
-                logging.warning(f"[Cloudinary] Explicit moderation check skipped: {mod_err}")
+            if not getattr(IntakeService, "_rekognition_exhausted", False):
+                try:
+                    mod_exp = cloudinary.uploader.explicit(res["public_id"], type="upload", moderation="aws_rek")
+                    if "moderation" in mod_exp:
+                        res["moderation"] = mod_exp["moderation"]
+                except Exception as mod_err:
+                    err_msg = str(mod_err)
+                    if "Rate Limit Exceeded" in err_msg or "Limit of 50" in err_msg:
+                        IntakeService._rekognition_exhausted = True
+                    import logging
+                    logging.warning(f"[Cloudinary] Explicit moderation check skipped: {mod_err}")
         except Exception as e:
             global LAST_CLOUDINARY_ERROR
             LAST_CLOUDINARY_ERROR = f"{type(e).__name__}: {str(e)}"

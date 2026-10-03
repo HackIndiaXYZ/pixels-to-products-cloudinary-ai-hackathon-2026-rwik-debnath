@@ -79,8 +79,27 @@ class OCRService:
         if engine is None or not image_bytes:
             return []
 
+        scale = 1.0
+        ocr_bytes = image_bytes
         try:
-            results, _ = engine(image_bytes)
+            from PIL import Image
+            import io
+            img = Image.open(io.BytesIO(image_bytes))
+            orig_w, orig_h = img.size
+            max_dim = 1280
+            if max(orig_w, orig_h) > max_dim:
+                scale = max_dim / max(orig_w, orig_h)
+                new_w, new_h = max(1, int(orig_w * scale)), max(1, int(orig_h * scale))
+                resized = img.resize((new_w, new_h), Image.Resampling.BILINEAR)
+                buf = io.BytesIO()
+                resized.save(buf, format="JPEG", quality=85)
+                ocr_bytes = buf.getvalue()
+        except Exception:
+            scale = 1.0
+            ocr_bytes = image_bytes
+
+        try:
+            results, _ = engine(ocr_bytes)
         except Exception as e:
             logger.error(f"[OCRService] OCR inference failed: {e}")
             return []
@@ -130,8 +149,8 @@ class OCRService:
             if kind:
                 # Convert 4-point polygon [[x1,y1],[x2,y2],[x3,y3],[x4,y4]] to [x, y, w, h]
                 try:
-                    xs = [p[0] for p in box]
-                    ys = [p[1] for p in box]
+                    xs = [p[0] / scale for p in box]
+                    ys = [p[1] / scale for p in box]
                     min_x = max(0, int(min(xs)))
                     min_y = max(0, int(min(ys)))
                     max_x = int(max(xs))

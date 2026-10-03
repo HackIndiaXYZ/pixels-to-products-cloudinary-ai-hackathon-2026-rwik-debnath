@@ -117,13 +117,13 @@ async def simulate_batch_intake(request: Request):
         }
     ]
 
+    import asyncio
     client_ip = request.client.host if request.client else "127.0.0.1"
-    ingested = []
 
-    for spec in specs:
+    async def ingest_single(spec):
         p = os.path.join(base_dir, spec["file"])
         if not os.path.exists(p):
-            continue
+            return None
         with open(p, "rb") as f:
             content = f.read()
 
@@ -137,12 +137,16 @@ async def simulate_batch_intake(request: Request):
             waiver_signed=True,
             submitter_ip=client_ip
         )
+        # Broadcast immediately to desk over SSE as soon as this asset completes!
         broadcaster.broadcast("asset:ingested", asset.model_dump())
         if asset.event_id and asset.event_id in PACKAGE_STORE:
             pkg = PACKAGE_STORE[asset.event_id]
             pkg.asset_count = sum(1 for a in WIRE_STORE.values() if a.event_id == asset.event_id)
             broadcaster.broadcast("package:updated", pkg.model_dump())
-        ingested.append(asset)
+        return asset
+
+    results = await asyncio.gather(*[ingest_single(spec) for spec in specs], return_exceptions=True)
+    ingested = [r for r in results if r and not isinstance(r, Exception)]
 
     return {
         "success": True,
