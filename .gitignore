@@ -46,7 +46,7 @@ Thumbs.db
 
 # Local Uploads & Database
 backend/data/
-data/*.db
+data/*.db*
 data/*.sqlite*
 data/*.jpg
 data/*.jpeg
