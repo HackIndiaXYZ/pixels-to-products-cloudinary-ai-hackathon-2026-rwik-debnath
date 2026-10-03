@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
 from typing import Optional
-from app.services.intake_service import IntakeService
+from app.services.intake_service import IntakeService, WIRE_STORE, PACKAGE_STORE
+from app.services.broadcaster import broadcaster
 from app.models.schemas import MediaAssetResponse
 
 router = APIRouter()
@@ -47,6 +48,11 @@ async def intake_upload(
             waiver_signed=waiver_signed,
             submitter_ip=client_ip
         )
+        broadcaster.broadcast("asset:ingested", asset.model_dump())
+        if asset.event_id and asset.event_id in PACKAGE_STORE:
+            pkg = PACKAGE_STORE[asset.event_id]
+            pkg.asset_count = sum(1 for a in WIRE_STORE.values() if a.event_id == asset.event_id)
+            broadcaster.broadcast("package:updated", pkg.model_dump())
         return asset
     except HTTPException:
         raise

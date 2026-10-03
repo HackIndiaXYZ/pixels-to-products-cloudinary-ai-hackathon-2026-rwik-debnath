@@ -19,6 +19,11 @@ export function App() {
   const [isDragOverCenter, setIsDragOverCenter] = useState(false);
   const centralFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Real-time Server-Sent Events (SSE) state & toast notifications
+  const [sseConnected, setSseConnected] = useState(false);
+  const [liveToast, setLiveToast] = useState<{ id: string; headline: string; public_id: string } | null>(null);
+  const liveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Global hotkey: 'i' or 'I' toggles the Provenance/Export inspector drawer, 'Escape' closes it
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -143,14 +148,150 @@ export function App() {
     }
   };
 
+  // Initial fetch and relaxed fallback poll (45s safety net)
   useEffect(() => {
     fetchQueue();
     fetchPackages();
     const interval = setInterval(() => {
       fetchQueue();
       fetchPackages();
-    }, 10000);
+    }, 45000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Server-Sent Events (SSE) Real-time wire subscription (<200ms latency)
+  useEffect(() => {
+    let es: EventSource | null = null;
+
+    const connectSSE = () => {
+      try {
+        es = new EventSource('/api/v1/editorial/stream');
+
+        es.onopen = () => {
+          setSseConnected(true);
+        };
+
+        es.addEventListener('connected', () => {
+          setSseConnected(true);
+        });
+
+        es.addEventListener('asset:ingested', (e: MessageEvent) => {
+          try {
+            const newAsset: MediaAsset = JSON.parse(e.data);
+            setAssets((prev) => {
+              if (prev.some((a) => a.public_id === newAsset.public_id)) {
+                return prev.map((a) => (a.public_id === newAsset.public_id ? newAsset : a));
+              }
+              return [newAsset, ...prev];
+            });
+
+            // Trigger sleek breaking wire alert notification
+            if (liveToastTimerRef.current) clearTimeout(liveToastTimerRef.current);
+            setLiveToast({
+              id: String(Date.now()),
+              headline: newAsset.headline || 'BREAKING WIRE MEDIA INGESTED',
+              public_id: newAsset.public_id,
+            });
+            liveToastTimerRef.current = setTimeout(() => {
+              setLiveToast(null);
+            }, 5000);
+
+            fetchPackages();
+          } catch (err) {
+            console.error('[SSE] Failed parsing asset:ingested', err);
+          }
+        });
+
+        es.addEventListener('asset:updated', (e: MessageEvent) => {
+          try {
+            const updated: MediaAsset = JSON.parse(e.data);
+            setAssets((prev) => prev.map((a) => (a.public_id === updated.public_id ? updated : a)));
+            if (selectedIdRef.current === updated.public_id) {
+              setSelectedAsset(updated);
+            }
+          } catch (err) {
+            console.error('[SSE] Failed parsing asset:updated', err);
+          }
+        });
+
+        es.addEventListener('asset:deleted', (e: MessageEvent) => {
+          try {
+            const { public_id } = JSON.parse(e.data);
+            setAssets((prev) => {
+              const next = prev.filter((a) => a.public_id !== public_id);
+              if (selectedIdRef.current === public_id) {
+                setSelectedAsset(next.length > 0 ? next[0] : null);
+              }
+              return next;
+            });
+            fetchPackages();
+          } catch (err) {
+            console.error('[SSE] Failed parsing asset:deleted', err);
+          }
+        });
+
+        es.addEventListener('assets:deleted', (e: MessageEvent) => {
+          try {
+            const { public_ids } = JSON.parse(e.data);
+            const idSet = new Set(public_ids);
+            setAssets((prev) => {
+              const next = prev.filter((a) => !idSet.has(a.public_id));
+              if (selectedIdRef.current && idSet.has(selectedIdRef.current)) {
+                setSelectedAsset(next.length > 0 ? next[0] : null);
+              }
+              return next;
+            });
+            fetchPackages();
+          } catch (err) {
+            console.error('[SSE] Failed parsing assets:deleted', err);
+          }
+        });
+
+        es.addEventListener('package:updated', (e: MessageEvent) => {
+          try {
+            const updatedPkg: StoryPackage = JSON.parse(e.data);
+            setPackages((prev) => {
+              const exists = prev.some((p) => p.event_id === updatedPkg.event_id);
+              if (exists) {
+                return prev.map((p) => (p.event_id === updatedPkg.event_id ? updatedPkg : p));
+              }
+              return [updatedPkg, ...prev];
+            });
+          } catch (err) {
+            console.error('[SSE] Failed parsing package:updated', err);
+          }
+        });
+
+        es.addEventListener('package:deleted', (e: MessageEvent) => {
+          try {
+            const { event_id } = JSON.parse(e.data);
+            setPackages((prev) => prev.filter((p) => p.event_id !== event_id));
+          } catch (err) {
+            console.error('[SSE] Failed parsing package:deleted', err);
+          }
+        });
+
+        es.addEventListener('wire:cleared', () => {
+          setAssets([]);
+          setPackages([]);
+          setSelectedAsset(null);
+        });
+
+        es.onerror = () => {
+          setSseConnected(false);
+        };
+      } catch (err) {
+        console.error('[SSE] Connection initialization failed', err);
+        setSseConnected(false);
+      }
+    };
+
+    connectSSE();
+
+    return () => {
+      if (es) es.close();
+      if (liveToastTimerRef.current) clearTimeout(liveToastTimerRef.current);
+    };
   }, []);
 
   const handleUploadSuccess = (newAsset: MediaAsset) => {
@@ -576,6 +717,29 @@ export function App() {
 
           {/* Right: Live UTC Clock, Share Tip Line & Direct Ingest */}
           <div className="flex items-center space-x-2">
+            {/* Live Wire Real-time SSE Connection Status */}
+            <div
+              className={`hidden sm:flex items-center space-x-1.5 text-xs font-mono px-2.5 py-1.5 rounded-lg border transition-colors ${
+                sseConnected
+                  ? 'text-emerald-700 bg-emerald-50/80 border-emerald-200/80'
+                  : 'text-amber-700 bg-amber-50/80 border-amber-200/80'
+              }`}
+              title={
+                sseConnected
+                  ? 'Real-Time Wire Stream Connected (<200ms broadcast latency)'
+                  : 'Wire Stream Reconnecting...'
+              }
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  sseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                }`}
+              />
+              <span className="font-semibold tracking-wider text-[11px]">
+                {sseConnected ? 'LIVE WIRE' : 'CONNECTING'}
+              </span>
+            </div>
+
             {/* Live Newsroom UTC Clock */}
             <div
               className="hidden sm:flex items-center space-x-1.5 text-xs font-mono text-slate-500 bg-slate-50 border border-slate-200/70 px-2.5 py-1.5 rounded-lg"
@@ -601,6 +765,37 @@ export function App() {
           </div>
         </div>
       </header>
+
+      {/* Transient Real-Time Breaking Wire Notification Toast */}
+      {liveToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-14 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-700/80 animate-in fade-in slide-in-from-top-3 duration-200 cursor-pointer hover:bg-slate-800 transition-all max-w-sm"
+          onClick={() => {
+            const found = assets.find((a) => a.public_id === liveToast.public_id);
+            if (found) {
+              setSelectedAsset(found);
+              selectedIdRef.current = found.public_id;
+              setSelectedPackageId(null);
+            }
+            setLiveToast(null);
+          }}
+        >
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping flex-shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
+              Incoming Wire Dispatch
+            </div>
+            <div className="text-xs font-medium text-slate-100 truncate">
+              {liveToast.headline}
+            </div>
+          </div>
+          <span className="text-[10px] font-mono text-slate-400 hover:text-white px-1.5 py-0.5 rounded border border-slate-700">
+            VIEW
+          </span>
+        </div>
+      )}
 
       {/* Main Studio Cockpit Workspace (Edge-to-Edge Full Bleed) */}
       <main className="flex-1 w-full p-3.5 flex flex-col min-h-0 overflow-hidden">

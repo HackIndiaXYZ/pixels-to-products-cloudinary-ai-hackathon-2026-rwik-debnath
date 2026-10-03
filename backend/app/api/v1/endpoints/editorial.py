@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException
-from typing import List, Optional, Tuple
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from typing import List, Optional, Tuple, AsyncGenerator
+import asyncio
 import datetime
 import re
 import httpx
@@ -29,8 +31,47 @@ from app.models.schemas import (
 from app.services.redaction_service import RedactionService
 from app.services.packaging_service import PackagingService
 from app.services.intake_service import WIRE_STORE, PACKAGE_STORE, IntakeService
+from app.services.broadcaster import broadcaster
 
 router = APIRouter()
+
+@router.get("/stream")
+async def editorial_event_stream(request: Request):
+    """
+    Server-Sent Events (SSE) stream for zero-latency wire updates.
+    Broadcasts real-time events:
+    - asset:ingested
+    - asset:updated
+    - asset:deleted
+    - assets:deleted
+    - package:updated
+    - package:deleted
+    """
+    queue = broadcaster.subscribe()
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        try:
+            yield "event: connected\ndata: {\"status\": \"connected\"}\n\n"
+            while True:
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    yield msg
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            broadcaster.unsubscribe(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 @router.get("/queue", response_model=List[MediaAssetResponse])
 async def get_wire_queue():
@@ -85,6 +126,7 @@ async def delete_asset(public_id: str):
     except Exception:
         pass
 
+    broadcaster.broadcast("asset:deleted", {"public_id": public_id})
     return DeleteResponse(success=True, deleted_ids=[public_id], count=1)
 
 @router.post("/batch-delete", response_model=DeleteResponse)
@@ -109,6 +151,7 @@ async def batch_delete_assets(req: BatchDeleteRequest):
             except Exception:
                 pass
 
+    broadcaster.broadcast("assets:deleted", {"public_ids": deleted_ids})
     return DeleteResponse(success=True, deleted_ids=deleted_ids, count=len(deleted_ids))
 
 @router.post("/redact", response_model=MediaAssetResponse)
@@ -183,6 +226,7 @@ async def update_redactions(req: RedactionUpdateRequest):
     )
 
     WIRE_STORE[req.public_id] = asset
+    broadcaster.broadcast("asset:updated", asset.model_dump())
     return asset
 
 @router.post("/focal-point", response_model=MediaAssetResponse)
@@ -213,6 +257,7 @@ async def update_focal_point(req: FocalPointRequest):
     )
 
     WIRE_STORE[req.public_id] = asset
+    broadcaster.broadcast("asset:updated", asset.model_dump())
     return asset
 
 @router.post("/metadata", response_model=MediaAssetResponse)
@@ -293,6 +338,7 @@ async def update_metadata(req: MetadataUpdateRequest):
     )
 
     WIRE_STORE[req.public_id] = asset
+    broadcaster.broadcast("asset:updated", asset.model_dump())
     return asset
 
 @router.post("/archive", response_model=MediaAssetResponse)
@@ -301,6 +347,8 @@ async def toggle_archive(req: ArchiveToggleRequest):
     if req.public_id not in WIRE_STORE:
         raise HTTPException(status_code=404, detail="Asset not found")
     WIRE_STORE[req.public_id].is_archived = req.is_archived
+    WIRE_STORE[req.public_id] = WIRE_STORE[req.public_id]
+    broadcaster.broadcast("asset:updated", WIRE_STORE[req.public_id].model_dump())
     return WIRE_STORE[req.public_id]
 
 @router.post("/batch-archive")
@@ -310,7 +358,9 @@ async def batch_archive(req: BatchArchiveRequest):
     for pid in req.public_ids:
         if pid in WIRE_STORE:
             WIRE_STORE[pid].is_archived = req.is_archived
+            WIRE_STORE[pid] = WIRE_STORE[pid]
             updated_ids.append(pid)
+            broadcaster.broadcast("asset:updated", WIRE_STORE[pid].model_dump())
     return {
         "success": True,
         "count": len(updated_ids),
@@ -492,6 +542,7 @@ async def manual_geotag(req: GeotagRequest):
     asset.event_id = event_id
     asset.event_title = event_title
     WIRE_STORE[req.public_id] = asset
+    broadcaster.broadcast("asset:updated", asset.model_dump())
     return asset
 
 @router.post("/package-radius")
@@ -514,6 +565,13 @@ async def update_package_radius(req: PackageRadiusRequest):
             if a.event_id == req.event_id:
                 a.cluster_radius_km = req.cluster_radius_km
                 updated_assets.append(a.public_id)
+        pkg = PACKAGE_STORE.get(req.event_id)
+        if pkg:
+            pkg.cluster_radius_km = req.cluster_radius_km
+            broadcaster.broadcast("package:updated", pkg.model_dump())
+        for pid in updated_assets:
+            if pid in WIRE_STORE:
+                broadcaster.broadcast("asset:updated", WIRE_STORE[pid].model_dump())
         return {"success": True, "event_id": req.event_id, "cluster_radius_km": req.cluster_radius_km, "updated": updated_assets}
 
     anchor_lat = anchor_asset.telemetry.gps_latitude
@@ -535,6 +593,17 @@ async def update_package_radius(req: PackageRadiusRequest):
             a.event_id = None
             a.event_title = None
             a.cluster_radius_km = 1.5
+            updated_assets.append(a.public_id)
+
+    pkg = PACKAGE_STORE.get(req.event_id)
+    if pkg:
+        pkg.cluster_radius_km = req.cluster_radius_km
+        pkg.asset_count = sum(1 for a in WIRE_STORE.values() if a.event_id == req.event_id)
+        broadcaster.broadcast("package:updated", pkg.model_dump())
+
+    for pid in updated_assets:
+        if pid in WIRE_STORE:
+            broadcaster.broadcast("asset:updated", WIRE_STORE[pid].model_dump())
 
     return {
         "success": True,
@@ -584,7 +653,9 @@ async def assign_package(req: PackageAssignRequest):
         pkg = PACKAGE_STORE.get(req.event_id.strip())
         if pkg:
             pkg.asset_count = sum(1 for a in WIRE_STORE.values() if a.event_id == pkg.event_id)
+            broadcaster.broadcast("package:updated", pkg.model_dump())
 
+    broadcaster.broadcast("asset:updated", asset.model_dump())
     return asset
 
 @router.post("/package/batch-assign")
@@ -626,6 +697,11 @@ async def batch_assign_package(req: BatchPackageAssignRequest):
 
     if target_pkg and cleaned_id:
         target_pkg.asset_count = sum(1 for a in WIRE_STORE.values() if a.event_id == cleaned_id)
+        broadcaster.broadcast("package:updated", target_pkg.model_dump())
+
+    for pid in updated_ids:
+        if pid in WIRE_STORE:
+            broadcaster.broadcast("asset:updated", WIRE_STORE[pid].model_dump())
 
     return {
         "success": True,
@@ -711,6 +787,11 @@ async def create_package(req: PackageCreateRequest):
         clustered_assets=clustered_count
     )
     PACKAGE_STORE[event_id] = pkg
+    broadcaster.broadcast("package:updated", pkg.model_dump())
+    if clustered_count > 0:
+        for a in WIRE_STORE.values():
+            if a.event_id == event_id:
+                broadcaster.broadcast("asset:updated", a.model_dump())
     return pkg
 
 @router.post("/sweep-approved", response_model=SweepApprovedResponse)
@@ -721,6 +802,7 @@ async def sweep_approved():
         if asset.review_status == "approved" and not asset.is_archived:
             asset.is_archived = True
             swept.append(pid)
+            broadcaster.broadcast("asset:updated", asset.model_dump())
     return SweepApprovedResponse(success=True, swept_count=len(swept), swept_ids=swept)
 
 @router.post("/package/update")
@@ -796,7 +878,7 @@ async def update_package(req: PackageUpdateRequest):
         pkg.lng = new_lng
         pkg.asset_count = len(matching_assets)
     else:
-        PACKAGE_STORE[req.event_id] = StoryPackageResponse(
+        pkg = StoryPackageResponse(
             event_id=req.event_id,
             event_title=title,
             incident_type=incident_type,
@@ -808,6 +890,11 @@ async def update_package(req: PackageUpdateRequest):
             created_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
             asset_count=len(matching_assets)
         )
+        PACKAGE_STORE[req.event_id] = pkg
+
+    broadcaster.broadcast("package:updated", pkg.model_dump())
+    for asset in matching_assets:
+        broadcaster.broadcast("asset:updated", asset.model_dump())
 
     return {
         "success": True,
@@ -834,6 +921,10 @@ async def disband_package(req: PackageDisbandRequest):
 
     PACKAGE_STORE.pop(req.event_id, None)
 
+    broadcaster.broadcast("package:deleted", {"event_id": req.event_id})
+    for asset in matching_assets:
+        broadcaster.broadcast("asset:updated", asset.model_dump())
+
     return {
         "success": True,
         "event_id": req.event_id,
@@ -849,6 +940,7 @@ async def clear_all_assets():
     pkg_count = len(PACKAGE_STORE)
     WIRE_STORE.clear()
     PACKAGE_STORE.clear()
+    broadcaster.broadcast("wire:cleared", {})
     return {
         "success": True,
         "cleared_count": count,
