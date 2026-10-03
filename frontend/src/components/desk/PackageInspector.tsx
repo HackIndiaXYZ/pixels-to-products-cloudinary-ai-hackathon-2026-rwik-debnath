@@ -63,7 +63,9 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
   const [title, setTitle] = useState(packageTitle);
   const [beat, setBeat] = useState(incidentType);
   const [radius, setRadius] = useState<number>(clusterRadiusKm);
+  const [radiusInput, setRadiusInput] = useState<string>(String(clusterRadiusKm));
   const [windowHours, setWindowHours] = useState<number>(packageWindowHours);
+  const [windowInput, setWindowInput] = useState<string>(String(packageWindowHours));
   const [status, setStatus] = useState<'active' | 'concluded'>(
     packageStatus === 'locked' || packageStatus === 'concluded' ? 'concluded' : 'active'
   );
@@ -78,16 +80,27 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const beatDropdownRef = useRef<HTMLDivElement>(null);
+  const radiusDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const windowDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setTitle(packageTitle);
     setBeat(incidentType);
     setRadius(clusterRadiusKm);
+    setRadiusInput(String(clusterRadiusKm));
     setWindowHours(packageWindowHours);
+    setWindowInput(String(packageWindowHours));
     setStatus(packageStatus === 'locked' || packageStatus === 'concluded' ? 'concluded' : 'active');
     setGeoLat(lat ?? null);
     setGeoLng(lng ?? null);
   }, [packageTitle, incidentType, clusterRadiusKm, packageWindowHours, packageStatus, lat, lng]);
+
+  useEffect(() => {
+    return () => {
+      if (radiusDebounceRef.current) clearTimeout(radiusDebounceRef.current);
+      if (windowDebounceRef.current) clearTimeout(windowDebounceRef.current);
+    };
+  }, []);
 
   // Click outside for beat dropdown
   useEffect(() => {
@@ -124,14 +137,52 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
     }
   };
 
-  const handleRadiusChange = async (val: number) => {
-    setRadius(val);
-    await onUpdatePackage(packageId, { cluster_radius_km: val });
+  const commitRadius = (val: number) => {
+    if (radiusDebounceRef.current) clearTimeout(radiusDebounceRef.current);
+    onUpdatePackage(packageId, { cluster_radius_km: val });
   };
 
-  const handleWindowChange = async (hours: number) => {
+  const handleRadiusSliderChange = (val: number) => {
+    setRadius(val);
+    setRadiusInput(String(val));
+    if (radiusDebounceRef.current) clearTimeout(radiusDebounceRef.current);
+    radiusDebounceRef.current = setTimeout(() => {
+      onUpdatePackage(packageId, { cluster_radius_km: val });
+    }, 300);
+  };
+
+  const commitRadiusInput = () => {
+    let parsed = parseFloat(radiusInput);
+    if (isNaN(parsed) || parsed < 0.1) parsed = 0.1;
+    if (parsed > 10.0) parsed = 10.0;
+    parsed = Number(parsed.toFixed(1));
+    setRadius(parsed);
+    setRadiusInput(String(parsed));
+    commitRadius(parsed);
+  };
+
+  const commitWindow = (hours: number) => {
+    if (windowDebounceRef.current) clearTimeout(windowDebounceRef.current);
+    onUpdatePackage(packageId, { package_window_hours: hours });
+  };
+
+  const handleWindowSliderChange = (hours: number) => {
     setWindowHours(hours);
-    await onUpdatePackage(packageId, { package_window_hours: hours });
+    setWindowInput(String(hours));
+    if (windowDebounceRef.current) clearTimeout(windowDebounceRef.current);
+    windowDebounceRef.current = setTimeout(() => {
+      onUpdatePackage(packageId, { package_window_hours: hours });
+    }, 300);
+  };
+
+  const commitWindowInput = () => {
+    let parsed = parseFloat(windowInput);
+    if (isNaN(parsed) || parsed < 0.5) parsed = 0.5;
+    if (parsed > 24.0) parsed = 24.0;
+    parsed = Number(parsed.toFixed(1));
+    setWindowHours(parsed);
+    setWindowInput(String(parsed));
+    commitWindow(parsed);
   };
 
   const handleSaveLocation = async () => {
@@ -490,24 +541,30 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
                     </span>
                     <div className="flex items-center space-x-1">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         disabled={!hasLocation}
-                        min="0.1"
-                        max="10.0"
-                        step="0.1"
-                        value={radius}
+                        value={radiusInput}
                         onChange={(e) => {
                           if (!hasLocation) return;
-                          const val = parseFloat(e.target.value);
-                          if (!isNaN(val)) {
-                            setRadius(val);
-                            if (val >= 0.1 && val <= 10.0) handleRadiusChange(val);
+                          const v = e.target.value;
+                          if (/^\d*\.?\d*$/.test(v)) {
+                            setRadiusInput(v);
+                            const num = parseFloat(v);
+                            if (!isNaN(num) && num >= 0.1 && num <= 10.0) {
+                              setRadius(num);
+                              if (radiusDebounceRef.current) clearTimeout(radiusDebounceRef.current);
+                              radiusDebounceRef.current = setTimeout(() => {
+                                onUpdatePackage(packageId, { cluster_radius_km: num });
+                              }, 500);
+                            }
                           }
                         }}
-                        onBlur={() => {
-                          if (!hasLocation) return;
-                          const clamped = Math.min(10.0, Math.max(0.1, radius));
-                          handleRadiusChange(clamped);
+                        onBlur={commitRadiusInput}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                          }
                         }}
                         className={`w-12 h-5 border rounded px-1 text-center text-xs font-mono font-semibold focus:outline-none ${
                           hasLocation
@@ -528,8 +585,11 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
                     value={radius}
                     onChange={(e) => {
                       if (!hasLocation) return;
-                      const val = parseFloat(e.target.value);
-                      handleRadiusChange(val);
+                      handleRadiusSliderChange(parseFloat(e.target.value));
+                    }}
+                    onPointerUp={() => {
+                      if (!hasLocation) return;
+                      commitRadius(radius);
                     }}
                     className={`w-full h-1.5 rounded-lg appearance-none transition focus:outline-none ${
                       hasLocation
@@ -552,24 +612,30 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
                     </span>
                     <div className="flex items-center space-x-1">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         disabled={!hasLocation}
-                        min="0.5"
-                        max="24.0"
-                        step="0.5"
-                        value={windowHours}
+                        value={windowInput}
                         onChange={(e) => {
                           if (!hasLocation) return;
-                          const val = parseFloat(e.target.value);
-                          if (!isNaN(val)) {
-                            setWindowHours(val);
-                            if (val >= 0.5 && val <= 24.0) handleWindowChange(val);
+                          const v = e.target.value;
+                          if (/^\d*\.?\d*$/.test(v)) {
+                            setWindowInput(v);
+                            const num = parseFloat(v);
+                            if (!isNaN(num) && num >= 0.5 && num <= 24.0) {
+                              setWindowHours(num);
+                              if (windowDebounceRef.current) clearTimeout(windowDebounceRef.current);
+                              windowDebounceRef.current = setTimeout(() => {
+                                onUpdatePackage(packageId, { package_window_hours: num });
+                              }, 500);
+                            }
                           }
                         }}
-                        onBlur={() => {
-                          if (!hasLocation) return;
-                          const clamped = Math.min(24.0, Math.max(0.5, windowHours));
-                          handleWindowChange(clamped);
+                        onBlur={commitWindowInput}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur();
+                          }
                         }}
                         className={`w-12 h-5 border rounded px-1 text-center text-xs font-mono font-semibold focus:outline-none ${
                           hasLocation
@@ -590,8 +656,11 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
                     value={windowHours}
                     onChange={(e) => {
                       if (!hasLocation) return;
-                      const val = parseFloat(e.target.value);
-                      handleWindowChange(val);
+                      handleWindowSliderChange(parseFloat(e.target.value));
+                    }}
+                    onPointerUp={() => {
+                      if (!hasLocation) return;
+                      commitWindow(windowHours);
                     }}
                     className={`w-full h-1.5 rounded-lg appearance-none transition focus:outline-none ${
                       hasLocation
