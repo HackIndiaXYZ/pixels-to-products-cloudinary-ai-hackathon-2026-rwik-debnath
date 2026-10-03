@@ -10,16 +10,18 @@ from app.services.packaging_service import PackagingService
 
 init_cloudinary()
 
+# Ground-truth AI face detection calibrated coordinates for demo media
 CANONICAL_DEMO_SEEDS = [
     (
         "presswire/sample_press_conference",
         "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80",
-        [[400, 480, 150, 180], [500, 430, 140, 170], [670, 325, 110, 140], [740, 320, 110, 140]]
+        # Only civilian bystanders (Mayor/Obama [670, 231, 197, 281] is exempt and kept unblurred)
+        [[154, 428, 139, 154], [367, 362, 119, 190], [546, 308, 91, 134], [817, 165, 134, 171], [1045, 128, 143, 167]]
     ),
     (
         "presswire/sample_protest_rally",
         "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80",
-        [[340, 220, 160, 170], [720, 240, 150, 160]]
+        [[262, 336, 53, 77], [537, 358, 53, 74], [950, 358, 49, 74], [1072, 363, 46, 63]]
     ),
     (
         "presswire/sample_wildfire",
@@ -39,12 +41,12 @@ CANONICAL_DEMO_SEEDS = [
     (
         "presswire/sample_protest_rally_alt",
         "https://images.unsplash.com/photo-1526976668912-1a811878dd37?auto=format&fit=crop&w=1200&q=80",
-        [[480, 260, 170, 180]]
+        [[384, 302, 69, 76], [541, 303, 76, 99], [702, 245, 88, 106]]
     ),
 ]
 
 async def ensure_demo_assets_uploaded():
-    """Uploads the canonical demo assets to Cloudinary if they don't exist yet."""
+    """Uploads the canonical demo assets to Cloudinary if they don't exist yet and syncs face coordinates."""
     if not (settings.CLOUDINARY_API_KEY or settings.CLOUDINARY_URL):
         return
     import cloudinary.uploader
@@ -65,7 +67,7 @@ async def seed_initial_assets():
     now = datetime.datetime.utcnow()
     cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
 
-    # Asset 1: Mayoral Press Briefing (Photo of Obama with officials and bystanders)
+    # Asset 1: Mayoral Press Briefing (Mayor Obama with staff and bystanders)
     asset_1_id = "presswire/sample_press_conference"
     urls_1 = PackagingService.generate_broadcast_urls(
         public_id=asset_1_id,
@@ -79,15 +81,16 @@ async def seed_initial_assets():
         format="jpg",
         resource_type="image",
         width=1200,
-        height=800,
+        height=864,
         bytes=1420500,
         secure_url=f"https://res.cloudinary.com/{cloud_name}/image/upload/{asset_1_id}.jpg",
         faces=[
-            FaceCoordinate(id="face_0", x=620, y=370, w=180, h=220, is_redacted=False, label="Elected Official (Mayor)"),
-            FaceCoordinate(id="face_1", x=400, y=480, w=150, h=180, is_redacted=True, label="Civilian Bystander"),
-            FaceCoordinate(id="face_2", x=500, y=430, w=140, h=170, is_redacted=True, label="Civilian Bystander"),
-            FaceCoordinate(id="face_3", x=670, y=325, w=110, h=140, is_redacted=True, label="Civilian Bystander"),
-            FaceCoordinate(id="face_4", x=740, y=320, w=110, h=140, is_redacted=True, label="Civilian Bystander")
+            FaceCoordinate(id="face_0", x=670, y=231, w=197, h=281, is_redacted=False, label="Elected Official (Mayor)"),
+            FaceCoordinate(id="face_1", x=154, y=428, w=139, h=154, is_redacted=True, label="Civilian Bystander"),
+            FaceCoordinate(id="face_2", x=367, y=362, w=119, h=190, is_redacted=True, label="Civilian Bystander"),
+            FaceCoordinate(id="face_3", x=546, y=308, w=91, h=134, is_redacted=True, label="Civilian Bystander"),
+            FaceCoordinate(id="face_4", x=817, y=165, w=134, h=171, is_redacted=True, label="Civilian Bystander"),
+            FaceCoordinate(id="face_5", x=1045, y=128, w=143, h=167, is_redacted=True, label="Civilian Bystander")
         ],
         telemetry=TelemetryData(
             make="Sony",
@@ -115,7 +118,7 @@ async def seed_initial_assets():
         created_at=now.isoformat()
     )
 
-    # Asset 2: Downtown Protest March (Requires Face Triage)
+    # Asset 2: Downtown Protest March (Demonstrators requiring Face Triage)
     asset_2_id = "presswire/sample_protest_rally"
     urls_2 = PackagingService.generate_broadcast_urls(
         public_id=asset_2_id,
@@ -129,12 +132,14 @@ async def seed_initial_assets():
         format="jpg",
         resource_type="image",
         width=1200,
-        height=800,
+        height=675,
         bytes=1840200,
         secure_url=f"https://res.cloudinary.com/{cloud_name}/image/upload/{asset_2_id}.jpg",
         faces=[
-            FaceCoordinate(id="face_0", x=340, y=220, w=160, h=170, is_redacted=True, label="Civilian Demonstrator"),
-            FaceCoordinate(id="face_1", x=720, y=240, w=150, h=160, is_redacted=True, label="Civilian Demonstrator")
+            FaceCoordinate(id="face_0", x=262, y=336, w=53, h=77, is_redacted=True, label="Civilian Demonstrator"),
+            FaceCoordinate(id="face_1", x=537, y=358, w=53, h=74, is_redacted=True, label="Civilian Demonstrator"),
+            FaceCoordinate(id="face_2", x=950, y=358, w=49, h=74, is_redacted=True, label="Civilian Demonstrator"),
+            FaceCoordinate(id="face_3", x=1072, y=363, w=46, h=63, is_redacted=True, label="Civilian Demonstrator")
         ],
         telemetry=TelemetryData(
             make="Apple",
@@ -176,7 +181,7 @@ async def seed_initial_assets():
         format="jpg",
         resource_type="image",
         width=1200,
-        height=800,
+        height=1800,
         bytes=2104000,
         secure_url=f"https://res.cloudinary.com/{cloud_name}/image/upload/{asset_3_id}.jpg",
         faces=[],
@@ -311,7 +316,9 @@ async def seed_initial_assets():
         bytes=1620400,
         secure_url=f"https://res.cloudinary.com/{cloud_name}/image/upload/{asset_6_id}.jpg",
         faces=[
-            FaceCoordinate(id="face_0", x=480, y=260, w=170, h=180, is_redacted=True, label="Civilian Demonstrator")
+            FaceCoordinate(id="face_0", x=384, y=302, w=69, h=76, is_redacted=True, label="Civilian Demonstrator"),
+            FaceCoordinate(id="face_1", x=541, y=303, w=76, h=99, is_redacted=True, label="Civilian Demonstrator"),
+            FaceCoordinate(id="face_2", x=702, y=245, w=88, h=106, is_redacted=True, label="Civilian Demonstrator")
         ],
         telemetry=TelemetryData(
             make="Google",
@@ -347,7 +354,7 @@ async def seed_initial_assets():
     WIRE_STORE[asset_6.public_id] = asset_6
 
 async def check_and_refresh_seed_assets():
-    """Refreshes seed assets in WIRE_STORE if their URLs point to outdated hosts."""
+    """Refreshes seed assets in WIRE_STORE if their URLs or face coordinates are outdated."""
     cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
     sample_ids = [
         "presswire/sample_press_conference",
@@ -365,6 +372,11 @@ async def check_and_refresh_seed_assets():
             if "unsplash.com" in (asset.secure_url or "") or cloud_name not in (asset.secure_url or ""):
                 needs_reseed = True
                 break
+            # Check calibrated coordinates on sample_press_conference
+            if sid == "presswire/sample_press_conference":
+                if asset.height != 864 or not asset.faces or asset.faces[0].x != 670:
+                    needs_reseed = True
+                    break
     if needs_reseed:
         WIRE_STORE.clear()
         PACKAGE_STORE.clear()
