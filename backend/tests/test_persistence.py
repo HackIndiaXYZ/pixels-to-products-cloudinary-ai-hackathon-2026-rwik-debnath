@@ -56,6 +56,8 @@ async def test_sqlite_persistence_lifecycle():
         incident_type="Public Safety",
         urgency="breaking",
         headline="Persistence Verification Breaking Wire",
+        brand_theme="metro_24",
+        custom_strap_id="presswire/branding/strap_test_logo",
         created_at="2026-10-03T05:00:00Z"
     )
 
@@ -98,6 +100,8 @@ async def test_sqlite_persistence_lifecycle():
     assert resurrected_asset.faces[0].label == "Redaction #1"
     assert resurrected_asset.telemetry.make == "Sony"
     assert resurrected_asset.telemetry.gps_latitude == 37.7749
+    assert resurrected_asset.brand_theme == "metro_24"
+    assert resurrected_asset.custom_strap_id == "presswire/branding/strap_test_logo"
 
     assert test_evt in fresh_pkg_store
     resurrected_pkg = fresh_pkg_store[test_evt]

@@ -715,51 +715,32 @@ export function App() {
             />
           </div>
 
-          {/* Right: Live UTC Clock, Share Tip Line & Direct Ingest */}
-          <div className="flex items-center space-x-2">
-            {/* Live Wire Real-time SSE Connection Status */}
+          {/* Right: Live UTC Clock & Share Tip Line */}
+          <div className="flex items-center space-x-3">
+            {/* Live Newsroom UTC Clock (Clean text, no pill box) */}
             <div
-              className={`hidden sm:flex items-center space-x-1.5 text-xs font-mono px-2.5 py-1.5 rounded-lg border transition-colors ${
-                sseConnected
-                  ? 'text-emerald-700 bg-emerald-50/80 border-emerald-200/80'
-                  : 'text-amber-700 bg-amber-50/80 border-amber-200/80'
-              }`}
+              className="hidden sm:flex items-center space-x-1.5 text-xs font-mono text-slate-500 select-none"
               title={
                 sseConnected
-                  ? 'Real-Time Wire Stream Connected (<200ms broadcast latency)'
-                  : 'Wire Stream Reconnecting...'
+                  ? "Global Broadcast UTC Synchronization (Connected)"
+                  : "Global Broadcast UTC Synchronization (Connecting...)"
               }
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  sseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                }`}
-              />
-              <span className="font-semibold tracking-wider text-[11px]">
-                {sseConnected ? 'LIVE WIRE' : 'CONNECTING'}
-              </span>
-            </div>
-
-            {/* Live Newsroom UTC Clock */}
-            <div
-              className="hidden sm:flex items-center space-x-1.5 text-xs font-mono text-slate-500 bg-slate-50 border border-slate-200/70 px-2.5 py-1.5 rounded-lg"
-              title="Global Broadcast UTC Synchronization"
             >
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span>{utcTime} UTC</span>
             </div>
 
-            {/* Share Tip Line Link Icon Button */}
+            {/* Share Tip Line Link Icon Button (Clean, borderless, compact) */}
             <button
               onClick={handleCopyTipLink}
               title={tipLinkCopied ? 'Tip line link copied!' : 'Copy public tip line link'}
               aria-label="Copy public tip line link"
-              className="p-1.5 rounded-lg border border-slate-200/80 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 shadow-2xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
+              className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors flex items-center justify-center cursor-pointer active:scale-95"
             >
               {tipLinkCopied ? (
-                <Check className="w-4 h-4 text-emerald-600" />
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
               ) : (
-                <Share2 className="w-4 h-4 text-slate-500" />
+                <Share2 className="w-3.5 h-3.5" />
               )}
             </button>
           </div>

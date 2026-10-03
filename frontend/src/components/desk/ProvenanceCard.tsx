@@ -20,6 +20,10 @@ import {
   Sparkles,
   FileCode,
   Upload,
+  Smartphone,
+  LayoutGrid,
+  ImagePlus,
+  Trash2,
 } from 'lucide-react';
 import {
   CATEGORY_LIST,
@@ -113,9 +117,13 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     setIncidentType(asset.incident_type || 'uncategorized');
     setUrgency((asset.urgency as 'breaking' | 'standard') || 'breaking');
     setEventTitle(asset.event_title || '');
-    setBrandTheme(asset.brand_theme || 'global_wire');
-    setCustomStrapId(asset.custom_strap_id || null);
-    if (asset.custom_strap_id || (asset.brand_theme && asset.brand_theme !== 'clean')) {
+    const savedTheme = localStorage.getItem('presswire_station_theme');
+    const savedBug = localStorage.getItem('presswire_station_bug');
+    const activeTheme = asset.brand_theme || savedTheme || 'global_wire';
+    const activeBug = asset.custom_strap_id || savedBug || null;
+    setBrandTheme(activeTheme);
+    setCustomStrapId(activeBug);
+    if (activeBug || (activeTheme && activeTheme !== 'clean')) {
       setPlayoutMode('branded');
     }
   }, [
@@ -139,6 +147,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
 
   const handleSelectTheme = async (theme: string) => {
     setBrandTheme(theme);
+    localStorage.setItem('presswire_station_theme', theme);
     setIsApplyingBranding(true);
     try {
       const res = await fetch('/api/v1/editorial/branding/apply', {
@@ -163,6 +172,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
 
   const handleRemoveCustomBug = async () => {
     setCustomStrapId(null);
+    localStorage.removeItem('presswire_station_bug');
     setIsApplyingBranding(true);
     try {
       const res = await fetch('/api/v1/editorial/branding/apply', {
@@ -200,6 +210,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
       if (uploadRes.ok) {
         const data = await uploadRes.json();
         setCustomStrapId(data.public_id);
+        localStorage.setItem('presswire_station_bug', data.public_id);
         setPlayoutMode('branded');
         const applyRes = await fetch('/api/v1/editorial/branding/apply', {
           method: 'POST',
@@ -832,7 +843,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
               }`}
             >
               <Tv className="w-3.5 h-3.5 text-blue-600" />
-              <span>Clean MCR Feed</span>
+              <span>Clean MCR</span>
             </button>
             <button
               type="button"
@@ -844,7 +855,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Branded Digital</span>
+              <span>Branded Feed</span>
             </button>
           </div>
 
@@ -855,7 +866,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
               <a
                 href={masterDownloadUrl}
                 download
-                className="w-full h-9 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 border border-slate-200/90 hover:border-slate-300 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-2xs cursor-pointer active:scale-98"
+                className="w-full h-8.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 border border-slate-200/90 hover:border-slate-300 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-2xs cursor-pointer active:scale-98"
                 title="Download full-resolution redacted clean master for broadcast playout server"
               >
                 <Download className="w-3.5 h-3.5 text-blue-600 shrink-0" />
@@ -870,7 +881,10 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                   className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2.5 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
                   title="Copy Clean 16:9 Linear Broadcast feed URL"
                 >
-                  <span className="truncate">Clean 16:9 Playout</span>
+                  <div className="flex items-center space-x-1.5 truncate">
+                    <Tv className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span className="truncate">Clean 16:9</span>
+                  </div>
                   {copiedKey === 'clean_16_9' ? (
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
                   ) : (
@@ -884,11 +898,14 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                   className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2.5 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
                   title="Copy IPTC-ready sidecar JSON for Chyron/Vizrt automation"
                 >
-                  <span className="truncate">Sidecar JSON (CG)</span>
+                  <div className="flex items-center space-x-1.5 truncate">
+                    <FileCode className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span className="truncate">Sidecar JSON</span>
+                  </div>
                   {copiedKey === 'sidecar' ? (
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
                   ) : (
-                    <FileCode className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
+                    <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
                   )}
                 </button>
               </div>
@@ -899,59 +916,64 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
               {/* Station Brand Themes Selector */}
               <div className="space-y-1.5">
                 <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
-                  Station Graphics Profile (Lower-Third)
+                  Graphics Profile
                 </span>
                 <div className="grid grid-cols-3 gap-1.5 text-[10px] font-medium">
                   <button
                     type="button"
                     onClick={() => handleSelectTheme('global_wire')}
                     disabled={isApplyingBranding}
-                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center transition cursor-pointer ${
+                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center space-x-1.5 transition cursor-pointer ${
                       brandTheme === 'global_wire'
                         ? 'border-slate-800 bg-slate-900 text-white font-semibold shadow-2xs'
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'
                     }`}
                   >
-                    Global Wire
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-600 shrink-0" />
+                    <span>Global Wire</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectTheme('metro_24')}
                     disabled={isApplyingBranding}
-                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center transition cursor-pointer ${
+                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center space-x-1.5 transition cursor-pointer ${
                       brandTheme === 'metro_24'
                         ? 'border-slate-800 bg-slate-900 text-white font-semibold shadow-2xs'
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'
                     }`}
                   >
-                    Metro 24
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                    <span>Metro 24</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectTheme('severe_wire')}
                     disabled={isApplyingBranding}
-                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center transition cursor-pointer ${
+                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center space-x-1.5 transition cursor-pointer ${
                       brandTheme === 'severe_wire'
                         ? 'border-slate-800 bg-slate-900 text-white font-semibold shadow-2xs'
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'
                     }`}
                   >
-                    Severe Alert
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-600 shrink-0" />
+                    <span>Severe Alert</span>
                   </button>
                 </div>
               </div>
 
               {/* Station Watermark Bug Graphic Section */}
               <div className="space-y-1.5 pt-1 border-t border-slate-100">
-                <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
-                  Station Watermark Bug (Top-Right)
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold">
+                    Station Logo Bug
+                  </span>
+                  <span className="text-[9px] font-mono text-slate-400">PNG / SVG</span>
+                </div>
 
                 {customStrapId ? (
-                  <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-2.5 flex items-center justify-between">
-                    <div className="flex items-center space-x-2.5 min-w-0">
-                      {/* Bug thumbnail preview on subtle white tile */}
-                      <div className="w-12 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-2xs">
+                  <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-2 flex items-center justify-between">
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <div className="w-10 h-7 rounded-lg bg-white border border-slate-200/80 flex items-center justify-center p-0.5 shrink-0 overflow-hidden shadow-2xs">
                         <img
                           src={getCustomBugThumbnailUrl(customStrapId)}
                           alt="Station Bug"
@@ -962,12 +984,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                         <div className="flex items-center space-x-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                           <span className="text-xs font-semibold text-slate-800 truncate">
-                            Station Bug Active
+                            Active Bug
                           </span>
                         </div>
-                        <span className="text-[10px] font-mono text-slate-400 truncate block">
-                          Corner Watermark (Max 180×70)
-                        </span>
                       </div>
                     </div>
 
@@ -976,19 +995,19 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                         type="button"
                         onClick={() => strapFileInputRef.current?.click()}
                         disabled={isApplyingBranding || isUploadingStrap}
-                        className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-[10px] font-medium transition cursor-pointer shadow-2xs"
-                        title="Upload replacement PNG bug"
+                        className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg transition cursor-pointer shadow-2xs"
+                        title="Upload replacement logo"
                       >
-                        Replace
+                        <Upload className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={handleRemoveCustomBug}
                         disabled={isApplyingBranding}
-                        className="px-2 py-1 bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 border border-rose-200 rounded-md text-[10px] font-medium transition cursor-pointer shadow-2xs"
-                        title="Remove custom bug and revert to clean corner"
+                        className="p-1.5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg transition cursor-pointer shadow-2xs"
+                        title="Remove logo bug"
                       >
-                        Remove
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -997,22 +1016,15 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                     type="button"
                     onClick={() => strapFileInputRef.current?.click()}
                     disabled={isApplyingBranding || isUploadingStrap}
-                    className="w-full py-2 px-3 border border-dashed border-slate-300 hover:border-blue-400 bg-slate-50/60 hover:bg-blue-50/40 rounded-xl text-left transition cursor-pointer flex items-center justify-between group"
+                    className="w-full py-2 px-3 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50 rounded-xl text-left transition cursor-pointer flex items-center justify-between group"
                   >
                     <div className="flex items-center space-x-2">
-                      <Upload className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 transition-colors shrink-0" />
-                      <div>
-                        <span className="text-[11px] font-semibold text-slate-700 group-hover:text-blue-900 block leading-tight">
-                          {isUploadingStrap ? 'Uploading Bug PNG...' : '+ Add Station Bug (PNG)'}
-                        </span>
-                        <span className="text-[10px] text-slate-400 block leading-tight">
-                          Watermark logo pinned to top-right
-                        </span>
-                      </div>
+                      <ImagePlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 transition-colors shrink-0" />
+                      <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900">
+                        {isUploadingStrap ? 'Uploading...' : 'Upload Logo Bug'}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-mono font-medium text-slate-400 group-hover:text-blue-600 shrink-0">
-                      PNG
-                    </span>
+                    <span className="text-[10px] font-mono text-slate-400 font-medium">Top-Right</span>
                   </button>
                 )}
 
@@ -1032,9 +1044,12 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                   type="button"
                   onClick={() => handleCopy('16_9_branded', asset.syndication_urls?.broadcast_16_9_branded || asset.syndication_urls?.broadcast_16_9)}
                   className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
-                  title="Copy 16:9 Branded Lower-Third feed URL"
+                  title="Copy 16:9 Broadcast feed URL"
                 >
-                  <span className="truncate">16:9 Branded</span>
+                  <div className="flex items-center space-x-1.5 truncate">
+                    <Tv className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span className="truncate">16:9 TV</span>
+                  </div>
                   {copiedKey === '16_9_branded' ? (
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
                   ) : (
@@ -1048,7 +1063,10 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                   className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
                   title="Copy 9:16 Vertical Reel URL"
                 >
-                  <span className="truncate">9:16 Reel</span>
+                  <div className="flex items-center space-x-1.5 truncate">
+                    <Smartphone className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span className="truncate">9:16 Reel</span>
+                  </div>
                   {copiedKey === '9_16' ? (
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
                   ) : (
@@ -1062,7 +1080,10 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                   className="h-8 bg-slate-50/80 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 text-[11px] font-medium text-slate-700 flex items-center justify-between transition cursor-pointer active:scale-98"
                   title="Copy 1:1 Wire Index Card URL"
                 >
-                  <span className="truncate">1:1 Card</span>
+                  <div className="flex items-center space-x-1.5 truncate">
+                    <LayoutGrid className="w-3 h-3 text-slate-400 shrink-0" />
+                    <span className="truncate">1:1 Card</span>
+                  </div>
                   {copiedKey === '1_1' ? (
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
                   ) : (
@@ -1075,11 +1096,12 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
               <button
                 type="button"
                 onClick={handleCopySidecar}
-                className="w-full h-7 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg px-2 text-[11px] font-medium text-slate-600 flex items-center justify-center space-x-1.5 transition cursor-pointer"
-                title="Copy full IPTC sidecar JSON"
+                className="w-full h-7.5 bg-slate-50/60 hover:bg-slate-100/80 border border-slate-200/70 rounded-xl px-2.5 text-[11px] font-medium text-slate-600 hover:text-slate-800 flex items-center justify-center space-x-1.5 transition cursor-pointer active:scale-98"
+                title="Copy IPTC / CG automation sidecar JSON"
               >
-                <FileCode className="w-3 h-3 text-slate-400" />
-                <span>{copiedKey === 'sidecar' ? 'Sidecar JSON Copied' : 'Copy Broadcast Sidecar JSON (IPTC)'}</span>
+                <FileCode className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span>Copy Broadcast Sidecar (IPTC / JSON)</span>
+                {copiedKey === 'sidecar' && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />}
               </button>
             </div>
           )}
