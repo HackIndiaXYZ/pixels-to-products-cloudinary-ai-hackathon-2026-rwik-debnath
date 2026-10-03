@@ -96,9 +96,9 @@ class PackagingService:
             headline_bg = "rgb:0f172a" # Deep Slate headline bar
         elif theme_key == "severe_wire":
             badge_text = "  SEVERE ALERT  "
-            badge_bg = "rgb:be123c"    # Hazard Rose
+            badge_bg = "rgb:ea580c"    # Safety Hazard Orange (Emergency Warning)
             badge_color = "rgb:ffffff" # White text
-            headline_bg = "rgb:18181b" # Charcoal Black headline bar
+            headline_bg = "rgb:000000" # Pure Black headline bar
         elif theme_key == "custom":
             badge_text = "  STATION FEED  "
             badge_bg = "rgb:2563eb"    # Cobalt Blue

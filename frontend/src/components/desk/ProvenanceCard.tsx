@@ -851,15 +851,6 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
           {/* Mode 1: Clean Feed (Zero Overlays for TV Control Rooms) */}
           {playoutMode === 'clean' ? (
             <div className="space-y-2">
-              <div className="bg-blue-50/60 border border-blue-200/60 rounded-xl p-2.5">
-                <div className="flex items-start space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-1 shrink-0" />
-                  <p className="text-[11px] text-blue-900 font-sans leading-relaxed">
-                    <strong>Pristine 16:9 Master</strong> without burned-in lower thirds or logos. Ready for broadcast switchers, Vizrt, and Chyron control room graphics.
-                  </p>
-                </div>
-              </div>
-
               {/* Master Download Package */}
               <a
                 href={masterDownloadUrl}
@@ -869,9 +860,6 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
               >
                 <Download className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                 <span className="leading-none">Download Clean Master</span>
-                <span className="text-[10px] text-slate-400 font-mono font-medium uppercase leading-none">
-                  ({fileSpecs.format})
-                </span>
               </a>
 
               {/* Clean URLs Grid */}
@@ -884,7 +872,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 >
                   <span className="truncate">Clean 16:9 Playout</span>
                   {copiedKey === 'clean_16_9' ? (
-                    <span className="text-[10px] font-mono text-emerald-600 font-bold shrink-0 ml-1">COPIED</span>
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
                   ) : (
                     <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
                   )}
@@ -898,7 +886,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 >
                   <span className="truncate">Sidecar JSON (CG)</span>
                   {copiedKey === 'sidecar' ? (
-                    <span className="text-[10px] font-mono text-emerald-600 font-bold shrink-0 ml-1">COPIED</span>
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
                   ) : (
                     <FileCode className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
                   )}
@@ -920,8 +908,8 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                     disabled={isApplyingBranding}
                     className={`h-7 px-1.5 rounded-lg border flex items-center justify-center transition cursor-pointer ${
                       brandTheme === 'global_wire'
-                        ? 'border-rose-600 bg-rose-50 text-rose-700 font-bold shadow-2xs'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        ? 'border-slate-800 bg-slate-900 text-white font-semibold shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'
                     }`}
                   >
                     Global Wire
@@ -932,8 +920,8 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                     disabled={isApplyingBranding}
                     className={`h-7 px-1.5 rounded-lg border flex items-center justify-center transition cursor-pointer ${
                       brandTheme === 'metro_24'
-                        ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold shadow-2xs'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        ? 'border-slate-800 bg-slate-900 text-white font-semibold shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'
                     }`}
                   >
                     Metro 24
@@ -944,8 +932,8 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                     disabled={isApplyingBranding}
                     className={`h-7 px-1.5 rounded-lg border flex items-center justify-center transition cursor-pointer ${
                       brandTheme === 'severe_wire'
-                        ? 'border-red-700 bg-red-100/70 text-red-900 font-bold shadow-2xs'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        ? 'border-slate-800 bg-slate-900 text-white font-semibold shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'
                     }`}
                   >
                     Severe Alert
@@ -960,10 +948,10 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 </span>
 
                 {customStrapId ? (
-                  <div className="bg-slate-900 text-white rounded-xl p-2.5 border border-slate-800 shadow-sm flex items-center justify-between">
+                  <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-2.5 flex items-center justify-between">
                     <div className="flex items-center space-x-2.5 min-w-0">
-                      {/* Bug thumbnail preview on dark checkerboard */}
-                      <div className="w-14 h-9 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                      {/* Bug thumbnail preview on subtle white tile */}
+                      <div className="w-12 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-2xs">
                         <img
                           src={getCustomBugThumbnailUrl(customStrapId)}
                           alt="Station Bug"
@@ -972,8 +960,8 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center space-x-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-xs font-semibold text-slate-100 truncate">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                          <span className="text-xs font-semibold text-slate-800 truncate">
                             Station Bug Active
                           </span>
                         </div>
@@ -983,12 +971,12 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-1.5 shrink-0 ml-2">
+                    <div className="flex items-center space-x-1 shrink-0 ml-2">
                       <button
                         type="button"
                         onClick={() => strapFileInputRef.current?.click()}
                         disabled={isApplyingBranding || isUploadingStrap}
-                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md text-[10px] font-semibold transition cursor-pointer"
+                        className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-[10px] font-medium transition cursor-pointer shadow-2xs"
                         title="Upload replacement PNG bug"
                       >
                         Replace
@@ -997,7 +985,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                         type="button"
                         onClick={handleRemoveCustomBug}
                         disabled={isApplyingBranding}
-                        className="px-2 py-1 bg-rose-950/70 hover:bg-rose-900 text-rose-300 rounded-md text-[10px] font-semibold transition cursor-pointer"
+                        className="px-2 py-1 bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 border border-rose-200 rounded-md text-[10px] font-medium transition cursor-pointer shadow-2xs"
                         title="Remove custom bug and revert to clean corner"
                       >
                         Remove
@@ -1048,7 +1036,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 >
                   <span className="truncate">16:9 Branded</span>
                   {copiedKey === '16_9_branded' ? (
-                    <span className="text-[10px] font-mono text-emerald-600 font-bold shrink-0 ml-1">COPIED</span>
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
                   ) : (
                     <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
                   )}
@@ -1062,7 +1050,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 >
                   <span className="truncate">9:16 Reel</span>
                   {copiedKey === '9_16' ? (
-                    <span className="text-[10px] font-mono text-emerald-600 font-bold shrink-0 ml-1">COPIED</span>
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
                   ) : (
                     <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
                   )}
@@ -1076,7 +1064,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 >
                   <span className="truncate">1:1 Card</span>
                   {copiedKey === '1_1' ? (
-                    <span className="text-[10px] font-mono text-emerald-600 font-bold shrink-0 ml-1">COPIED</span>
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />
                   ) : (
                     <Copy className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
                   )}
@@ -1091,7 +1079,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 title="Copy full IPTC sidecar JSON"
               >
                 <FileCode className="w-3 h-3 text-slate-400" />
-                <span>{copiedKey === 'sidecar' ? 'Sidecar JSON Copied!' : 'Copy Broadcast Sidecar JSON (IPTC)'}</span>
+                <span>{copiedKey === 'sidecar' ? 'Sidecar JSON Copied' : 'Copy Broadcast Sidecar JSON (IPTC)'}</span>
               </button>
             </div>
           )}

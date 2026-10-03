@@ -50,8 +50,8 @@ def test_station_theme_presets():
         brand_theme="severe_wire"
     )
     severe_branded = severe_urls["broadcast_16_9_branded"]
-    assert "b_rgb:be123c" in severe_branded  # Hazard Rose badge
-    assert "b_rgb:18181b" in severe_branded  # Charcoal Black headline bar
+    assert "b_rgb:ea580c" in severe_branded  # Safety Hazard Orange badge
+    assert "b_rgb:000000" in severe_branded  # Pure Black headline bar
 
 def test_custom_transparent_strap_overlay():
     """Verifies that custom station bug watermark is placed in corner and constrained via Cloudinary syntax."""
