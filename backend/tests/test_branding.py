@@ -21,7 +21,7 @@ def test_dual_delivery_clean_vs_branded_urls():
     branded_url = urls["broadcast_16_9_branded"]
 
     # Clean feed: must have face blur and 16:9 crop, but ZERO text overlays
-    assert "e_blur_faces:50" in clean_url
+    assert "e_pixelate_faces:10" in clean_url
     assert "ar_16:9" in clean_url
     assert "l_text" not in clean_url
     assert "b_rgb" not in clean_url
