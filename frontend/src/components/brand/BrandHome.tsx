@@ -379,8 +379,8 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             <div className="lg:col-span-7">
               <VideoPlayerCard
                 src="/demos/license_plate_ocr.mp4"
-                title="Selective Face & Plate Redaction Engine"
-                badge="EXPLICIT API + OCR"
+                title="Selective Face, Plate & Aadhaar Document Redaction"
+                badge="EXPLICIT API + PII OCR"
                 badgeColor="text-rose-400 bg-rose-500/10 border-rose-500/30"
                 aspectRatio="aspect-[16/8.6]"
               />
@@ -390,7 +390,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             <div className="lg:col-span-5 space-y-4">
               <div className="inline-flex items-center space-x-1.5 text-xs font-mono font-semibold text-rose-400 uppercase tracking-wider">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Selective Privacy Redaction</span>
+                <span>Selective Privacy & PII Redaction</span>
               </div>
 
               <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
@@ -398,10 +398,10 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
               </h2>
 
               <p className="text-sm text-slate-400 leading-relaxed font-normal">
-                Never blur elected officials or reporters; never expose accidental bystanders.
-                PressWire pushes selective bounding box coordinates directly to Cloudinary’s{' '}
+                Never blur elected officials or reporters; never expose accidental bystanders or private citizen credentials.
+                PressWire scans and pushes selective coordinates directly to Cloudinary’s{' '}
                 <code className="text-rose-300 font-mono text-xs bg-rose-500/10 px-1 py-0.5 rounded">face_coordinates</code>{' '}
-                matrix—pixelating civilian faces and vehicle license plates on the edge without altering original media.
+                matrix—pixelating civilian faces, vehicle license plates, and sensitive identity documents (Aadhaar cards, PAN, driver licenses) on the CDN edge without altering original media.
               </p>
 
               <div className="space-y-2.5 pt-2">
@@ -419,7 +419,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                     <span className="text-rose-400 font-mono text-[10px] font-bold">02</span>
                   </div>
                   <span>
-                    <strong className="text-white font-semibold">Automated License Plate OCR:</strong> Recognizes plate text and draws targeted privacy bounds instantly.
+                    <strong className="text-white font-semibold">Plate & Aadhaar Document OCR:</strong> AI engine automatically scans and pixelates vehicle registration numbers and national identity cards (Aadhaar, PAN, phone numbers).
                   </span>
                 </div>
 
@@ -751,7 +751,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-                    <span>Explicit API Face & OCR Redaction</span>
+                    <span>Explicit API Face, Plate & Aadhaar Document Redaction</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
@@ -960,7 +960,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                 <li>Irrevocable Broadcast Waiver</li>
                 <li>C2PA Content Credentials</li>
                 <li>Explicit API Face Redaction</li>
-                <li>Vehicle Plate OCR Protection</li>
+                <li>Vehicle Plate & Aadhaar Document Protection</li>
               </ul>
             </div>
 
