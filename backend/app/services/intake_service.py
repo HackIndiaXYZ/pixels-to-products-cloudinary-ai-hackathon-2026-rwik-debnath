@@ -15,6 +15,7 @@ from app.db.persistence import PersistentAssetStore, PersistentPackageStore
 # Persistent wire store backed by SQLite WAL with instant in-memory access
 WIRE_STORE: PersistentAssetStore = PersistentAssetStore()
 PACKAGE_STORE: PersistentPackageStore = PersistentPackageStore()
+LAST_CLOUDINARY_ERROR: Optional[str] = None
 
 class IntakeService:
     @staticmethod
@@ -217,6 +218,8 @@ class IntakeService:
                 import logging
                 logging.warning(f"[Cloudinary] Explicit moderation check skipped: {mod_err}")
         except Exception as e:
+            global LAST_CLOUDINARY_ERROR
+            LAST_CLOUDINARY_ERROR = f"{type(e).__name__}: {str(e)}"
             import logging
             logging.warning(f"[Cloudinary] Upload call failed, falling back to mock: {e}")
             # Check if uploaded file is a screenshot / desktop graphic

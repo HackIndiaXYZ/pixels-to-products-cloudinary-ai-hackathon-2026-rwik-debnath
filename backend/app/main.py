@@ -43,11 +43,17 @@ app.include_router(api_router, prefix="/api/v1")
 @app.get("/healthz")
 @app.get("/api/health")
 def health_check():
+    import cloudinary
+    from app.services import intake_service
+    cfg = cloudinary.config()
     return {
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "status": "online",
-        "cloud_name": settings.CLOUDINARY_CLOUD_NAME,
+        "cloud_name": cfg.cloud_name or settings.CLOUDINARY_CLOUD_NAME,
+        "has_api_key": bool(cfg.api_key or settings.CLOUDINARY_API_KEY),
+        "has_api_secret": bool(cfg.api_secret or settings.CLOUDINARY_API_SECRET),
+        "last_cloudinary_error": intake_service.LAST_CLOUDINARY_ERROR,
         "docs": "/docs"
     }
 
