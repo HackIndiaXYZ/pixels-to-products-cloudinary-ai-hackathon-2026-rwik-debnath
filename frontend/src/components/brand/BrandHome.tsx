@@ -159,7 +159,7 @@ const TRANSFORMATION_TABS: TransformationTab[] = [
     label: '16:9 Linear Broadcast',
     icon: Tv,
     description:
-      'Subject-aware smart crop with automated breaking news lower-third chyron banner and red lead badge.',
+      'Subject-aware smart crop with automated breaking news lower-third broadcast banner and red lead badge.',
     transformationCode:
       'c_fill,ar_16:9,g_auto:subject / l_text:Arial_28_bold:BREAKING%20NEWS,g_south_west,x_30,y_40,co_white,b_rgb:d90429',
     badge: 'Linear TV & Web Playout',
@@ -379,7 +379,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             <div className="lg:col-span-7">
               <VideoPlayerCard
                 src="/demos/license_plate_ocr.mp4"
-                title="Selective Face, Plate & Aadhaar Document Redaction"
+                title="Selective Face, Vehicle Plate & Government ID Redaction"
                 badge="EXPLICIT API + PII OCR"
                 badgeColor="text-rose-400 bg-rose-500/10 border-rose-500/30"
                 aspectRatio="aspect-[16/8.6]"
@@ -399,9 +399,9 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
 
               <p className="text-sm text-slate-400 leading-relaxed font-normal">
                 Never blur elected officials or reporters; never expose accidental bystanders or private citizen credentials.
-                PressWire scans and pushes selective coordinates directly to Cloudinary’s{' '}
+                PressWire scans and pushes selective bounding box coordinates directly to Cloudinary’s{' '}
                 <code className="text-rose-300 font-mono text-xs bg-rose-500/10 px-1 py-0.5 rounded">face_coordinates</code>{' '}
-                matrix—pixelating civilian faces, vehicle license plates, and sensitive identity documents (Aadhaar cards, PAN, driver licenses) on the CDN edge without altering original media.
+                matrix—pixelating civilian faces, vehicle registration plates (standard RTO and Bharat Series), and sensitive government identity documents (Aadhaar cards, PAN, Voter ID / EPIC, driving licenses) on the CDN edge without altering original media.
               </p>
 
               <div className="space-y-2.5 pt-2">
@@ -419,7 +419,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                     <span className="text-rose-400 font-mono text-[10px] font-bold">02</span>
                   </div>
                   <span>
-                    <strong className="text-white font-semibold">Plate & Aadhaar Document OCR:</strong> AI engine automatically scans and pixelates vehicle registration numbers and national identity cards (Aadhaar, PAN, phone numbers).
+                    <strong className="text-white font-semibold">Vehicle Plate & Government ID OCR:</strong> AI vision automatically detects and pixelates vehicle registration numbers alongside national identity cards (Aadhaar, PAN, Voter ID, driving licenses) and personal phone numbers.
                   </span>
                 </div>
 
@@ -519,7 +519,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             </h2>
             <p className="mt-3 text-sm text-slate-400 leading-relaxed font-normal">
               Never re-upload duplicates or maintain local render queues. Cloudinary deterministic URL chaining renders
-              linear TV chyrons, 9:16 vertical reels, and wire cards on-the-fly from a single master asset.
+              linear broadcast lower-thirds, 9:16 vertical reels, and wire cards on-the-fly from a single master asset.
             </p>
           </div>
 
@@ -715,47 +715,47 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-400 bg-white/[0.05] px-3 py-1 rounded-full border border-white/[0.1]">
-              Station Packaging & Licensing
+              Indian Broadcast Packaging & Licensing
             </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-3">
-              Engineered for broadcast newsrooms of every scale
+              Engineered for newsrooms of every scale across India
             </h2>
             <p className="mt-3 text-sm text-slate-400">
-              Clear pricing per broadcast market (DMA). Zero per-seat charges for rotating control room producers.
+              Transparent pricing per broadcast circle or regional bureau. Zero per-seat fees for rotating control room producers and stringers.
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch max-w-5xl mx-auto">
-            {/* Tier 1: Local Station */}
+            {/* Tier 1: Regional Bureau */}
             <div className="bg-[#101319] rounded-2xl p-7 border border-white/[0.08] flex flex-col justify-between hover:border-white/20 transition-all">
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">Independent Station</span>
-                  <span className="text-[10px] font-mono text-slate-400 bg-white/[0.05] px-2 py-0.5 rounded border border-white/[0.08]">Single DMA</span>
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">Regional Bureau</span>
+                  <span className="text-[10px] font-mono text-slate-400 bg-white/[0.05] px-2 py-0.5 rounded border border-white/[0.08]">State Circle</span>
                 </div>
                 <div className="flex items-baseline space-x-1 mb-4">
-                  <span className="text-4xl font-extrabold text-white tracking-tight">$1,800</span>
+                  <span className="text-4xl font-extrabold text-white tracking-tight">₹45,000</span>
                   <span className="text-xs text-slate-400 font-medium">/ month</span>
                 </div>
                 <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-                  Ideal for standalone TV affiliates and metro digital desks needing fast eyewitness intake.
+                  Ideal for regional news channels, city bureaus, and vernacular digital desks needing fast eyewitness intake.
                 </p>
                 <div className="space-y-3 pt-6 border-t border-white/[0.06] text-xs text-slate-300">
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-                    <span>White-Label Station Tip Line</span>
+                    <span>White-Label Newsroom Tip Line</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-                    <span>Irrevocable Copyright Release Waiver</span>
+                    <span>Irrevocable Broadcast Copyright Waiver</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-                    <span>Explicit API Face, Plate & Aadhaar Document Redaction</span>
+                    <span>Face, Vehicle Plate & Government ID (Aadhaar, PAN, DL) Redaction</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-                    <span>Dynamic 16:9 & 9:16 Packaging</span>
+                    <span>Dynamic 16:9 Broadcast & 9:16 Social Packaging</span>
                   </div>
                 </div>
               </div>
@@ -764,47 +764,48 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                   onClick={() => onNavigate('desk')}
                   className="w-full py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white font-semibold text-xs transition cursor-pointer border border-white/[0.1]"
                 >
-                  Launch Station Demo
+                  Launch Bureau Demo
                 </button>
               </div>
             </div>
 
-            {/* Tier 2: Broadcast Group (Featured) */}
+            {/* Tier 2: State Broadcast Network (Featured) */}
             <div className="bg-[#131720] text-white rounded-2xl p-7 border-2 border-blue-500/50 shadow-2xl shadow-blue-500/10 flex flex-col justify-between relative overflow-hidden">
               <div className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-[10px] font-semibold uppercase tracking-wider text-blue-300 border border-blue-500/40">
                 Most Popular
               </div>
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">Station Group</span>
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Broadcast Network</span>
+                  <span className="text-[10px] font-mono text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/30">Multi-Circle</span>
                 </div>
                 <div className="flex items-baseline space-x-1 mb-4">
-                  <span className="text-4xl font-extrabold text-white tracking-tight">$8,500</span>
+                  <span className="text-4xl font-extrabold text-white tracking-tight">₹1,75,000</span>
                   <span className="text-xs text-slate-400 font-medium">/ month</span>
                 </div>
                 <p className="text-xs text-slate-300 mb-6 leading-relaxed">
-                  For regional broadcast networks managing multi-market sister stations with shared wire pools.
+                  For multi-edition regional networks and vernacular sister channels managing shared wire feeds.
                 </p>
                 <div className="space-y-3 pt-6 border-t border-white/[0.1] text-xs text-slate-200">
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                    <span>Up to 15 Broadcast Sister Stations</span>
+                    <span>Up to 12 Regional News Bureaus & Feeds</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                    <span>Cross-Station Wire Sharing & Live Pool Feeds</span>
+                    <span>Inter-Bureau Wire Sharing & Live Pool Feeds</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                    <span>Custom Station Lower-Third Chyrons & Logos</span>
+                    <span>Custom Station Lower-Third Graphics & Channel Bugs</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                    <span>Spatiotemporal Geo-Anchor Engine</span>
+                    <span>Spatiotemporal Geo-Anchor & Google Maps Resolver</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                    <span>Unlimited Dynamic URL Transformations</span>
+                    <span>Unlimited Dynamic URL Playout Transformations</span>
                   </div>
                 </div>
               </div>
@@ -813,12 +814,12 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                   onClick={() => onNavigate('desk')}
                   className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition cursor-pointer"
                 >
-                  Launch Group Demo
+                  Launch Network Demo
                 </button>
               </div>
             </div>
 
-            {/* Tier 3: Enterprise Network */}
+            {/* Tier 3: National Satellite Network */}
             <div className="bg-[#101319] rounded-2xl p-7 border border-white/[0.08] flex flex-col justify-between hover:border-white/20 transition-all">
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -829,7 +830,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                   <span className="text-4xl font-extrabold text-white tracking-tight">Enterprise</span>
                 </div>
                 <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-                  For national wire services requiring direct master playout downloads and custom legal indemnity.
+                  For national 24/7 broadcast conglomerates requiring master playout downloads and complete legal indemnity.
                 </p>
                 <div className="space-y-3 pt-6 border-t border-white/[0.06] text-xs text-slate-300">
                   <div className="flex items-center space-x-2">
@@ -838,15 +839,15 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-                    <span>1-Click Full-Resolution Playout Downloads</span>
+                    <span>1-Click Full-Resolution Playout Downloads (SDI/NDI)</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-                    <span>C2PA Hardware Content Credentials</span>
+                    <span>C2PA Hardware Content Credentials & EXIF Audit</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-                    <span>Complete Legal Indemnification & Provenance Logs</span>
+                    <span>Comprehensive Legal Indemnification & Provenance Logs</span>
                   </div>
                 </div>
               </div>
@@ -960,7 +961,7 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
                 <li>Irrevocable Broadcast Waiver</li>
                 <li>C2PA Content Credentials</li>
                 <li>Explicit API Face Redaction</li>
-                <li>Vehicle Plate & Aadhaar Document Protection</li>
+                <li>Vehicle Plate & Government ID Protection (Aadhaar, PAN, Voter ID, DL)</li>
               </ul>
             </div>
 
