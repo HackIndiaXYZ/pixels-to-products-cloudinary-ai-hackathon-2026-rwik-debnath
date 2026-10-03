@@ -208,11 +208,12 @@ class IntakeService:
 
         # Attempt actual Cloudinary upload
         try:
-            res = cloudinary.uploader.upload(file_bytes, **upload_options)
+            import asyncio
+            res = await asyncio.to_thread(cloudinary.uploader.upload, file_bytes, **upload_options)
             # Run Rekognition moderation check explicitly so delivery URL is NEVER blocked with 404
             if not getattr(IntakeService, "_rekognition_exhausted", False):
                 try:
-                    mod_exp = cloudinary.uploader.explicit(res["public_id"], type="upload", moderation="aws_rek")
+                    mod_exp = await asyncio.to_thread(cloudinary.uploader.explicit, res["public_id"], type="upload", moderation="aws_rek")
                     if "moderation" in mod_exp:
                         res["moderation"] = mod_exp["moderation"]
                 except Exception as mod_err:
@@ -269,8 +270,9 @@ class IntakeService:
         has_ocr_boxes = False
         if resource_type != "video":
             try:
+                import asyncio
                 from app.services.ocr_service import OCRService
-                ocr_regions = OCRService.scan_for_sensitive_regions(file_bytes)
+                ocr_regions = await asyncio.to_thread(OCRService.scan_for_sensitive_regions, file_bytes)
                 for ocr_idx, reg in enumerate(ocr_regions):
                     faces_list.append(FaceCoordinate(
                         id=f"ocr_{ocr_idx}",

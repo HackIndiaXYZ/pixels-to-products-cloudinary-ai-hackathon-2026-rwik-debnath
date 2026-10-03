@@ -98,8 +98,13 @@ class OCRService:
             scale = 1.0
             ocr_bytes = image_bytes
 
+        import threading
+        if not hasattr(cls, "_lock"):
+            cls._lock = threading.Lock()
+
         try:
-            results, _ = engine(ocr_bytes)
+            with cls._lock:
+                results, _ = engine(ocr_bytes)
         except Exception as e:
             logger.error(f"[OCRService] OCR inference failed: {e}")
             return []

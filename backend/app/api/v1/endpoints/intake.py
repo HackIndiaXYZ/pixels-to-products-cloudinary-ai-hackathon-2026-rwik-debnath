@@ -110,7 +110,7 @@ async def simulate_batch_intake(request: Request):
             "urgency": "breaking"
         },
         {
-            "file": "accident.png",
+            "file": "accident.jpg" if os.path.exists(os.path.join(base_dir, "accident.jpg")) else "accident.png",
             "headline": "Highway Incident: Multi-Vehicle Collision Reported",
             "incident_type": "public_safety",
             "urgency": "breaking"
