@@ -42,6 +42,7 @@ app.add_middleware(
 
 app.include_router(api_router, prefix="/api/v1")
 
+@app.get("/healthz")
 @app.get("/api/health")
 def health_check():
     return {
@@ -70,7 +71,7 @@ if frontend_dist:
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
-        if full_path.startswith("api/") or full_path in ("docs", "redoc", "openapi.json"):
+        if full_path.startswith("api/") or full_path in ("docs", "redoc", "openapi.json", "healthz"):
             return JSONResponse(status_code=404, content={"detail": "Not Found"})
         file_path = os.path.join(frontend_dist, full_path)
         if full_path and os.path.exists(file_path) and os.path.isfile(file_path):
