@@ -486,9 +486,13 @@ export const WireQueue: React.FC<WireQueueProps> = ({
               className="w-full h-full object-cover"
               loading="lazy"
               onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                const fallback = e.currentTarget.parentElement?.querySelector('.thumb-fallback');
-                if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                  e.currentTarget.src = asset.secure_url;
+                } else {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.parentElement?.querySelector('.thumb-fallback');
+                  if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                }
               }}
             />
           ) : null}

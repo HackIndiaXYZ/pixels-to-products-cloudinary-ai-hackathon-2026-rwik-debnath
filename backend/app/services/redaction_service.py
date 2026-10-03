@@ -1,6 +1,9 @@
 import cloudinary.uploader
 from typing import List
 from app.core.config import settings
+from app.core.cloudinary_client import init_cloudinary
+
+init_cloudinary()
 
 class RedactionService:
     @staticmethod

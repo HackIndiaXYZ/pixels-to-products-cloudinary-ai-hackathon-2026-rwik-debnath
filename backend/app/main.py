@@ -9,7 +9,7 @@ from app.api.v1.router import api_router
 from app.core.cloudinary_client import init_cloudinary
 from app.db.session import init_db
 from app.services.intake_service import WIRE_STORE, PACKAGE_STORE
-from app.services.seed_data import seed_initial_assets
+from app.services.seed_data import seed_initial_assets, check_and_refresh_seed_assets
 
 init_cloudinary()
 
@@ -20,9 +20,11 @@ async def lifespan(app: FastAPI):
     # 2. Load persisted state from database into in-memory stores
     await WIRE_STORE.load_from_db()
     await PACKAGE_STORE.load_from_db()
-    # 3. Seed realistic demo assets ONLY if database is empty
+    # 3. Seed realistic demo assets if empty or refresh existing sample URLs
     if len(WIRE_STORE) == 0:
         await seed_initial_assets()
+    else:
+        await check_and_refresh_seed_assets()
     yield
 
 app = FastAPI(

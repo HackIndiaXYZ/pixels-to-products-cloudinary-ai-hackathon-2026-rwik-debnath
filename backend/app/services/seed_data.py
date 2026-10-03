@@ -1,23 +1,71 @@
 import asyncio
 import datetime
-from app.services.intake_service import WIRE_STORE
+import logging
+import cloudinary
+from app.core.config import settings
+from app.core.cloudinary_client import init_cloudinary
+from app.services.intake_service import WIRE_STORE, PACKAGE_STORE
 from app.models.schemas import MediaAssetResponse, FaceCoordinate, TelemetryData, ModerationResult
 from app.services.packaging_service import PackagingService
 
-async def seed_initial_assets():
-    """Seeds realistic breaking news demo assets into WIRE_STORE if empty."""
-    if WIRE_STORE:
+init_cloudinary()
+
+CANONICAL_DEMO_SEEDS = [
+    (
+        "presswire/sample_press_conference",
+        "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80",
+        [[400, 480, 150, 180], [500, 430, 140, 170], [670, 325, 110, 140], [740, 320, 110, 140]]
+    ),
+    (
+        "presswire/sample_protest_rally",
+        "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80",
+        [[340, 220, 160, 170], [720, 240, 150, 160]]
+    ),
+    (
+        "presswire/sample_wildfire",
+        "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80",
+        []
+    ),
+    (
+        "presswire/sample_citizen_tip",
+        "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=1200&q=80",
+        []
+    ),
+    (
+        "presswire/sample_transit_incident",
+        "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=1200&q=80",
+        []
+    ),
+    (
+        "presswire/sample_protest_rally_alt",
+        "https://images.unsplash.com/photo-1526976668912-1a811878dd37?auto=format&fit=crop&w=1200&q=80",
+        [[480, 260, 170, 180]]
+    ),
+]
+
+async def ensure_demo_assets_uploaded():
+    """Uploads the canonical demo assets to Cloudinary if they don't exist yet."""
+    if not (settings.CLOUDINARY_API_KEY or settings.CLOUDINARY_URL):
         return
+    import cloudinary.uploader
+    from app.services.redaction_service import RedactionService
+
+    for pid, remote_url, faces in CANONICAL_DEMO_SEEDS:
+        try:
+            cloudinary.uploader.upload(remote_url, public_id=pid, overwrite=False)
+            if faces:
+                RedactionService.update_selective_faces(pid, faces)
+        except Exception as e:
+            logging.warning(f"[SeedData] Cloudinary upload check for {pid}: {e}")
+
+async def seed_initial_assets():
+    """Seeds realistic breaking news demo assets into WIRE_STORE."""
+    await ensure_demo_assets_uploaded()
 
     now = datetime.datetime.utcnow()
+    cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
 
     # Asset 1: Mayoral Press Briefing (Photo of Obama with officials and bystanders)
-    # Calibrated coordinates on 1200x800 resolution:
-    # Obama (Main figure smiling with telephone): x: 620, y: 370, w: 180, h: 220
-    # Official in foreground left (glasses, smiling): x: 400, y: 480, w: 150, h: 180
-    # Official in foreground middle (glasses, mustache): x: 500, y: 430, w: 140, h: 170
-    # Bystander standing behind left: x: 670, y: 325, w: 110, h: 140
-    # Bystander standing behind right (female): x: 740, y: 320, w: 110, h: 140
     asset_1_id = "presswire/sample_press_conference"
     urls_1 = PackagingService.generate_broadcast_urls(
         public_id=asset_1_id,
@@ -33,7 +81,7 @@ async def seed_initial_assets():
         width=1200,
         height=800,
         bytes=1420500,
-        secure_url="https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80",
+        secure_url=f"https://res.cloudinary.com/{cloud_name}/image/upload/{asset_1_id}.jpg",
         faces=[
             FaceCoordinate(id="face_0", x=620, y=370, w=180, h=220, is_redacted=False, label="Elected Official (Mayor)"),
             FaceCoordinate(id="face_1", x=400, y=480, w=150, h=180, is_redacted=True, label="Civilian Bystander"),
@@ -83,7 +131,7 @@ async def seed_initial_assets():
         width=1200,
         height=800,
         bytes=1840200,
-        secure_url="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1200&q=80",
+        secure_url=f"https://res.cloudinary.com/{cloud_name}/image/upload/{asset_2_id}.jpg",
         faces=[
             FaceCoordinate(id="face_0", x=340, y=220, w=160, h=170, is_redacted=True, label="Civilian Demonstrator"),
             FaceCoordinate(id="face_1", x=720, y=240, w=150, h=160, is_redacted=True, label="Civilian Demonstrator")
@@ -130,7 +178,7 @@ async def seed_initial_assets():
         width=1200,
         height=800,
         bytes=2104000,
-        secure_url="https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=1200&q=80",
+        secure_url=f"https://res.cloudinary.com/{cloud_name}/image/upload/{asset_3_id}.jpg",
         faces=[],
         telemetry=TelemetryData(
             make="Canon",
@@ -173,7 +221,7 @@ async def seed_initial_assets():
         width=1200,
         height=800,
         bytes=1650300,
-        secure_url="https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=1200&q=80",
+        secure_url=f"https://res.cloudinary.com/{cloud_name}/image/upload/{asset_4_id}.jpg",
         faces=[],
         telemetry=TelemetryData(
             make="Samsung",
@@ -181,7 +229,7 @@ async def seed_initial_assets():
             software="Android 14",
             capture_time=(now - datetime.timedelta(hours=3, minutes=15)).strftime("%Y:%m:%d %H:%M:%S"),
             upload_time=now.isoformat(),
-            time_delta_seconds=11700, # 3h 15m > 2h threshold
+            time_delta_seconds=11700,
             gps_latitude=37.7983,
             gps_longitude=-122.3778,
             has_gps=True,
@@ -206,7 +254,7 @@ async def seed_initial_assets():
         public_id=asset_5_id,
         headline="Transit Alert: Multi-Vehicle Collision on I-80",
         subheadline="Traffic Bureau Live Dispatch",
-        pixelate_bystanders=True,
+        pixelate_bystanders=False,
         resource_type="image"
     )
     asset_5 = MediaAssetResponse(
@@ -214,10 +262,10 @@ async def seed_initial_assets():
         asset_id="asset_demo_05",
         format="jpg",
         resource_type="image",
-        width=1920,
-        height=1080,
+        width=1200,
+        height=800,
         bytes=2850200,
-        secure_url="https://res.cloudinary.com/demo/image/upload/sample.jpg",
+        secure_url=f"https://res.cloudinary.com/{cloud_name}/image/upload/{asset_5_id}.jpg",
         faces=[],
         telemetry=TelemetryData(
             make="Apple",
@@ -239,7 +287,7 @@ async def seed_initial_assets():
         urgency="breaking",
         headline="Transit Alert: Multi-Vehicle Collision on I-80",
         syndication_urls=urls_5,
-        pixelate_bystanders=True,
+        pixelate_bystanders=False,
         event_id="evt_i80_collision",
         event_title="I-80 Multi-Vehicle Collision",
         created_at=(now - datetime.timedelta(minutes=4)).isoformat()
@@ -261,7 +309,7 @@ async def seed_initial_assets():
         width=1200,
         height=800,
         bytes=1620400,
-        secure_url="https://images.unsplash.com/photo-1574786198875-49f5d09fe2d5?auto=format&fit=crop&w=1200&q=80",
+        secure_url=f"https://res.cloudinary.com/{cloud_name}/image/upload/{asset_6_id}.jpg",
         faces=[
             FaceCoordinate(id="face_0", x=480, y=260, w=170, h=180, is_redacted=True, label="Civilian Demonstrator")
         ],
@@ -297,3 +345,27 @@ async def seed_initial_assets():
     WIRE_STORE[asset_4.public_id] = asset_4
     WIRE_STORE[asset_5.public_id] = asset_5
     WIRE_STORE[asset_6.public_id] = asset_6
+
+async def check_and_refresh_seed_assets():
+    """Refreshes seed assets in WIRE_STORE if their URLs point to outdated hosts."""
+    cloud_name = cloudinary.config().cloud_name or settings.CLOUDINARY_CLOUD_NAME
+    sample_ids = [
+        "presswire/sample_press_conference",
+        "presswire/sample_protest_rally",
+        "presswire/sample_wildfire",
+        "presswire/sample_citizen_tip",
+        "presswire/sample_transit_incident",
+        "presswire/sample_protest_rally_alt"
+    ]
+    needs_reseed = False
+    for sid in sample_ids:
+        if sid in WIRE_STORE:
+            asset = WIRE_STORE[sid]
+            # If secure_url is Unsplash or old cloud name, trigger refresh
+            if "unsplash.com" in (asset.secure_url or "") or cloud_name not in (asset.secure_url or ""):
+                needs_reseed = True
+                break
+    if needs_reseed:
+        WIRE_STORE.clear()
+        PACKAGE_STORE.clear()
+        await seed_initial_assets()

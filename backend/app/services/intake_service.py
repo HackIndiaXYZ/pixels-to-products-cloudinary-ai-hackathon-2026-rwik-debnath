@@ -4,8 +4,11 @@ import uuid
 from typing import Optional, Dict, Any, List, Tuple
 import cloudinary.uploader
 from app.core.config import settings
+from app.core.cloudinary_client import init_cloudinary
 from app.models.schemas import MediaAssetResponse, FaceCoordinate, TelemetryData, ModerationResult, StoryPackageResponse
 from app.services.packaging_service import PackagingService
+
+init_cloudinary()
 
 from app.db.persistence import PersistentAssetStore, PersistentPackageStore
 

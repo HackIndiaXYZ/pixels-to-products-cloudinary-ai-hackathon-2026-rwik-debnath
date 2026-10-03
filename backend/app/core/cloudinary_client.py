@@ -16,6 +16,10 @@ def init_cloudinary():
         cfg = cloudinary.config()
         if cfg.cloud_name:
             settings.CLOUDINARY_CLOUD_NAME = cfg.cloud_name
+        if cfg.api_key:
+            settings.CLOUDINARY_API_KEY = cfg.api_key
+        if cfg.api_secret:
+            settings.CLOUDINARY_API_SECRET = cfg.api_secret
     else:
         cloudinary.config(
             cloud_name=cloud_name,

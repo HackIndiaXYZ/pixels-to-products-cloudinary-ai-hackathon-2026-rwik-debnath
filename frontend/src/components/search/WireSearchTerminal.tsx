@@ -136,6 +136,11 @@ export const WireSearchTerminal: React.FC<WireSearchTerminalProps> = ({ onSelect
                 <img
                   src={asset.syndication_urls?.feed_1_1 || asset.secure_url}
                   alt="Thumb"
+                  onError={(e) => {
+                    if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                      e.currentTarget.src = asset.secure_url;
+                    }
+                  }}
                   className="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0 group-hover:scale-105 transition-transform"
                 />
                 <div className="overflow-hidden min-w-0">

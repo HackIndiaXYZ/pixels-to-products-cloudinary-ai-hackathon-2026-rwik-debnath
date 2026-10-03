@@ -637,7 +637,16 @@ export const PackageInspector: React.FC<PackageInspectorProps> = ({
                     {/* Thumbnail */}
                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-900 border border-slate-200 shrink-0 flex items-center justify-center relative">
                       {thumbUrl ? (
-                        <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+                        <img
+                          src={thumbUrl}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                              e.currentTarget.src = asset.secure_url;
+                            }
+                          }}
+                        />
                       ) : (
                         <ImageIcon className="w-4 h-4 text-slate-400" />
                       )}

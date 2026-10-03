@@ -63,6 +63,11 @@ export const BroadcastHub: React.FC<BroadcastHubProps> = ({ asset }) => {
                 <img
                   src={urls.broadcast_16_9}
                   alt="16:9 Broadcast Feed"
+                  onError={(e) => {
+                    if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                      e.currentTarget.src = asset.secure_url;
+                    }
+                  }}
                   className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
                 />
               ) : (
@@ -117,6 +122,11 @@ export const BroadcastHub: React.FC<BroadcastHubProps> = ({ asset }) => {
                 <img
                   src={urls.social_9_16}
                   alt="9:16 Vertical Reel"
+                  onError={(e) => {
+                    if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                      e.currentTarget.src = asset.secure_url;
+                    }
+                  }}
                   className="h-full w-auto object-cover mx-auto group-hover:scale-102 transition-transform duration-300"
                 />
               ) : (
@@ -171,6 +181,11 @@ export const BroadcastHub: React.FC<BroadcastHubProps> = ({ asset }) => {
                 <img
                   src={urls.feed_1_1}
                   alt="1:1 Micro Card"
+                  onError={(e) => {
+                    if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                      e.currentTarget.src = asset.secure_url;
+                    }
+                  }}
                   className="w-32 h-32 rounded-lg object-cover shadow-sm group-hover:scale-102 transition-transform duration-300"
                 />
               ) : (

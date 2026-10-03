@@ -1069,4 +1069,16 @@ async def get_asset_sidecar(public_id: str):
         feed_1_1_url=urls.get("feed_1_1", asset.secure_url)
     )
 
+@router.post("/reset-demo")
+@router.post("/reseed")
+async def reset_demo_wire():
+    """Resets wire and packages to canonical Cloudinary demo state."""
+    from app.services.seed_data import seed_initial_assets
+    WIRE_STORE.clear()
+    PACKAGE_STORE.clear()
+    await seed_initial_assets()
+    broadcaster.broadcast("wire:reset", {"message": "Wire reset to sample assets"})
+    return {"success": True, "count": len(WIRE_STORE)}
+
+
 

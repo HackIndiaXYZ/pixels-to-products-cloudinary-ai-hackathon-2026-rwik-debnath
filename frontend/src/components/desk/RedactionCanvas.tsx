@@ -540,8 +540,14 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
     return `Face #${idx + 1}`;
   };
 
+  const [hasImageError, setHasImageError] = useState(false);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [asset.public_id]);
+
   const canvasImageSrc =
-    isBlurPreviewVisible && asset.syndication_urls?.clean_master
+    !hasImageError && isBlurPreviewVisible && asset.syndication_urls?.clean_master
       ? asset.syndication_urls.clean_master
       : asset.secure_url;
 
@@ -1009,6 +1015,9 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                   src={canvasImageSrc}
                   alt="Subject Triage"
                   onLoad={handleImageLoad}
+                  onError={() => {
+                    if (!hasImageError) setHasImageError(true);
+                  }}
                   className={`max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10 transition-all duration-300 ${
                     asset.review_status === 'quarantined' && !isQuarantineRevealed
                       ? 'blur-lg opacity-85'
@@ -1275,6 +1284,11 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               <img
                 src={asset.syndication_urls?.clean_master || asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
                 alt=""
+                onError={(e) => {
+                  if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                    e.currentTarget.src = asset.secure_url;
+                  }
+                }}
                 className="absolute inset-0 w-full h-full object-contain filter"
                 style={{ width: `${100 / (sliderPosition / 100)}%`, maxWidth: 'none' }}
               />
@@ -1363,6 +1377,11 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                   : (asset.syndication_urls?.broadcast_16_9_branded || asset.syndication_urls?.broadcast_16_9 || asset.secure_url)
               }
               alt={tvPlayoutMode === 'clean' ? '16:9 Clean Master Playout' : '16:9 Branded Broadcast Playout'}
+              onError={(e) => {
+                if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                  e.currentTarget.src = asset.secure_url;
+                }
+              }}
               className="max-h-[500px] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-slate-900/10 select-none"
             />
           </div>
@@ -1374,6 +1393,11 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             <img
               src={asset.syndication_urls?.social_9_16 || asset.secure_url}
               alt="9:16 Social Reel"
+              onError={(e) => {
+                if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                  e.currentTarget.src = asset.secure_url;
+                }
+              }}
               className="max-h-[500px] w-auto rounded-xl object-contain shadow-2xl ring-1 ring-slate-900/10 select-none"
             />
           </div>
@@ -1385,6 +1409,11 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             <img
               src={asset.syndication_urls?.feed_1_1 || asset.secure_url}
               alt="1:1 Micro Card"
+              onError={(e) => {
+                if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                  e.currentTarget.src = asset.secure_url;
+                }
+              }}
               className="max-h-[480px] aspect-square rounded-xl object-cover shadow-2xl ring-1 ring-slate-900/10 select-none"
             />
           </div>
