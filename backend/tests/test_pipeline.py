@@ -1023,4 +1023,52 @@ def test_resolve_map_url():
     assert res4.json()["success"] is False
 
 
+def test_parse_dms_coordinate():
+    from app.services.intake_service import IntakeService
+    # Standard decimal float
+    assert IntakeService._parse_dms_coordinate(22.5726) == 22.5726
+    assert IntakeService._parse_dms_coordinate("22.5726") == 22.5726
+    # Cloudinary DMS format
+    parsed_lat = IntakeService._parse_dms_coordinate("22 deg 34' 21.36\" N")
+    assert parsed_lat is not None
+    assert abs(parsed_lat - 22.5726) < 0.001
+
+    parsed_lon_w = IntakeService._parse_dms_coordinate("74 deg 0' 21.60\" W")
+    assert parsed_lon_w is not None
+    assert abs(parsed_lon_w - (-74.006)) < 0.001
+
+    assert IntakeService._parse_dms_coordinate(None) is None
+    assert IntakeService._parse_dms_coordinate("not-a-coord") is None
+
+
+def test_clear_desk_endpoint():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.services.intake_service import WIRE_STORE, PACKAGE_STORE
+    from app.models.schemas import MediaAssetResponse, TelemetryData, ModerationResult
+
+    client = TestClient(app)
+    # Add dummy item
+    WIRE_STORE["test_clear_dummy"] = MediaAssetResponse(
+        public_id="test_clear_dummy",
+        format="jpg",
+        resource_type="image",
+        width=100,
+        height=100,
+        bytes=100,
+        secure_url="https://res.cloudinary.com/demo/image/upload/sample.jpg",
+        headline="Clear Test",
+        created_at=datetime.datetime.now(datetime.UTC).isoformat(),
+        telemetry=TelemetryData(has_gps=False),
+        moderation=ModerationResult(status="approved")
+    )
+    assert len(WIRE_STORE) > 0
+
+    res = client.post("/api/v1/editorial/clear-desk")
+    assert res.status_code == 200
+    assert res.json()["success"] is True
+    assert len(WIRE_STORE) == 0
+    assert len(PACKAGE_STORE) == 0
+
+
 

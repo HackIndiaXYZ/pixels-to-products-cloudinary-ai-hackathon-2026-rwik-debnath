@@ -8,7 +8,7 @@ import {
   RefreshCw,
   X,
   Lock,
-  Sparkles,
+  Zap,
 } from 'lucide-react';
 import { PressWireLogo } from '../brand/PressWireLogo';
 import { CATEGORY_LIST } from '../../utils/categories';
@@ -21,6 +21,7 @@ interface SubmitPortalProps {
 
 export const SubmitPortal: React.FC<SubmitPortalProps> = ({
   onUploadSuccess,
+  onNavigateDesk,
   onNavigateBrand,
 }) => {
   const [file, setFile] = useState<File | null>(null);
@@ -90,18 +91,31 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
     setPreviewUrl(null);
   };
 
-  const handleLoadSampleMedia = async () => {
+  const [isBatchLoading, setIsBatchLoading] = useState(false);
+
+  const handleSimulateBatchIngest = async () => {
+    setIsBatchLoading(true);
+    setLoading(true);
+    setStatusMessage('Transmitting 4-story breaking wire dispatch to Cloudinary (AI Face Detection + EXIF Provenance + OCR)...');
     try {
-      const sampleUrl = 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80';
-      const response = await fetch(sampleUrl);
-      const blob = await response.blob();
-      const sampleFile = new File([blob], 'breaking_press_conference.jpg', { type: 'image/jpeg' });
-      setFile(sampleFile);
-      setPreviewUrl(sampleUrl);
-      setHeadline('Press Briefing: Transit Emergency Declared');
-      setHasAgreedWaiver(true);
-    } catch (err) {
-      console.error('Failed to load sample media:', err);
+      const res = await fetch('/api/v1/intake/simulate-batch', { method: 'POST' });
+      if (!res.ok) {
+        throw new Error(`Batch ingestion failed (${res.status})`);
+      }
+      const data = await res.json();
+      setStatusMessage(`Successfully transmitted ${data.count} breaking takes to live wire.`);
+      if (data.assets && data.assets.length > 0) {
+        setSubmittedAsset(data.assets[0]);
+        for (const a of data.assets) {
+          onUploadSuccess?.(a);
+        }
+      }
+    } catch (err: any) {
+      console.error('Batch submission error:', err);
+      setStatusMessage(`Batch transmission failed: ${err.message}`);
+    } finally {
+      setIsBatchLoading(false);
+      setLoading(false);
     }
   };
 
@@ -220,6 +234,17 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
             </div>
 
             <div className="space-y-2 pt-1">
+              {onNavigateDesk && (
+                <button
+                  type="button"
+                  onClick={onNavigateDesk}
+                  className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs uppercase tracking-wider rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center space-x-2 active:scale-[0.99]"
+                >
+                  <span>Open Editorial Desk</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
+
               <button
                 onClick={handleResetForNext}
                 className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs uppercase tracking-wider rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center space-x-2 active:scale-[0.99]"
@@ -293,16 +318,6 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                       >
                         <UploadCloud className="w-3.5 h-3.5 text-slate-500" />
                         <span>Browse Files</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleLoadSampleMedia}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-semibold text-xs transition cursor-pointer flex items-center space-x-1.5 active:scale-95"
-                        title="Load verified breaking news photo with faces for judge evaluation"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Demo Asset</span>
                       </button>
                     </div>
 
@@ -440,29 +455,52 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                 </div>
               )}
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={!file || loading || !hasAgreedWaiver}
-                className={`w-full py-3 font-semibold text-xs uppercase tracking-wider rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed ${
-                  urgency === 'breaking'
-                    ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/15'
-                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/15'
-                }`}
-              >
-                {loading ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Transmitting...</span>
-                  </>
-                ) : (
-                  <>
-                    <UploadCloud className="w-4 h-4" />
-                    <span>Submit Footage</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              {/* Submit Action Row */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  disabled={!file || loading || !hasAgreedWaiver}
+                  className={`flex-1 py-3 font-semibold text-xs uppercase tracking-wider rounded-xl shadow-xs transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed ${
+                    urgency === 'breaking'
+                      ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/15'
+                      : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/15'
+                  }`}
+                >
+                  {loading && !isBatchLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Transmitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-4 h-4" />
+                      <span>Submit Footage</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+
+                {/* Small box beside Submit Footage to submit all 4 curated photos */}
+                <button
+                  type="button"
+                  onClick={handleSimulateBatchIngest}
+                  disabled={loading}
+                  className="px-3.5 py-3 rounded-xl border border-slate-200/90 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 font-semibold text-xs transition cursor-pointer flex items-center space-x-1.5 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs shrink-0"
+                  title="Submit all 4 wire takes simultaneously (PM Modi Rally Takes 1 & 2, Highway Patrol Plate OCR, Coastal Storm)"
+                >
+                  {isBatchLoading ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-500" />
+                      <span className="text-[11px] font-mono">Ingesting 4...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="text-[11px] font-mono font-bold">4 Takes</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         )}

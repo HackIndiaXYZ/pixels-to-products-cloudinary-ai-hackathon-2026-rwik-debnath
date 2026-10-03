@@ -1080,5 +1080,13 @@ async def reset_demo_wire():
     broadcaster.broadcast("wire:reset", {"message": "Wire reset to sample assets"})
     return {"success": True, "count": len(WIRE_STORE)}
 
+@router.post("/clear-desk")
+async def clear_desk_wire():
+    """Completely wipes all wire assets and story packages from memory and database."""
+    WIRE_STORE.clear()
+    PACKAGE_STORE.clear()
+    broadcaster.broadcast("wire:reset", {"message": "Wire cleared"})
+    return {"success": True, "count": 0}
+
 
 

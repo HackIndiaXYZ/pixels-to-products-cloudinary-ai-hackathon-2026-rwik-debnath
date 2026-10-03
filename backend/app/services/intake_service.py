@@ -83,7 +83,34 @@ class IntakeService:
         # Media has no GPS: remains standalone wire media
         return None, None
     @staticmethod
-    def _parse_telemetry(raw_metadata: Dict[str, Any], upload_time: datetime.datetime) -> TelemetryData:
+    def _parse_dms_coordinate(coord_val: Any) -> Optional[float]:
+        """Converts decimal float or EXIF DMS string (e.g. 22 deg 34' 21.36\" N) to decimal float."""
+        if coord_val is None:
+            return None
+        if isinstance(coord_val, (int, float)):
+            return float(coord_val)
+
+        s = str(coord_val).strip()
+        try:
+            return float(s)
+        except ValueError:
+            pass
+
+        import re
+        m = re.search(r"(\d+(?:\.\d+)?)\s*(?:deg|°)?\s*(\d+(?:\.\d+)?)?'?\s*(\d+(?:\.\d+)?)\"?\s*([NSEW])?", s, re.IGNORECASE)
+        if m:
+            deg = float(m.group(1))
+            minute = float(m.group(2)) if m.group(2) else 0.0
+            sec = float(m.group(3)) if m.group(3) else 0.0
+            ref = (m.group(4) or "").upper()
+            dec = deg + (minute / 60.0) + (sec / 3600.0)
+            if ref in ("S", "W"):
+                dec = -dec
+            return round(dec, 6)
+        return None
+
+    @classmethod
+    def _parse_telemetry(cls, raw_metadata: Dict[str, Any], upload_time: datetime.datetime) -> TelemetryData:
         """Parses raw EXIF/IPTC tags into structured newsroom telemetry."""
         make = raw_metadata.get("Make")
         model = raw_metadata.get("Model")
@@ -105,7 +132,16 @@ class IntakeService:
         lon = raw_metadata.get("GPSLongitude")
         alt = raw_metadata.get("GPSAltitude")
         
-        has_gps = bool(lat is not None and lon is not None)
+        parsed_lat = cls._parse_dms_coordinate(lat)
+        parsed_lon = cls._parse_dms_coordinate(lon)
+        parsed_alt = None
+        if alt is not None:
+            try:
+                parsed_alt = float(str(alt).split()[0])
+            except Exception:
+                pass
+
+        has_gps = bool(parsed_lat is not None and parsed_lon is not None)
 
         return TelemetryData(
             make=str(make) if make else None,
@@ -114,9 +150,9 @@ class IntakeService:
             capture_time=str(capture_str) if capture_str else None,
             upload_time=upload_time.isoformat(),
             time_delta_seconds=time_delta,
-            gps_latitude=float(lat) if lat is not None else None,
-            gps_longitude=float(lon) if lon is not None else None,
-            gps_altitude=float(alt) if alt is not None else None,
+            gps_latitude=parsed_lat,
+            gps_longitude=parsed_lon,
+            gps_altitude=parsed_alt,
             has_gps=has_gps
         )
 

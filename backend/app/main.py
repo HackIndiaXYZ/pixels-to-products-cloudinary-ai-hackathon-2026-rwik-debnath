@@ -20,11 +20,7 @@ async def lifespan(app: FastAPI):
     # 2. Load persisted state from database into in-memory stores
     await WIRE_STORE.load_from_db()
     await PACKAGE_STORE.load_from_db()
-    # 3. Seed realistic demo assets if empty or refresh existing sample URLs
-    if len(WIRE_STORE) == 0:
-        await seed_initial_assets()
-    else:
-        await check_and_refresh_seed_assets()
+    # Newsroom desk starts empty and ready for incoming live dispatches
     yield
 
 app = FastAPI(
