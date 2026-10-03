@@ -1268,51 +1268,81 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
 
         {/* Mode B: Before/After Split Diff Slider */}
         {showDiffSlider && (
-          <div className="relative w-auto h-[480px] max-h-[520px] rounded-lg shadow-2xl overflow-hidden ring-1 ring-slate-900/10 flex items-center justify-center select-none">
-            {/* Raw Original Layer */}
-            <img
-              src={asset.secure_url}
-              alt=""
-              className="w-full h-full object-contain"
-            />
-
-            {/* Redacted & Packaged Layer (Clipped by slider) */}
+          <div className="relative w-full h-full flex items-center justify-center p-4 select-none overflow-hidden">
             <div
-              className="absolute inset-0 overflow-hidden"
-              style={{ width: `${sliderPosition}%` }}
+              className="relative rounded-xl shadow-2xl overflow-hidden ring-1 ring-slate-900/15 flex items-center justify-center select-none bg-slate-900"
+              style={{
+                height: 'min(500px, calc(100% - 24px))',
+                aspectRatio: (asset.width && asset.height)
+                  ? `${asset.width} / ${asset.height}`
+                  : (displayDims.naturalWidth && displayDims.naturalHeight)
+                  ? `${displayDims.naturalWidth} / ${displayDims.naturalHeight}`
+                  : '16 / 9',
+                maxWidth: 'calc(100% - 24px)',
+              }}
             >
+              {/* Bottom Layer: Raw Original Image */}
               <img
-                src={asset.syndication_urls?.clean_master || asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
-                alt=""
-                onError={(e) => {
-                  if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
-                    e.currentTarget.src = asset.secure_url;
-                  }
+                src={asset.secure_url}
+                alt="Original Raw"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
+                draggable={false}
+              />
+
+              {/* Top Layer: Redacted Master (Clipped by slider with CSS clip-path) */}
+              <div
+                className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none"
+                style={{
+                  clipPath: `inset(0 ${100 - sliderPosition}% 0 0)`,
                 }}
-                className="absolute inset-0 w-full h-full object-contain filter"
-                style={{ width: `${100 / (sliderPosition / 100)}%`, maxWidth: 'none' }}
+              >
+                <img
+                  src={
+                    asset.syndication_urls?.clean_master ||
+                    asset.syndication_urls?.broadcast_16_9_clean ||
+                    asset.syndication_urls?.broadcast_16_9 ||
+                    asset.secure_url
+                  }
+                  alt="Redacted Master"
+                  onError={(e) => {
+                    if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
+                      e.currentTarget.src = asset.secure_url;
+                    }
+                  }}
+                  className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
+                  draggable={false}
+                />
+              </div>
+
+              {/* Editorial Mode Badges */}
+              <div className="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-md text-white text-[10px] font-mono uppercase tracking-wider font-semibold border border-white/10 pointer-events-none">
+                Redacted Feed
+              </div>
+              <div className="absolute top-3 right-3 z-10 px-2 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-md text-white text-[10px] font-mono uppercase tracking-wider font-semibold border border-white/10 pointer-events-none">
+                Original Raw
+              </div>
+
+              {/* Split Divider Bar */}
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-white pointer-events-none z-10 shadow-[0_0_12px_rgba(0,0,0,0.7)]"
+                style={{ left: `${sliderPosition}%` }}
+              >
+                <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-white text-blue-600 shadow-xl border border-slate-200 flex items-center justify-center text-xs font-bold pointer-events-none">
+                  ⇄
+                </div>
+              </div>
+
+              {/* Interactive Range Input Slider Controller */}
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={sliderPosition}
+                onChange={(e) => setSliderPosition(Number(e.target.value))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
+                aria-label="Before and after split comparison slider"
               />
             </div>
-
-            {/* Split Divider Bar */}
-            <div
-              className="absolute top-0 bottom-0 w-1 bg-white cursor-ew-resize flex items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.5)]"
-              style={{ left: `${sliderPosition}%` }}
-            >
-              <div className="w-6 h-6 rounded-full bg-white text-blue-600 shadow-md flex items-center justify-center text-[10px] font-bold">
-                ⇄
-              </div>
-            </div>
-
-            {/* Range Input Slider Controller */}
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={sliderPosition}
-              onChange={(e) => setSliderPosition(Number(e.target.value))}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
-            />
           </div>
         )}
 
