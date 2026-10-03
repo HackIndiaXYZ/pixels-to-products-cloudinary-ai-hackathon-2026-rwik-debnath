@@ -19,6 +19,7 @@ import {
   Tv,
   Sparkles,
   FileCode,
+  Upload,
 } from 'lucide-react';
 import {
   CATEGORY_LIST,
@@ -114,6 +115,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     setEventTitle(asset.event_title || '');
     setBrandTheme(asset.brand_theme || 'global_wire');
     setCustomStrapId(asset.custom_strap_id || null);
+    if (asset.custom_strap_id || (asset.brand_theme && asset.brand_theme !== 'clean')) {
+      setPlayoutMode('branded');
+    }
   }, [
     asset.public_id,
     asset.headline,
@@ -123,6 +127,15 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
     asset.brand_theme,
     asset.custom_strap_id,
   ]);
+
+  const getCustomBugThumbnailUrl = (strapId: string) => {
+    const cleanId = strapId.replace(/:/g, '/');
+    if (asset.secure_url && asset.secure_url.includes('/image/upload/')) {
+      const [base] = asset.secure_url.split('/image/upload/');
+      return `${base}/image/upload/c_fit,h_48,w_120/${cleanId}.png`;
+    }
+    return `https://res.cloudinary.com/f3dzrk0s/image/upload/c_fit,h_48,w_120/${cleanId}.png`;
+  };
 
   const handleSelectTheme = async (theme: string) => {
     setBrandTheme(theme);
@@ -134,7 +147,7 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
         body: JSON.stringify({
           public_id: asset.public_id,
           brand_theme: theme,
-          custom_strap_id: theme === 'custom' ? customStrapId : null,
+          custom_strap_id: customStrapId || '',
         }),
       });
       if (res.ok) {
@@ -143,6 +156,31 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
       }
     } catch (err) {
       console.error('Failed to apply branding theme:', err);
+    } finally {
+      setIsApplyingBranding(false);
+    }
+  };
+
+  const handleRemoveCustomBug = async () => {
+    setCustomStrapId(null);
+    setIsApplyingBranding(true);
+    try {
+      const res = await fetch('/api/v1/editorial/branding/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          public_id: asset.public_id,
+          brand_theme: brandTheme === 'custom' ? 'global_wire' : brandTheme,
+          custom_strap_id: '',
+        }),
+      });
+      if (res.ok) {
+        const updated: MediaAsset = await res.json();
+        if (brandTheme === 'custom') setBrandTheme('global_wire');
+        if (onUpdateAsset) onUpdateAsset(updated);
+      }
+    } catch (err) {
+      console.error('Failed to remove custom bug:', err);
     } finally {
       setIsApplyingBranding(false);
     }
@@ -162,13 +200,13 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
       if (uploadRes.ok) {
         const data = await uploadRes.json();
         setCustomStrapId(data.public_id);
-        setBrandTheme('custom');
+        setPlayoutMode('branded');
         const applyRes = await fetch('/api/v1/editorial/branding/apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             public_id: asset.public_id,
-            brand_theme: 'custom',
+            brand_theme: brandTheme,
             custom_strap_id: data.public_id,
           }),
         });
@@ -869,20 +907,20 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
             </div>
           ) : (
             /* Mode 2: Branded Digital Feed */
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {/* Station Brand Themes Selector */}
               <div className="space-y-1.5">
                 <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
-                  Station Graphics Profile
+                  Station Graphics Profile (Lower-Third)
                 </span>
-                <div className="grid grid-cols-4 gap-1 text-[10px] font-medium">
+                <div className="grid grid-cols-3 gap-1.5 text-[10px] font-medium">
                   <button
                     type="button"
                     onClick={() => handleSelectTheme('global_wire')}
                     disabled={isApplyingBranding}
-                    className={`h-7 px-1 rounded-lg border flex items-center justify-center transition cursor-pointer ${
+                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center transition cursor-pointer ${
                       brandTheme === 'global_wire'
-                        ? 'border-red-500 bg-red-50 text-red-700 font-bold shadow-2xs'
+                        ? 'border-rose-600 bg-rose-50 text-rose-700 font-bold shadow-2xs'
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -892,9 +930,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                     type="button"
                     onClick={() => handleSelectTheme('metro_24')}
                     disabled={isApplyingBranding}
-                    className={`h-7 px-1 rounded-lg border flex items-center justify-center transition cursor-pointer ${
+                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center transition cursor-pointer ${
                       brandTheme === 'metro_24'
-                        ? 'border-slate-800 bg-slate-900 text-white font-bold shadow-2xs'
+                        ? 'border-amber-500 bg-amber-50 text-amber-900 font-bold shadow-2xs'
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -904,35 +942,93 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                     type="button"
                     onClick={() => handleSelectTheme('severe_wire')}
                     disabled={isApplyingBranding}
-                    className={`h-7 px-1 rounded-lg border flex items-center justify-center transition cursor-pointer ${
+                    className={`h-7 px-1.5 rounded-lg border flex items-center justify-center transition cursor-pointer ${
                       brandTheme === 'severe_wire'
-                        ? 'border-rose-600 bg-rose-50 text-rose-700 font-bold shadow-2xs'
+                        ? 'border-red-700 bg-red-100/70 text-red-900 font-bold shadow-2xs'
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     Severe Alert
                   </button>
+                </div>
+              </div>
+
+              {/* Station Watermark Bug Graphic Section */}
+              <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
+                  Station Watermark Bug (Top-Right)
+                </span>
+
+                {customStrapId ? (
+                  <div className="bg-slate-900 text-white rounded-xl p-2.5 border border-slate-800 shadow-sm flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      {/* Bug thumbnail preview on dark checkerboard */}
+                      <div className="w-14 h-9 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                        <img
+                          src={getCustomBugThumbnailUrl(customStrapId)}
+                          alt="Station Bug"
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span className="text-xs font-semibold text-slate-100 truncate">
+                            Station Bug Active
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-400 truncate block">
+                          Corner Watermark (Max 180×70)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-1.5 shrink-0 ml-2">
+                      <button
+                        type="button"
+                        onClick={() => strapFileInputRef.current?.click()}
+                        disabled={isApplyingBranding || isUploadingStrap}
+                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md text-[10px] font-semibold transition cursor-pointer"
+                        title="Upload replacement PNG bug"
+                      >
+                        Replace
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCustomBug}
+                        disabled={isApplyingBranding}
+                        className="px-2 py-1 bg-rose-950/70 hover:bg-rose-900 text-rose-300 rounded-md text-[10px] font-semibold transition cursor-pointer"
+                        title="Remove custom bug and revert to clean corner"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (customStrapId) {
-                        handleSelectTheme('custom');
-                      } else {
-                        strapFileInputRef.current?.click();
-                      }
-                    }}
+                    onClick={() => strapFileInputRef.current?.click()}
                     disabled={isApplyingBranding || isUploadingStrap}
-                    className={`h-7 px-1 rounded-lg border flex items-center justify-center transition cursor-pointer ${
-                      brandTheme === 'custom'
-                        ? 'border-blue-600 bg-blue-50 text-blue-700 font-bold shadow-2xs'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                    }`}
+                    className="w-full py-2 px-3 border border-dashed border-slate-300 hover:border-blue-400 bg-slate-50/60 hover:bg-blue-50/40 rounded-xl text-left transition cursor-pointer flex items-center justify-between group"
                   >
-                    {customStrapId ? 'Custom Bug' : '+ Bug PNG'}
+                    <div className="flex items-center space-x-2">
+                      <Upload className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 transition-colors shrink-0" />
+                      <div>
+                        <span className="text-[11px] font-semibold text-slate-700 group-hover:text-blue-900 block leading-tight">
+                          {isUploadingStrap ? 'Uploading Bug PNG...' : '+ Add Station Bug (PNG)'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 block leading-tight">
+                          Watermark logo pinned to top-right
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-medium text-slate-400 group-hover:text-blue-600 shrink-0">
+                      PNG
+                    </span>
                   </button>
-                </div>
+                )}
 
-                {/* Hidden File Input for Custom Bug/Strap */}
+                {/* Hidden File Input for Custom Bug */}
                 <input
                   ref={strapFileInputRef}
                   type="file"
@@ -940,19 +1036,6 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                   onChange={handleCustomStrapUpload}
                   className="hidden"
                 />
-
-                {brandTheme === 'custom' && (
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-                    <span className="truncate">Bug Layer: {customStrapId ? 'Active' : 'None'}</span>
-                    <button
-                      type="button"
-                      onClick={() => strapFileInputRef.current?.click()}
-                      className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer underline"
-                    >
-                      Replace PNG
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* Branded Syndication URLs Grid (16:9 Branded, 9:16 Reel, 1:1 Card) */}

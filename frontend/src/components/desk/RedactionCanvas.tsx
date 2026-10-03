@@ -50,6 +50,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
   }, [asset.event_id, allAssets]);
 
   const [activePreviewMode, setActivePreviewMode] = useState<'canvas' | 'tv_16_9' | 'reel_9_16' | 'feed_1_1'>('canvas');
+  const [tvPlayoutMode, setTvPlayoutMode] = useState<'branded' | 'clean'>('branded');
   const [faces, setFaces] = useState<FaceCoordinate[]>(asset.faces || []);
   const [showDiffSlider, setShowDiffSlider] = useState(false);
   const [sliderPosition, setSliderPosition] = useState(50);
@@ -628,14 +629,16 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               {(() => {
                 const currentModeUrl =
                   activePreviewMode === 'tv_16_9'
-                    ? (asset.syndication_urls?.broadcast_16_9 || asset.syndication_urls?.broadcast_16_9_clean)
+                    ? (tvPlayoutMode === 'clean'
+                        ? (asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.clean_master)
+                        : (asset.syndication_urls?.broadcast_16_9_branded || asset.syndication_urls?.broadcast_16_9))
                     : activePreviewMode === 'reel_9_16'
                     ? asset.syndication_urls?.social_9_16
                     : asset.syndication_urls?.feed_1_1;
 
                 const modeLabel =
                   activePreviewMode === 'tv_16_9'
-                    ? '16:9 Broadcast'
+                    ? (tvPlayoutMode === 'clean' ? '16:9 Clean Master' : '16:9 Branded Feed')
                     : activePreviewMode === 'reel_9_16'
                     ? '9:16 Reel'
                     : '1:1 Wire';
@@ -1278,8 +1281,8 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
           </div>
         )}
 
-        {/* Docked Framing Controls for Syndication Previews */}
-        {(activePreviewMode === 'reel_9_16' || activePreviewMode === 'feed_1_1' || activePreviewMode === 'tv_16_9') && (
+        {/* Docked Framing Controls for 9:16 and 1:1 Previews */}
+        {(activePreviewMode === 'reel_9_16' || activePreviewMode === 'feed_1_1') && (
           <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 bg-white/95 backdrop-blur-md border border-slate-200/90 py-1 px-3 rounded-xl shadow-lg shadow-slate-900/5 select-none text-xs animate-in fade-in zoom-in-95 duration-100">
             <div className="flex items-center space-x-1.5 pr-2 border-r border-slate-200/80">
               <Crosshair className="w-3.5 h-3.5 text-blue-600" />
@@ -1301,12 +1304,44 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
           </div>
         )}
 
+        {/* Docked Controls for 16:9 Broadcast: Branded vs Clean Feed Switcher */}
+        {activePreviewMode === 'tv_16_9' && (
+          <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-40 flex items-center bg-white/95 backdrop-blur-md border border-slate-200/90 p-0.5 rounded-xl shadow-lg shadow-slate-900/5 select-none text-xs animate-in fade-in zoom-in-95 duration-100">
+            <button
+              type="button"
+              onClick={() => setTvPlayoutMode('branded')}
+              className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
+                tvPlayoutMode === 'branded'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Branded Feed
+            </button>
+            <button
+              type="button"
+              onClick={() => setTvPlayoutMode('clean')}
+              className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
+                tvPlayoutMode === 'clean'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Clean Master
+            </button>
+          </div>
+        )}
+
         {/* Mode C: 16:9 Broadcast Overlay */}
         {!showDiffSlider && activePreviewMode === 'tv_16_9' && (
           <div className="w-full h-full flex flex-col items-center justify-center p-4">
             <img
-              src={asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.clean_master || asset.syndication_urls?.broadcast_16_9 || asset.secure_url}
-              alt="16:9 Broadcast Feed"
+              src={
+                tvPlayoutMode === 'clean'
+                  ? (asset.syndication_urls?.broadcast_16_9_clean || asset.syndication_urls?.clean_master || asset.secure_url)
+                  : (asset.syndication_urls?.broadcast_16_9_branded || asset.syndication_urls?.broadcast_16_9 || asset.secure_url)
+              }
+              alt={tvPlayoutMode === 'clean' ? '16:9 Clean Master Playout' : '16:9 Branded Broadcast Playout'}
               className="max-h-[500px] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-slate-900/10 select-none"
             />
           </div>

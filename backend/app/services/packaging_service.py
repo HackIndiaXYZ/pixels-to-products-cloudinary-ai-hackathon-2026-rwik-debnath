@@ -71,54 +71,75 @@ class PackagingService:
             version=version
         )
 
-        # 2. Branded 16:9 Broadcast Delivery (Station Presets or Custom Strap)
+        # 2. Branded 16:9 Broadcast Delivery (Two-Tier Lower-Third + Corner Station Bug)
         branded_layers = []
-        if custom_strap_id and custom_strap_id.strip():
-            # Station uploaded custom transparent PNG strap/bug
-            clean_strap_id = custom_strap_id.strip().replace("/", ":")
-            branded_layers.extend([
-                {
-                    "overlay": clean_strap_id,
-                    "gravity": "south",
-                    "width": "1.0",
-                    "flags": "relative"
-                },
-                {
-                    "overlay": {
-                        "font_family": "Arial",
-                        "font_size": 28,
-                        "font_weight": "bold",
-                        "text": display_headline
-                    },
-                    "color": "rgb:ffffff",
-                    "gravity": "south_west",
-                    "x": 40,
-                    "y": 35
-                }
-            ])
-        else:
-            # Station Preset Profiles
-            theme_key = (brand_theme or "global_wire").strip().lower()
-            if theme_key == "metro_24":
-                bg_color = "rgb:0f172a"  # Midnight Slate
-            elif theme_key == "severe_wire":
-                bg_color = "rgb:be123c"  # Hazard Rose
-            else:
-                bg_color = "rgb:d90429"  # Global Wire Crimson
+        theme_key = (brand_theme or "global_wire").strip().lower()
 
+        # A. If custom station bug is uploaded, place as constrained watermark bug in top-right corner
+        if custom_strap_id and custom_strap_id.strip():
+            clean_strap_id = custom_strap_id.strip().replace("/", ":")
             branded_layers.append({
-                "overlay": {
-                    "font_family": "Arial",
-                    "font_size": 28,
-                    "font_weight": "bold",
-                    "text": display_headline
-                },
-                "color": "rgb:ffffff",
-                "background": bg_color,
-                "gravity": "south_west",
-                "x": 30,
-                "y": 40
+                "overlay": clean_strap_id,
+                "gravity": "north_east",
+                "x": 40,
+                "y": 40,
+                "width": 180,
+                "height": 70,
+                "crop": "fit"
             })
+
+        # B. Two-Tier Broadcast Lower-Third Strap (Tier 1: Station Badge Pill, Tier 2: Headline Bar)
+        if theme_key == "metro_24":
+            badge_text = "  METRO 24  "
+            badge_bg = "rgb:f59e0b"    # Electric Amber
+            badge_color = "rgb:0f172a" # Slate Charcoal text
+            headline_bg = "rgb:0f172a" # Deep Slate headline bar
+        elif theme_key == "severe_wire":
+            badge_text = "  SEVERE ALERT  "
+            badge_bg = "rgb:be123c"    # Hazard Rose
+            badge_color = "rgb:ffffff" # White text
+            headline_bg = "rgb:18181b" # Charcoal Black headline bar
+        elif theme_key == "custom":
+            badge_text = "  STATION FEED  "
+            badge_bg = "rgb:2563eb"    # Cobalt Blue
+            badge_color = "rgb:ffffff" # White text
+            headline_bg = "rgb:0f172a" # Deep Slate headline bar
+        else:
+            # Default: global_wire
+            badge_text = "  GLOBAL WIRE  "
+            badge_bg = "rgb:d90429"    # Crimson Red
+            badge_color = "rgb:ffffff" # White text
+            headline_bg = "rgb:0f172a" # Deep Slate headline bar
+
+        # Tier 1: Station Badge Pill (Stacked above headline)
+        branded_layers.append({
+            "overlay": {
+                "font_family": "Arial",
+                "font_size": 18,
+                "font_weight": "bold",
+                "text": badge_text
+            },
+            "color": badge_color,
+            "background": badge_bg,
+            "gravity": "south_west",
+            "x": 40,
+            "y": 74
+        })
+
+        # Tier 2: Authoritative Headline Bar
+        branded_layers.append({
+            "overlay": {
+                "font_family": "Arial",
+                "font_size": 24,
+                "font_weight": "bold",
+                "text": f"  {display_headline}  "
+            },
+            "color": "rgb:ffffff",
+            "background": headline_bg,
+            "gravity": "south_west",
+            "x": 40,
+            "y": 34
+        })
 
         tv_branded_transformations = [
             *redaction_trans,

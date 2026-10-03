@@ -26,39 +26,47 @@ def test_dual_delivery_clean_vs_branded_urls():
     assert "l_text" not in clean_url
     assert "b_rgb" not in clean_url
 
-    # Branded feed: must have station theme crimson banner and headline overlay
+    # Branded feed: must have two-tier strap with crimson badge and dark headline bar
     assert "ar_16:9" in branded_url
     assert "b_rgb:d90429" in branded_url
-    assert "l_text:Arial_28_bold:" in branded_url
+    assert "b_rgb:0f172a" in branded_url
+    assert "l_text:Arial_18_bold:" in branded_url
+    assert "l_text:Arial_24_bold:" in branded_url
 
 def test_station_theme_presets():
-    """Verifies that Metro 24 and Severe Wire themes generate appropriate Cloudinary banner colors."""
+    """Verifies that Metro 24 and Severe Wire themes generate distinct two-tier Cloudinary banner colors."""
     metro_urls = PackagingService.generate_broadcast_urls(
         public_id="presswire/test_asset",
         headline="CITY COUNCIL IN SESSION",
         brand_theme="metro_24"
     )
-    assert "b_rgb:0f172a" in metro_urls["broadcast_16_9_branded"]
+    metro_branded = metro_urls["broadcast_16_9_branded"]
+    assert "b_rgb:f59e0b" in metro_branded  # Electric Amber badge
+    assert "b_rgb:0f172a" in metro_branded  # Slate headline bar
 
     severe_urls = PackagingService.generate_broadcast_urls(
         public_id="presswire/test_asset",
         headline="TORNADO WARNING IN EFFECT",
         brand_theme="severe_wire"
     )
-    assert "b_rgb:be123c" in severe_urls["broadcast_16_9_branded"]
+    severe_branded = severe_urls["broadcast_16_9_branded"]
+    assert "b_rgb:be123c" in severe_branded  # Hazard Rose badge
+    assert "b_rgb:18181b" in severe_branded  # Charcoal Black headline bar
 
 def test_custom_transparent_strap_overlay():
-    """Verifies that custom station strap public_id is layered via Cloudinary l_<public_id> syntax."""
+    """Verifies that custom station bug watermark is placed in corner and constrained via Cloudinary syntax."""
     custom_urls = PackagingService.generate_broadcast_urls(
         public_id="presswire/test_asset",
         headline="LIVE REPORT FROM HARBOR",
         custom_strap_id="presswire/branding/cbs_newyork_bug"
     )
     branded = custom_urls["broadcast_16_9_branded"]
-    # Cloudinary image overlay syntax
+    # Cloudinary corner watermark bug syntax
     assert "l_presswire:branding:cbs_newyork_bug" in branded
-    assert "w_1.0" in branded
-    assert "fl_relative" in branded
+    assert "w_180" in branded
+    assert "h_70" in branded
+    assert "c_fit" in branded
+    assert "g_north_east" in branded
 
 def test_sidecar_metadata_endpoint():
     """Verifies that the /sidecar endpoint returns structured automation JSON for television control rooms."""
