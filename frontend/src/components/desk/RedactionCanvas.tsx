@@ -137,6 +137,8 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       totalDetectedFacesRef.current = asset.faces?.length || 0;
       setFaces(asset.faces || []);
       setIsDrawingMode(false);
+      setIsFocalMode(false);
+      setShowDiffSlider(false);
       setDrawStart(null);
       setDrawCurrent(null);
       setDragFace(null);
@@ -263,7 +265,6 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       e.preventDefault();
       const { x, y } = getNaturalCoords(e);
       handleUpdateFocalPoint(Math.round(x), Math.round(y), 'xy_center');
-      setIsFocalMode(false);
       return;
     }
     if (isDrawingMode) {
@@ -923,7 +924,10 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                 type="button"
                 onClick={() => {
                   setShowDiffSlider(!showDiffSlider);
-                  if (!showDiffSlider) setIsDrawingMode(false);
+                  if (!showDiffSlider) {
+                    setIsDrawingMode(false);
+                    setIsFocalMode(false);
+                  }
                 }}
                 className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer active:scale-95 ${
                   showDiffSlider
@@ -1008,7 +1012,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                 onMouseDown={handleContainerMouseDown}
                 className={`relative inline-block ${
                   displayDims.width === 0 ? 'min-w-[320px] min-h-[220px]' : ''
-                } ${isDrawingMode ? 'cursor-crosshair' : ''}`}
+                } ${isDrawingMode || isFocalMode ? 'cursor-crosshair' : ''}`}
               >
                 <img
                   ref={imgRef}
@@ -1061,7 +1065,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                         }}
                         className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none transition-all duration-150 z-30"
                       >
-                        <div className="w-6 h-6 rounded-full border-2 border-white bg-blue-600/30 flex items-center justify-center shadow-[0_0_8px_rgba(0,0,0,0.8)] animate-pulse">
+                        <div className="w-6 h-6 rounded-full border-2 border-white bg-blue-600/40 flex items-center justify-center shadow-[0_0_6px_rgba(0,0,0,0.8)]">
                           <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_2px_rgba(0,0,0,0.8)]" />
                         </div>
                       </div>
@@ -1122,7 +1126,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                       onMouseEnter={() => setHoveredFaceIndex(idx)}
                       onMouseLeave={() => setHoveredFaceIndex((prev) => (prev === idx ? null : prev))}
                       onMouseDown={(e) => {
-                        if (isDrawingMode || isSpacePressed) return;
+                        if (isDrawingMode || isFocalMode || isSpacePressed) return;
                         e.stopPropagation();
                         e.preventDefault();
                         setSelectedFaceIndex(idx);
@@ -1144,7 +1148,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                         zIndex: zIndex,
                       }}
                       className={`absolute border transition-all select-none rounded-lg group ${
-                        isDrawingMode
+                        isDrawingMode || isFocalMode
                           ? 'pointer-events-none'
                           : 'cursor-grab active:cursor-grabbing'
                       } ${
