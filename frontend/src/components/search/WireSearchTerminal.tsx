@@ -55,8 +55,9 @@ export const WireSearchTerminal: React.FC<WireSearchTerminalProps> = ({ onSelect
           </div>
         </div>
 
-        <span className="text-xs text-slate-400 font-mono hidden sm:inline-block">
-          Index: Search API v2
+        <span className="text-[10px] text-slate-400 font-mono hidden sm:inline-flex items-center space-x-1.5 bg-slate-50 border border-slate-200/60 px-2 py-1 rounded-lg">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500/70" />
+          <span>Cloudinary Search API (Lucene)</span>
         </span>
       </div>
 

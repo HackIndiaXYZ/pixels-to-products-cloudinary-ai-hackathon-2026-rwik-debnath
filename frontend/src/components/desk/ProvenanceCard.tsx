@@ -31,12 +31,6 @@ import {
 } from '../../utils/categories';
 import { GeotagModal } from './GeotagModal';
 
-const GRAPHICS_PROFILES = [
-  { id: 'global_wire', label: 'Global Wire', color: '#d90429' },
-  { id: 'metro_24', label: 'Metro 24', color: '#f59e0b' },
-  { id: 'severe_wire', label: 'Severe Alert', color: '#ea580c' },
-] as const;
-
 interface ProvenanceCardProps {
   asset: MediaAsset;
   allAssets?: MediaAsset[];
@@ -149,31 +143,6 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
       return `${base}/image/upload/c_fit,h_48,w_120/${cleanId}.png`;
     }
     return `https://res.cloudinary.com/f3dzrk0s/image/upload/c_fit,h_48,w_120/${cleanId}.png`;
-  };
-
-  const handleSelectTheme = async (theme: string) => {
-    setBrandTheme(theme);
-    localStorage.setItem('presswire_station_theme', theme);
-    setIsApplyingBranding(true);
-    try {
-      const res = await fetch('/api/v1/editorial/branding/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          public_id: asset.public_id,
-          brand_theme: theme,
-          custom_strap_id: customStrapId || '',
-        }),
-      });
-      if (res.ok) {
-        const updated: MediaAsset = await res.json();
-        if (onUpdateAsset) onUpdateAsset(updated);
-      }
-    } catch (err) {
-      console.error('Failed to apply branding theme:', err);
-    } finally {
-      setIsApplyingBranding(false);
-    }
   };
 
   const handleRemoveCustomBug = async () => {
@@ -697,6 +666,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Provenance & Telemetry
             </span>
+            <span className="text-[9px] font-mono text-slate-400 bg-slate-100/70 border border-slate-200/60 px-1.5 py-0.5 rounded">
+              Cloudinary EXIF/IPTC
+            </span>
           </div>
 
           {/* Compliance & Trust Verification Strip */}
@@ -835,6 +807,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Broadcast Playout & Syndication
             </span>
+            <span className="text-[9px] font-mono text-slate-400 bg-slate-100/70 border border-slate-200/60 px-1.5 py-0.5 rounded">
+              Zero-Storage CDN
+            </span>
           </div>
 
           {/* Dual-Delivery Mode Selector (Clean Control Room Feed vs. Branded Digital Feed) */}
@@ -915,43 +890,21 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                   )}
                 </button>
               </div>
+
+              {/* Cloudinary Tech Callout */}
+              <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 pt-1 border-t border-slate-100">
+                <span className="flex items-center space-x-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/70 shrink-0" />
+                  <span>Cloudinary MCR: e_pixelate_faces · fl_attachment</span>
+                </span>
+                <span>Pristine Master</span>
+              </div>
             </div>
           ) : (
             /* Mode 2: Branded Digital Feed */
             <div className="space-y-3">
-              {/* Station Brand Themes Selector */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
-                  Graphics Profile
-                </span>
-                <div className="grid grid-cols-3 gap-1.5 text-[10px]">
-                  {GRAPHICS_PROFILES.map((profile) => {
-                    const isSelected = brandTheme === profile.id;
-                    return (
-                      <button
-                        key={profile.id}
-                        type="button"
-                        onClick={() => handleSelectTheme(profile.id)}
-                        disabled={isApplyingBranding}
-                        className={`h-7 px-1.5 rounded-lg border flex items-center justify-center space-x-1.5 transition cursor-pointer select-none active:scale-98 ${
-                          isSelected
-                            ? 'border-slate-400/90 bg-slate-100/90 text-slate-900 font-semibold shadow-2xs ring-1 ring-slate-300/40'
-                            : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-medium'
-                        }`}
-                      >
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0 shadow-2xs"
-                          style={{ backgroundColor: profile.color }}
-                        />
-                        <span>{profile.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               {/* Station Watermark Bug Graphic Section */}
-              <div className="space-y-1.5 pt-1 border-t border-slate-100">
+              <div className="space-y-1.5 pt-0.5">
                 <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
                   Station Logo Bug
                 </span>
@@ -1086,6 +1039,15 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                 <span>Copy Broadcast Sidecar (IPTC / JSON)</span>
                 {copiedKey === 'sidecar' && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />}
               </button>
+
+              {/* Cloudinary Tech Callout */}
+              <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 pt-1 border-t border-slate-100">
+                <span className="flex items-center space-x-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500/70 shrink-0" />
+                  <span>Cloudinary AI: g_auto:subject · b_auto:predominant</span>
+                </span>
+                <span>f_auto, q_auto</span>
+              </div>
             </div>
           )}
         </div>

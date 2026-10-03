@@ -279,6 +279,12 @@ export const SubmitPortal: React.FC<SubmitPortalProps> = ({
                         <span>Browse Files</span>
                       </button>
                     </div>
+
+                    {/* Subtle Cloudinary Intake Pipeline Micro-Badge */}
+                    <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-center space-x-1.5 text-[10px] font-mono text-slate-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/70 shrink-0" />
+                      <span>Cloudinary Upload API · AI Moderation · EXIF Telemetry</span>
+                    </div>
                   </div>
                 ) : (
                   /* Clean Image Preview */

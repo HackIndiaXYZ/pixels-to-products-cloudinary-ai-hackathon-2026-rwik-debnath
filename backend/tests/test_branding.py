@@ -26,32 +26,9 @@ def test_dual_delivery_clean_vs_branded_urls():
     assert "l_text" not in clean_url
     assert "b_rgb" not in clean_url
 
-    # Branded feed: must have two-tier strap with crimson badge and dark headline bar
+    # Branded feed: maintains clean broadcast master framing, zero burned text
     assert "ar_16:9" in branded_url
-    assert "b_rgb:d90429" in branded_url
-    assert "b_rgb:0f172a" in branded_url
-    assert "l_text:Arial_18_bold:" in branded_url
-    assert "l_text:Arial_24_bold:" in branded_url
-
-def test_station_theme_presets():
-    """Verifies that Metro 24 and Severe Wire themes generate distinct two-tier Cloudinary banner colors."""
-    metro_urls = PackagingService.generate_broadcast_urls(
-        public_id="presswire/test_asset",
-        headline="CITY COUNCIL IN SESSION",
-        brand_theme="metro_24"
-    )
-    metro_branded = metro_urls["broadcast_16_9_branded"]
-    assert "b_rgb:f59e0b" in metro_branded  # Electric Amber badge
-    assert "b_rgb:0f172a" in metro_branded  # Slate headline bar
-
-    severe_urls = PackagingService.generate_broadcast_urls(
-        public_id="presswire/test_asset",
-        headline="TORNADO WARNING IN EFFECT",
-        brand_theme="severe_wire"
-    )
-    severe_branded = severe_urls["broadcast_16_9_branded"]
-    assert "b_rgb:ea580c" in severe_branded  # Safety Hazard Orange badge
-    assert "b_rgb:000000" in severe_branded  # Pure Black headline bar
+    assert "l_text" not in branded_url
 
 def test_custom_transparent_strap_overlay():
     """Verifies that custom station bug watermark is placed in corner and constrained via Cloudinary syntax."""

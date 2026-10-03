@@ -625,6 +625,23 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
           </button>
         </div>
 
+        {/* Center: Subtle Cloudinary Technical Primitive Callout */}
+        <div className="hidden lg:flex items-center space-x-1.5 text-[10px] font-mono text-slate-400 bg-slate-50 border border-slate-200/60 px-2 py-1 rounded-lg">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-500/70 shrink-0" />
+          {activePreviewMode === 'canvas' && (
+            <span>Cloudinary Explicit API · face_coordinates</span>
+          )}
+          {activePreviewMode === 'tv_16_9' && (
+            <span>Cloudinary AI · c_fill,ar_16:9,g_auto:subject</span>
+          )}
+          {activePreviewMode === 'reel_9_16' && (
+            <span>Cloudinary AI · ar_9:16,b_auto:predominant</span>
+          )}
+          {activePreviewMode === 'feed_1_1' && (
+            <span>Cloudinary Delivery · c_fill,ar_1:1,f_auto,q_auto</span>
+          )}
+        </div>
+
         {/* Right: Primary Editorial Actions */}
         <div className="flex items-center space-x-2 shrink-0">
 
