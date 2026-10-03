@@ -952,12 +952,9 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
 
               {/* Station Watermark Bug Graphic Section */}
               <div className="space-y-1.5 pt-1 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold">
-                    Station Logo Bug
-                  </span>
-                  <span className="text-[9px] font-mono text-slate-400">PNG / SVG</span>
-                </div>
+                <span className="text-[10px] font-mono uppercase text-slate-400 font-semibold block">
+                  Station Logo Bug
+                </span>
 
                 {customStrapId ? (
                   <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-2 flex items-center justify-between">
@@ -1005,15 +1002,12 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
                     type="button"
                     onClick={() => strapFileInputRef.current?.click()}
                     disabled={isApplyingBranding || isUploadingStrap}
-                    className="w-full py-2 px-3 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50 rounded-xl text-left transition cursor-pointer flex items-center justify-between group"
+                    className="w-full py-2 px-3 border border-dashed border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50 rounded-xl text-left transition cursor-pointer flex items-center space-x-2 group"
                   >
-                    <div className="flex items-center space-x-2">
-                      <ImagePlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 transition-colors shrink-0" />
-                      <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900">
-                        {isUploadingStrap ? 'Uploading...' : 'Upload Logo Bug'}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-mono text-slate-400 font-medium">Top-Right</span>
+                    <ImagePlus className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 transition-colors shrink-0" />
+                    <span className="text-[11px] font-medium text-slate-600 group-hover:text-slate-900">
+                      {isUploadingStrap ? 'Uploading...' : 'Upload Logo Bug'}
+                    </span>
                   </button>
                 )}
 
