@@ -76,7 +76,7 @@ export const BroadcastHub: React.FC<BroadcastHubProps> = ({ asset }) => {
             </div>
 
             <p className="text-xs text-slate-500 mt-2">
-              Lower-third breaking banner (`l_text`) + subject-aware center crop.
+              Clean master delivery with subject-aware center crop for television playout.
             </p>
           </div>
 
