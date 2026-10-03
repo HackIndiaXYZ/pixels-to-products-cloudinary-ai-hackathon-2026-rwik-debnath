@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   UploadCloud,
   ShieldCheck,
@@ -9,15 +9,17 @@ import {
   SlidersHorizontal,
   ArrowRight,
   Layers,
-  Camera,
   MapPin,
-  Check,
   Copy,
   ChevronRight,
   Sparkles,
-  Eye,
-  EyeOff,
-  ExternalLink,
+  Play,
+  Pause,
+  RotateCcw,
+  Zap,
+  Lock,
+  Download,
+  ShieldAlert,
 } from 'lucide-react';
 import { PressWireLogo } from './PressWireLogo';
 
@@ -25,22 +27,130 @@ interface BrandHomeProps {
   onNavigate: (route: 'desk' | 'submit') => void;
 }
 
-const ROTATING_PHRASES = [
-  'Breaking photojournalism intake',
-  'Hardware provenance auditing',
-  'Selective face privacy blur',
-  'Zero-storage wire syndication',
-];
+// ---------------------------------------------------------------------------
+// Reusable Moody Video Player Component
+// ---------------------------------------------------------------------------
+interface VideoPlayerCardProps {
+  src: string;
+  badge: string;
+  badgeColor?: string;
+  title?: string;
+  aspectRatio?: string;
+  className?: string;
+}
 
+const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
+  src,
+  badge,
+  badgeColor = 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+  title,
+  aspectRatio = 'aspect-[16/10]',
+  className = '',
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (isPlaying) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      videoRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const restartVideo = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = 0;
+    videoRef.current.play();
+    setIsPlaying(true);
+  };
+
+  return (
+    <div
+      className={`group relative rounded-2xl overflow-hidden bg-[#0D0F14] border border-white/[0.08] shadow-2xl transition-all duration-300 hover:border-white/20 ${className}`}
+    >
+      {/* Studio Header Strip */}
+      <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#12151C]/90 border-b border-white/[0.06] backdrop-blur-md select-none">
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
+          </div>
+          {title && (
+            <span className="text-[11px] font-semibold text-slate-300 tracking-tight pl-2">
+              {title}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span
+            className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded-md border tracking-wider uppercase ${badgeColor}`}
+          >
+            {badge}
+          </span>
+        </div>
+      </div>
+
+      {/* Video Viewport */}
+      <div
+        className={`relative w-full ${aspectRatio} bg-black/60 cursor-pointer overflow-hidden flex items-center justify-center`}
+        onClick={togglePlay}
+      >
+        <video
+          ref={videoRef}
+          src={src}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.01]"
+        />
+
+        {/* Ambient overlay glow on edges */}
+        <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_40px_rgba(0,0,0,0.5)]" />
+
+        {/* Subtle Hover Play/Pause Overlay */}
+        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+          <div className="p-3 rounded-full bg-black/70 backdrop-blur-md border border-white/20 text-white shadow-xl transform transition-transform group-hover:scale-105">
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white translate-x-0.5" />}
+          </div>
+        </div>
+
+        {/* Bottom Quick Controls Bar */}
+        <div className="absolute bottom-2.5 right-2.5 z-20 flex items-center space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/75 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10 text-white text-[10px] font-mono">
+          <button
+            type="button"
+            onClick={restartVideo}
+            className="p-1 hover:text-blue-400 transition cursor-pointer"
+            title="Replay from start"
+          >
+            <RotateCcw className="w-3 h-3" />
+          </button>
+          <span className="text-slate-500">|</span>
+          <span>{isPlaying ? 'PAUSE' : 'PLAY'}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Transformation Specs Matrix
+// ---------------------------------------------------------------------------
 interface TransformationTab {
   id: string;
   label: string;
   icon: React.ElementType;
-  aspectRatio: string;
   description: string;
   transformationCode: string;
-  previewUrl: string;
   badge: string;
+  resolution: string;
 }
 
 const TRANSFORMATION_TABS: TransformationTab[] = [
@@ -48,598 +158,452 @@ const TRANSFORMATION_TABS: TransformationTab[] = [
     id: 'broadcast',
     label: '16:9 Linear Broadcast',
     icon: Tv,
-    aspectRatio: '16/9',
     description:
-      'Deterministic smart cropping with autonomous lower-third chyron banner and red breaking news lead tag.',
+      'Subject-aware smart crop with automated breaking news lower-third chyron banner and red lead badge.',
     transformationCode:
       'c_fill,ar_16:9,g_auto:subject / l_text:Arial_28_bold:BREAKING%20NEWS,g_south_west,x_30,y_40,co_white,b_rgb:d90429',
-    previewUrl:
-      'https://res.cloudinary.com/demo/image/upload/c_fill,ar_16:9,g_auto:subject/l_text:Arial_28_bold:BREAKING%20NEWS,g_south_west,x_30,y_40,co_white,b_rgb:d90429/sample.jpg',
-    badge: 'Linear TV & Cable Wire',
+    badge: 'Linear TV & Web Playout',
+    resolution: '1920 × 1080',
   },
   {
     id: 'social',
     label: '9:16 Social Reel',
     icon: Smartphone,
-    aspectRatio: '9/16',
     description:
       'Vertical smartphone frame preserving full horizontal context using predominant color background auto-fill.',
     transformationCode:
-      'c_pad,ar_9:16,b_auto:predominant,g_auto:subject / f_auto,q_auto',
-    previewUrl:
-      'https://res.cloudinary.com/demo/image/upload/c_pad,ar_9:16,b_auto:predominant,g_auto:subject/sample.jpg',
-    badge: 'TikTok, Reels, Shorts',
+      'c_fill,ar_9:16,g_auto:subject,b_auto:predominant / f_auto,q_auto',
+    badge: 'Reels, TikTok, Shorts',
+    resolution: '1080 × 1920',
   },
   {
     id: 'feed',
-    label: '1:1 Wire Feed Card',
+    label: '1:1 Wire Feed',
     icon: Square,
-    aspectRatio: '1/1',
     description:
-      'Square aspect ratio with automated subject centering and adaptive quality compression for wire API consumers.',
+      'Square crop with automated subject centering and adaptive quality compression for news wire API consumers.',
     transformationCode:
-      'c_fill,ar_1:1,g_auto:faces,e_blur_faces:400 / f_auto,q_auto',
-    previewUrl:
-      'https://res.cloudinary.com/demo/image/upload/c_fill,ar_1:1,g_auto:faces,e_blur_faces:400/sample.jpg',
-    badge: 'Mobile App Feeds & X/Twitter',
+      'c_fill,ar_1:1,g_auto:subject / f_auto,q_auto',
+    badge: 'Wire Feeds & X/Twitter',
+    resolution: '1080 × 1080',
   },
   {
     id: 'master',
     label: 'Clean Master Delivery',
     icon: Globe,
-    aspectRatio: '16/9',
     description:
-      'Unburned original aspect ratio delivery with selective privacy blur applied, ready for worldwide wire syndication without lower-third overlays.',
+      'Full-resolution origin delivery with selective privacy pixelation applied, completely free of burned lower thirds.',
     transformationCode:
-      'e_blur_faces:400 / f_auto,q_auto',
-    previewUrl:
-      'https://res.cloudinary.com/demo/image/upload/e_blur_faces:400/sample.jpg',
-    badge: 'Global Wire Syndication',
+      'e_pixelate_faces:9 / f_auto,q_auto',
+    badge: 'Global Syndicate Master',
+    resolution: 'Source Resolution',
   },
 ];
 
 export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
-  // Rotating phrase animation state
-  const [phraseIndex, setPhraseIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<string>('broadcast');
-  const [copiedUrl, setCopiedUrl] = useState(false);
-  const [bystanderRedacted, setBystanderRedacted] = useState(true);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setPhraseIndex((prev) => (prev + 1) % ROTATING_PHRASES.length);
-    }, 2800);
-    return () => clearInterval(timer);
-  }, []);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const handleCopyCode = (text: string) => {
     navigator.clipboard.writeText(text);
-    setCopiedUrl(true);
-    setTimeout(() => setCopiedUrl(false), 2000);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
   const selectedTabData =
     TRANSFORMATION_TABS.find((t) => t.id === activeTab) || TRANSFORMATION_TABS[0];
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-slate-800 font-sans selection:bg-slate-200 selection:text-slate-900 antialiased flex flex-col">
+    <div className="min-h-screen bg-[#08090C] text-slate-100 font-sans selection:bg-blue-600/30 selection:text-white antialiased flex flex-col relative overflow-x-hidden">
+      {/* Moody Ambient Background Gradient Glows */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-gradient-to-b from-blue-600/12 via-indigo-600/5 to-transparent blur-[140px] pointer-events-none -z-10" />
+      <div className="absolute top-[800px] right-0 w-[600px] h-[500px] bg-gradient-to-bl from-rose-600/8 via-purple-600/5 to-transparent blur-[150px] pointer-events-none -z-10" />
+      <div className="absolute top-[2000px] left-0 w-[700px] h-[600px] bg-gradient-to-tr from-cyan-600/8 via-blue-600/5 to-transparent blur-[160px] pointer-events-none -z-10" />
+
       {/* =========================================================================
-          STICKY NAVBAR (Coco Alemana Style Minimalist Blur)
+          STICKY NAVBAR (Moody Translucent Glass)
          ========================================================================= */}
-      <nav className="sticky top-0 z-50 w-full bg-[#F8F9FA]/85 backdrop-blur-md border-b border-slate-200/60 transition-all">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          {/* Brand Logo */}
-          <PressWireLogo
-            size="lg"
-            variant="full"
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          />
+      <nav className="sticky top-0 z-50 w-full bg-[#08090C]/80 backdrop-blur-xl border-b border-white/[0.08] transition-all">
+        <div className="max-w-6xl mx-auto px-6 h-15 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center space-x-3">
+            <PressWireLogo
+              size="lg"
+              variant="full"
+              theme="dark"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            />
+          </div>
 
           {/* Desktop Nav Links */}
-          <div className="hidden md:flex items-center space-x-7 text-xs font-medium text-slate-500">
-            <a href="#provenance" className="hover:text-slate-800 transition">
-              Verification & Safety
+          <div className="hidden md:flex items-center space-x-8 text-xs font-medium text-slate-400">
+            <a href="#live-wire" className="hover:text-white transition">
+              Live Wire
             </a>
-            <a href="#transformations" className="hover:text-slate-800 transition">
-              Multi-Format Packaging
+            <a href="#privacy" className="hover:text-white transition">
+              Selective Privacy & OCR
             </a>
-            <a href="#features" className="hover:text-slate-800 transition">
-              Platform Features
+            <a href="#geo-clustering" className="hover:text-white transition">
+              Geo-Clustering
             </a>
-            <a href="#pricing" className="hover:text-slate-800 transition">
+            <a href="#packaging" className="hover:text-white transition">
+              Zero-Storage Playout
+            </a>
+            <a href="#pricing" className="hover:text-white transition">
               Station Pricing
             </a>
           </div>
 
-          {/* Primary Gateways */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            {/* Public Tip Line Action */}
+          {/* Primary Action Gateways */}
+          <div className="flex items-center space-x-3">
             <button
               onClick={() => onNavigate('submit')}
-              className="px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200/80 transition-all cursor-pointer active:scale-95 shadow-2xs"
+              className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-300 bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] transition-all cursor-pointer active:scale-95 shadow-sm"
             >
-              Submit a Tip
+              Submit Scoop
             </button>
 
-            {/* Editorial Desk Action */}
             <button
               onClick={() => onNavigate('desk')}
-              className="px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs active:scale-95"
+              className="px-4 py-1.5 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all flex items-center space-x-1.5 cursor-pointer shadow-lg shadow-blue-600/20 active:scale-95"
             >
               <span>Editorial Desk</span>
-              <ArrowRight className="w-3 h-3 text-slate-400" />
+              <ArrowRight className="w-3.5 h-3.5 text-white/80" />
             </button>
           </div>
         </div>
       </nav>
 
       {/* =========================================================================
-          HERO SECTION (Minimalist Typography & Live Precision Rhythm)
+          HERO SECTION (High-Impact Broadcast Headline + Live Intake Cockpit Video)
          ========================================================================= */}
-      <section className="relative pt-20 pb-20 md:pt-28 md:pb-28 overflow-hidden">
-        {/* Soft atmospheric gradient glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-gradient-to-tr from-slate-200/40 via-sky-100/30 to-indigo-50/20 rounded-full blur-3xl pointer-events-none -z-10" />
-
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          {/* Dynamic Rotating Headline (Clean Single-Element Render, Zero Ghosting) */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-[68px] font-bold tracking-tight text-slate-900 leading-[1.12] text-center">
-            <span className="block h-[1.28em] overflow-hidden">
-              <span
-                key={phraseIndex}
-                className="inline-block text-slate-700 animate-phrase-in"
-              >
-                {ROTATING_PHRASES[phraseIndex]}
-              </span>
+      <section className="relative pt-16 pb-20 md:pt-24 md:pb-28">
+        <div className="max-w-5xl mx-auto px-6 text-center">
+          {/* Breaking Wire Live Ticker Pill */}
+          <div className="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.12] mb-6 shadow-inner backdrop-blur-md">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+            <span className="text-[11px] font-mono tracking-widest uppercase text-slate-300 font-semibold">
+              Autonomous Breaking News Intake & Packaging
             </span>
-            <span className="text-slate-800 block mt-1">that moves at wire speed.</span>
+            <span className="text-slate-600">·</span>
+            <span className="text-[11px] font-mono text-emerald-400">Zero-Storage CDN</span>
+          </div>
+
+          {/* Main Headline */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.08] max-w-4xl mx-auto">
+            From raw citizen dispatch to broadcast wire{' '}
+            <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-sky-400 bg-clip-text text-transparent">
+              in seconds.
+            </span>
           </h1>
 
-          {/* Hero Subtitle */}
-          <p className="mt-6 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Turn eyewitness photo dispatches into verified, broadcast-ready news packages for TV, web, and
-            wire syndication — in seconds, with zero duplicate asset storage.
+          {/* Subtitle */}
+          <p className="mt-6 text-base sm:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed font-normal">
+            Verify eyewitness dispatches, selectively redact civilian bystanders, cluster multi-angle takes,
+            and syndicate to linear TV, reels, and feeds on-the-fly—powered by Cloudinary.
           </p>
 
-          {/* Dual Action Buttons */}
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+          {/* Action CTAs */}
+          <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             <button
-              onClick={() => onNavigate('submit')}
-              className="w-full sm:w-auto px-6 py-3 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
+              onClick={() => onNavigate('desk')}
+              className="w-full sm:w-auto px-7 py-3 rounded-full bg-white hover:bg-slate-100 text-slate-950 font-bold text-sm shadow-xl shadow-white/10 transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
             >
-              <UploadCloud className="w-4 h-4" />
-              <span>Submit Breaking Scoop</span>
+              <SlidersHorizontal className="w-4 h-4 text-slate-900" />
+              <span>Launch Editorial Desk</span>
             </button>
 
             <button
-              onClick={() => onNavigate('desk')}
-              className="w-full sm:w-auto px-6 py-3 rounded-full bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/80 font-semibold text-sm shadow-2xs transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
+              onClick={() => onNavigate('submit')}
+              className="w-full sm:w-auto px-6 py-3 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white border border-white/[0.12] font-semibold text-sm transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
             >
-              <SlidersHorizontal className="w-4 h-4 text-slate-500" />
-              <span>Launch Editorial Desk</span>
+              <UploadCloud className="w-4 h-4 text-slate-400" />
+              <span>Submit Eyewitness Scoop</span>
             </button>
+          </div>
+
+          {/* Metrics Strip */}
+          <div className="mt-12 pt-8 border-t border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl mx-auto text-left">
+            <div>
+              <div className="text-2xl font-extrabold font-mono text-white">0</div>
+              <div className="text-xs text-slate-500 font-medium mt-0.5">Duplicate Files Stored</div>
+            </div>
+            <div>
+              <div className="text-2xl font-extrabold font-mono text-emerald-400">&lt; 500ms</div>
+              <div className="text-xs text-slate-500 font-medium mt-0.5">SSE Intake Acknowledgement</div>
+            </div>
+            <div>
+              <div className="text-2xl font-extrabold font-mono text-blue-400">100%</div>
+              <div className="text-xs text-slate-500 font-medium mt-0.5">Bystander Privacy Compliance</div>
+            </div>
+            <div>
+              <div className="text-2xl font-extrabold font-mono text-purple-400">4 Formats</div>
+              <div className="text-xs text-slate-500 font-medium mt-0.5">Single Origin URL Chaining</div>
+            </div>
           </div>
         </div>
 
-        {/* =========================================================================
-            LAYERED HERO COCKPIT ARTWORK (Coco Alemana Layered Mockup Motif)
-           ========================================================================= */}
-        <div className="mt-16 max-w-5xl mx-auto px-6">
-          <div className="relative rounded-2xl bg-slate-900 p-2 sm:p-3 shadow-2xl border border-slate-800/80 ring-1 ring-white/10">
-            {/* Cockpit Window Top Bar */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 text-xs font-mono text-slate-400">
-              <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-                <span className="ml-2 font-sans font-semibold text-slate-300">
-                  PressWire Newsroom Cockpit
-                </span>
+        {/* HERO VIDEO SHOWCASE: Real-Time Inbound Wire Stream */}
+        <div id="live-wire" className="mt-14 max-w-5xl mx-auto px-6">
+          <div className="relative">
+            {/* Ambient Backlight Glow */}
+            <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-blue-600/30 via-indigo-600/20 to-purple-600/30 blur-xl opacity-60 pointer-events-none" />
+
+            <VideoPlayerCard
+              src="/demos/line_wire_real-time_intake.mp4"
+              title="PressWire Autonomous Intake & Dispatch Pipeline"
+              badge="LIVE WIRE INGESTION • SSE STREAM"
+              badgeColor="text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
+              aspectRatio="aspect-[16/8.2]"
+            />
+          </div>
+
+          {/* Telemetry Annotation under Hero Video */}
+          <div className="mt-3 flex flex-wrap items-center justify-between px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] text-[11px] font-mono text-slate-400 gap-2">
+            <div className="flex items-center space-x-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>Real-time intake stream with live SSE delivery & automated Rekognition moderation</span>
+            </div>
+            <span className="text-slate-500">Fast-forwarded 14× during network waiting</span>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          SECTION 2: SELECTIVE PRIVACY & LICENSE PLATE OCR (Feature 1 Video)
+         ========================================================================= */}
+      <section id="privacy" className="py-24 border-t border-white/[0.08] bg-[#0A0C10] relative">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            {/* Video Left */}
+            <div className="lg:col-span-7">
+              <VideoPlayerCard
+                src="/demos/license_plate_ocr.mp4"
+                title="Selective Face & Plate Redaction Engine"
+                badge="EXPLICIT API + OCR"
+                badgeColor="text-rose-400 bg-rose-500/10 border-rose-500/30"
+                aspectRatio="aspect-[16/8.6]"
+              />
+            </div>
+
+            {/* Content Right */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="inline-flex items-center space-x-1.5 text-xs font-mono font-semibold text-rose-400 uppercase tracking-wider">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Selective Privacy Redaction</span>
               </div>
-              <div className="flex items-center space-x-3">
-                <span className="text-[11px] text-emerald-400 font-mono flex items-center space-x-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
-                  <span>LIVE WIRE SYNC</span>
-                </span>
+
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                Protect innocent civilians. Keep public figures clear.
+              </h2>
+
+              <p className="text-sm text-slate-400 leading-relaxed font-normal">
+                Never blur elected officials or reporters; never expose accidental bystanders.
+                PressWire pushes selective bounding box coordinates directly to Cloudinary’s{' '}
+                <code className="text-rose-300 font-mono text-xs bg-rose-500/10 px-1 py-0.5 rounded">face_coordinates</code>{' '}
+                matrix—pixelating civilian faces and vehicle license plates on the edge without altering original media.
+              </p>
+
+              <div className="space-y-2.5 pt-2">
+                <div className="flex items-start space-x-3 text-xs text-slate-300">
+                  <div className="w-5 h-5 rounded-md bg-rose-500/10 border border-rose-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-rose-400 font-mono text-[10px] font-bold">01</span>
+                  </div>
+                  <span>
+                    <strong className="text-white font-semibold">1-Click Triage Canvas:</strong> Toggle detected faces between Exempt (Public Figure) and Redacted (Civilian).
+                  </span>
+                </div>
+
+                <div className="flex items-start space-x-3 text-xs text-slate-300">
+                  <div className="w-5 h-5 rounded-md bg-rose-500/10 border border-rose-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-rose-400 font-mono text-[10px] font-bold">02</span>
+                  </div>
+                  <span>
+                    <strong className="text-white font-semibold">Automated License Plate OCR:</strong> Recognizes plate text and draws targeted privacy bounds instantly.
+                  </span>
+                </div>
+
+                <div className="flex items-start space-x-3 text-xs text-slate-300">
+                  <div className="w-5 h-5 rounded-md bg-rose-500/10 border border-rose-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-rose-400 font-mono text-[10px] font-bold">03</span>
+                  </div>
+                  <span>
+                    <strong className="text-white font-semibold">Edge Pixelation:</strong> Deterministic <code className="text-rose-300 font-mono text-[11px]">e_pixelate_faces:9</code> blur rendered dynamically from a single origin.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          SECTION 3: SPATIOTEMPORAL GEO-CLUSTERING (Feature 2 Video)
+         ========================================================================= */}
+      <section id="geo-clustering" className="py-24 border-t border-white/[0.08] bg-[#08090C] relative">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            {/* Content Left */}
+            <div className="lg:col-span-5 space-y-4 order-2 lg:order-1">
+              <div className="inline-flex items-center space-x-1.5 text-xs font-mono font-semibold text-blue-400 uppercase tracking-wider">
+                <MapPin className="w-3.5 h-3.5" />
+                <span>Spatiotemporal Geo-Clustering</span>
+              </div>
+
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                Bundle multi-angle eyewitness dispatches automatically.
+              </h2>
+
+              <p className="text-sm text-slate-400 leading-relaxed font-normal">
+                Major breaking incidents generate multiple viewpoints across the same perimeter.
+                Paste any Google Maps link (<code className="text-blue-300 font-mono text-xs bg-blue-500/10 px-1 py-0.5 rounded">maps.app.goo.gl</code>) to set a canonical geo-anchor.
+                PressWire dynamically clusters all media within your perimeter radius into a unified story package.
+              </p>
+
+              <div className="space-y-2.5 pt-2">
+                <div className="flex items-start space-x-3 text-xs text-slate-300">
+                  <div className="w-5 h-5 rounded-md bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-blue-400 font-mono text-[10px] font-bold">01</span>
+                  </div>
+                  <span>
+                    <strong className="text-white font-semibold">Google Maps URL Resolution:</strong> Paste short or long Maps links; backend resolves canonical coordinates.
+                  </span>
+                </div>
+
+                <div className="flex items-start space-x-3 text-xs text-slate-300">
+                  <div className="w-5 h-5 rounded-md bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-blue-400 font-mono text-[10px] font-bold">02</span>
+                  </div>
+                  <span>
+                    <strong className="text-white font-semibold">Dynamic Perimeter Radius:</strong> Slide from 0.1 km to 10.0 km to expand or contract clustering bounds in real-time.
+                  </span>
+                </div>
+
+                <div className="flex items-start space-x-3 text-xs text-slate-300">
+                  <div className="w-5 h-5 rounded-md bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-blue-400 font-mono text-[10px] font-bold">03</span>
+                  </div>
+                  <span>
+                    <strong className="text-white font-semibold">Direct File Drop:</strong> Drop footage from your desktop straight onto any package card to ingest and cluster immediately.
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Mock Cockpit Content */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 p-3 bg-slate-950/60 rounded-b-xl">
-              {/* Left Column: Wire Feed Card */}
-              <div className="md:col-span-4 bg-slate-900/90 rounded-xl p-3.5 border border-slate-800 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-2">
-                    <span className="px-2 py-0.5 rounded bg-rose-950/80 text-rose-400 border border-rose-800/60 font-semibold">
-                      BREAKING
-                    </span>
-                    <span>14:32:08 UTC</span>
-                  </div>
-                  <h3 className="text-sm font-bold text-white tracking-tight line-clamp-2">
-                    4-ALARM STRUCTURE FIRE NEAR CIVIC CENTER CIVIC PLAZA
-                  </h3>
-                  <div className="mt-3 space-y-1.5 text-[11px] font-mono text-slate-400 bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Sensor:</span>
-                      <span className="text-slate-300">Sony Alpha 7 IV</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Shutter:</span>
-                      <span className="text-slate-300">1/250s • f/2.8</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">GPS Coords:</span>
-                      <span className="text-emerald-400">37.7793° N, 122.4192° W</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Faces Detected:</span>
-                      <span className="text-amber-400">2 (1 Civilian, 1 Official)</span>
-                    </div>
-                  </div>
-                </div>
+            {/* Video Right */}
+            <div className="lg:col-span-7 order-1 lg:order-2">
+              <VideoPlayerCard
+                src="/demos/spatiotemporal_geo-clustering.mp4"
+                title="Spatiotemporal Geo-Anchor & Perimeter Radius Slider"
+                badge="HAVERSINE + MAPS API"
+                badgeColor="text-blue-400 bg-blue-500/10 border-blue-500/30"
+                aspectRatio="aspect-[16/9.6]"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
-                <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-emerald-400 flex items-center space-x-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Waiver Signed</span>
-                  </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700/50">
-                    Ready to Syndicate
-                  </span>
-                </div>
+      {/* =========================================================================
+          SECTION 4: ZERO-STORAGE DYNAMIC SYNDICATION (Feature 3 Video + Chaining)
+         ========================================================================= */}
+      <section id="packaging" className="py-24 border-t border-white/[0.08] bg-[#0B0D12] relative">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <div className="inline-flex items-center space-x-1.5 text-xs font-mono font-semibold text-purple-400 uppercase tracking-wider mb-2">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Zero-Storage Dynamic Playout</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
+              One origin master. Infinite broadcast derivatives.
+            </h2>
+            <p className="mt-3 text-sm text-slate-400 leading-relaxed font-normal">
+              Never re-upload duplicates or maintain local render queues. Cloudinary deterministic URL chaining renders
+              linear TV chyrons, 9:16 vertical reels, and wire cards on-the-fly from a single master asset.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            {/* Video Showcase on Left */}
+            <div className="lg:col-span-7">
+              <VideoPlayerCard
+                src="/demos/zero_storage_cdn.mp4"
+                title="Live Multi-Format Broadcast & Reel Transformation"
+                badge="DYNAMIC URL CHAINING"
+                badgeColor="text-purple-400 bg-purple-500/10 border-purple-500/30"
+                aspectRatio="aspect-[16/9.6]"
+              />
+            </div>
+
+            {/* Interactive Transformation Inspector on Right */}
+            <div className="lg:col-span-5 space-y-4 bg-[#11141A] rounded-2xl p-6 border border-white/[0.08] shadow-2xl">
+              {/* Format Switcher Pills */}
+              <div className="grid grid-cols-2 gap-2">
+                {TRANSFORMATION_TABS.map((tab) => {
+                  const TabIcon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`p-2.5 rounded-xl text-xs font-semibold transition-all flex items-center space-x-2 cursor-pointer border text-left ${
+                        isActive
+                          ? 'bg-blue-600/20 text-blue-300 border-blue-500/40 shadow-sm'
+                          : 'bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.06] border-white/[0.06]'
+                      }`}
+                    >
+                      <TabIcon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
+                      <span className="truncate">{tab.label.split(' ')[0]} {tab.label.split(' ')[1]}</span>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Center & Right: Live Selective Face Redaction Canvas Simulation */}
-              <div className="md:col-span-8 bg-slate-900/90 rounded-xl p-3.5 border border-slate-800 flex flex-col">
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
-                  <div className="flex items-center space-x-2 text-xs font-semibold text-slate-300">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                    <span>Selective Face Triage Canvas</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
+              {/* Active Tab Specs */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-white">
+                  <span>{selectedTabData.label}</span>
+                  <span className="font-mono text-[10px] text-slate-400 bg-white/[0.05] px-2 py-0.5 rounded border border-white/[0.08]">
+                    {selectedTabData.resolution}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-slate-400 leading-relaxed">
+                  {selectedTabData.description}
+                </p>
+
+                {/* Cloudinary Syntax Code Box */}
+                <div className="mt-4 p-3 rounded-xl bg-black/60 border border-white/[0.08] font-mono text-xs">
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider font-semibold">
+                    <span>Cloudinary URL Chaining Syntax</span>
                     <button
-                      onClick={() => setBystanderRedacted(!bystanderRedacted)}
-                      className="px-2.5 py-1 text-[11px] font-mono rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition cursor-pointer"
+                      type="button"
+                      onClick={() => handleCopyCode(selectedTabData.transformationCode)}
+                      className="text-blue-400 hover:text-blue-300 flex items-center space-x-1 cursor-pointer"
                     >
-                      {bystanderRedacted ? (
-                        <>
-                          <EyeOff className="w-3 h-3 text-rose-400" />
-                          <span>Civilian: Redacted</span>
-                        </>
+                      {copiedCode ? (
+                        <span className="text-emerald-400 font-bold">COPIED</span>
                       ) : (
                         <>
-                          <Eye className="w-3 h-3 text-emerald-400" />
-                          <span>Civilian: Unblurred</span>
+                          <Copy className="w-3 h-3" />
+                          <span>COPY</span>
                         </>
                       )}
                     </button>
                   </div>
+                  <code className="text-emerald-400 break-all text-[11px] block leading-relaxed">
+                    /{selectedTabData.transformationCode}/
+                  </code>
                 </div>
 
-                <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-800 group">
-                  <img
-                    src={
-                      bystanderRedacted
-                        ? 'https://res.cloudinary.com/demo/image/upload/c_fill,ar_16:9,g_auto:faces,e_pixelate_faces:12/sample.jpg'
-                        : 'https://res.cloudinary.com/demo/image/upload/c_fill,ar_16:9,g_auto:faces/sample.jpg'
-                    }
-                    alt="Newsroom Preview"
-                    className="w-full h-full object-cover transition-all duration-300"
-                  />
-
-                  {/* Simulated lower-third overlay */}
-                  <div className="absolute bottom-3 left-3 right-3 p-2.5 rounded-lg bg-black/85 backdrop-blur-md border border-white/10 flex items-center justify-between">
-                    <div className="flex items-center space-x-2.5">
-                      <span className="px-2 py-0.5 bg-rose-600 text-white text-[10px] font-bold rounded uppercase tracking-wider">
-                        LIVE
-                      </span>
-                      <span className="text-xs font-semibold text-white tracking-tight">
-                        CIVIC CENTER EMERGENCY CREWS RESPONDING
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">
-                      16:9 LINEAR BROADCAST
-                    </span>
-                  </div>
-
-                  {/* Simulated Face Bounding Boxes */}
-                  {/* Face 1: Public Official (Exempt) */}
-                  <div className="absolute top-[22%] left-[34%] w-[16%] h-[24%] border-2 border-emerald-400/90 rounded bg-emerald-500/10 flex items-start justify-start p-1 pointer-events-none">
-                    <span className="text-[9px] font-mono font-bold bg-emerald-500 text-black px-1 rounded shadow-xs">
-                      PUBLIC FIGURE • EXEMPT
-                    </span>
-                  </div>
-
-                  {/* Face 2: Bystander (Civilian, Redacted) */}
-                  <div
-                    className={`absolute top-[28%] right-[26%] w-[15%] h-[22%] border-2 rounded transition-all duration-300 flex items-start justify-start p-1 pointer-events-none ${
-                      bystanderRedacted
-                        ? 'border-rose-400/90 bg-rose-500/20 backdrop-blur-md'
-                        : 'border-slate-400/60 bg-transparent'
-                    }`}
-                  >
-                    <span
-                      className={`text-[9px] font-mono font-bold px-1 rounded shadow-xs ${
-                        bystanderRedacted
-                          ? 'bg-rose-500 text-white'
-                          : 'bg-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {bystanderRedacted ? 'BYSTANDER • REDACTED' : 'BYSTANDER • RAW'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-2.5 border-t border-slate-800/80 text-[11px] font-mono text-slate-400 flex flex-wrap justify-between items-center gap-2">
-                  <div className="flex items-center space-x-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span>Dynamic CDN Privacy: Bystanders pixelated on edge</span>
-                  </div>
-                  <span className="text-blue-400 font-semibold">Zero duplicate files stored</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          SECTION 2: DEEP DARK SECTION (Coco Alemana Bento Section)
-          "Provenance & Safety Verification"
-         ========================================================================= */}
-      <section id="provenance" className="bg-[#181A1D] text-[#F5F5F7] py-24 sm:py-32">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center max-w-2xl mx-auto mb-16 sm:mb-20">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight">
-              Instant verification & safety for breaking journalism
-            </h2>
-            <p className="mt-4 text-base sm:text-lg text-slate-400 leading-relaxed">
-              Every eyewitness upload is automatically verified at intake. Camera hardware metadata,
-              spatial GPS matching, and Amazon Rekognition AI safety filters keep your newsroom secure before imagery ever reaches the wire.
-            </p>
-          </div>
-
-          {/* Bento Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Card 1: Sensor & Hardware Audit */}
-            <div className="bg-[#22252A] rounded-2xl p-6 border border-slate-800/80 flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
-                  <Camera className="w-5 h-5" />
-                </div>
-                <h3 className="text-lg font-bold text-white tracking-tight">
-                  Hardware & Camera Metadata
-                </h3>
-                <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                  Extracts raw lens aperture, sensor focal length, shutter timing, and digital
-                  capture timestamps directly from native EXIF packets.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-slate-400 space-y-1">
-                <div className="text-emerald-400 font-semibold">Sensor Payload Verified</div>
-                <div className="text-slate-500">Delta: +00:03:12 (Within tolerance)</div>
-              </div>
-            </div>
-
-            {/* Card 2: AI Content Moderation Engine */}
-            <div className="bg-[#22252A] rounded-2xl p-6 border border-slate-800/80 flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 mb-4">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <h3 className="text-lg font-bold text-white tracking-tight">
-                  Amazon Rekognition Safety
-                </h3>
-                <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                  Automated visual moderation audits graphic violence, blood, hate imagery,
-                  and content policy flags, quarantining questionable assets immediately.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-slate-400 space-y-1">
-                <div className="text-emerald-400 font-semibold">AI Safety Audit Verified</div>
-                <div className="text-slate-500">Quarantine Gate: PASS</div>
-              </div>
-            </div>
-
-            {/* Card 3: Geolocation & Spatial Verification */}
-            <div className="bg-[#1F2123] rounded-2xl p-6 border border-slate-800 flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4">
-                  <MapPin className="w-5 h-5" />
-                </div>
-                <h3 className="text-lg font-bold text-white tracking-tight">
-                  Verified GPS Geolocation
-                </h3>
-                <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                  Cross-references device GPS coordinates against reported scene locations, logging
-                  auditable coordinates for downstream wire subscribers.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-slate-400 space-y-1">
-                <div className="text-amber-400 font-semibold">📍 Civic Center Metro Radius</div>
-                <div className="text-slate-500">Accuracy: ±12 meters</div>
-              </div>
-            </div>
-
-            {/* Wide Card: Cloudinary Selective Privacy Explicit API Engine */}
-            <div className="md:col-span-3 bg-[#1F2123] rounded-2xl p-6 sm:p-8 border border-slate-800">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-                <div className="lg:col-span-5">
-                  <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-blue-950 border border-blue-800 text-[11px] font-mono text-blue-300 mb-3">
-                    <Sparkles className="w-3 h-3 text-blue-400" />
-                    <span>Selective Privacy Matrix</span>
-                  </div>
-                  <h3 className="text-2xl font-bold text-white tracking-tight">
-                    Zero-Damage Privacy Redaction
-                  </h3>
-                  <p className="mt-3 text-sm text-slate-400 leading-relaxed">
-                    Unlike destructive desktop blur tools that permanently overwrite pixels,
-                    PressWire manipulates Cloudinary’s coordinate metadata via the Explicit API.
-                    Bystanders are pixelated on the CDN edge while original high-res masters remain
-                    untouched for historical legal archives.
-                  </p>
-                </div>
-
-                <div className="lg:col-span-7 bg-slate-950 p-4 rounded-xl border border-slate-800/80 font-mono text-xs overflow-x-auto text-slate-300">
-                  <div className="text-slate-500 mb-1">// Cloudinary Face Coordinate Manipulation</div>
-                  <div className="text-purple-400">
-                    cloudinary.uploader.explicit(
-                    <span className="text-amber-300">"presswire/ingest/civic_fire_01"</span>,
-                  </div>
-                  <div className="pl-4 text-slate-300">
-                    type=<span className="text-emerald-300">"upload"</span>,
-                  </div>
-                  <div className="pl-4 text-slate-300">
-                    face_coordinates=[
-                    <span className="text-blue-300">[240, 110, 85, 90]</span>
-                    <span className="text-slate-500"> /* Bystander Coordinates Only */</span>]
-                  </div>
-                  <div className="text-purple-400">)</div>
-                  <div className="mt-2 text-slate-500">// Resulting Public Syndication CDN URL</div>
-                  <div className="text-emerald-400 break-all">
-                    https://res.cloudinary.com/.../c_fill,ar_16:9,e_pixelate_faces:9/civic_fire_01.jpg
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          SECTION 3: SOFT GRAY SECTION WITH INTERACTIVE TABBED SHOWCASE
-          (Matches Coco Alemana's TabGroup Pattern)
-         ========================================================================= */}
-      <section id="transformations" className="bg-[#F5F5F7] text-slate-900 py-24 sm:py-32">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900 leading-tight">
-              One origin asset. Infinite broadcast outputs.
-            </h2>
-            <p className="mt-4 text-base sm:text-lg text-slate-600 leading-relaxed">
-              Never re-upload duplicates or maintain local render queues. Every linear broadcast,
-              social reel, and wire card is rendered dynamically on-the-fly via Cloudinary URLs.
-            </p>
-          </div>
-
-          {/* Tab Menu Pills */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-            {TRANSFORMATION_TABS.map((tab) => {
-              const TabIcon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2.5 rounded-full text-xs font-semibold transition-all flex items-center space-x-2 cursor-pointer shadow-2xs ${
-                    isActive
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/80'
-                  }`}
-                >
-                  <TabIcon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-400' : 'text-slate-500'}`} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Active Tab Preview Card */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 sm:p-8 shadow-xs border border-slate-200/80">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              {/* Media Preview Visualizer */}
-              <div className="lg:col-span-7">
-                <div
-                  className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-200/80 shadow-inner flex items-center justify-center max-h-[380px]"
-                  style={{
-                    aspectRatio:
-                      selectedTabData.id === 'social' ? '9/16' : selectedTabData.aspectRatio,
-                    maxWidth: selectedTabData.id === 'social' ? '240px' : '100%',
-                    margin: selectedTabData.id === 'social' ? '0 auto' : '0',
-                  }}
-                >
-                  <img
-                    src={selectedTabData.previewUrl}
-                    alt={selectedTabData.label}
-                    className="w-full h-full object-cover"
-                  />
-
-                  {/* Dynamic Lower Third Simulation on 16:9 Broadcast */}
-                  {selectedTabData.id === 'broadcast' && (
-                    <div className="absolute bottom-3 left-3 right-3 p-3 bg-black/85 backdrop-blur-md rounded-xl border border-white/10">
-                      <div className="flex items-center space-x-2">
-                        <span className="px-2 py-0.5 rounded bg-[#D90429] text-white text-[10px] font-bold tracking-wider uppercase">
-                          BREAKING WIRE
-                        </span>
-                        <span className="text-xs font-bold text-white tracking-tight truncate">
-                          INCIDENT MONITORED NEAR DOWNTOWN
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Format Badge Indicator */}
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-black/70 backdrop-blur-xs text-[10px] font-mono text-white border border-white/20">
-                    {selectedTabData.badge}
-                  </div>
-                </div>
-              </div>
-
-              {/* Transformation Specifications */}
-              <div className="lg:col-span-5 flex flex-col justify-between">
-                <div>
-                  <span className="text-xs font-mono font-semibold uppercase text-blue-600 tracking-wider">
-                    Dynamic Broadcast Packaging
+                <div className="mt-5 pt-4 border-t border-white/[0.06] flex items-center justify-between">
+                  <span className="text-[11px] text-slate-500 font-mono">
+                    Zero local rendering required
                   </span>
-                  <h3 className="text-2xl font-bold text-slate-900 tracking-tight mt-1">
-                    {selectedTabData.label}
-                  </h3>
-                  <p className="mt-3 text-sm text-slate-600 leading-relaxed">
-                    {selectedTabData.description}
-                  </p>
-
-                  <div className="mt-5 p-3.5 rounded-xl bg-slate-900 text-slate-200 font-mono text-xs border border-slate-800">
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
-                      <span>CLOUDINARY TRANSFORMATION SYNTAX</span>
-                      <button
-                        onClick={() => handleCopyCode(selectedTabData.transformationCode)}
-                        className="text-blue-400 hover:text-blue-300 flex items-center space-x-1 cursor-pointer"
-                      >
-                        {copiedUrl ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-400" />
-                            <span className="text-emerald-400">Copied</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            <span>Copy Syntax</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <code className="text-emerald-400 break-all">
-                      /{selectedTabData.transformationCode}/
-                    </code>
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                  <a
-                    href={selectedTabData.previewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg flex items-center space-x-1.5 transition cursor-pointer"
-                    title="Open this transformed asset directly from Cloudinary CDN in a new browser tab"
-                  >
-                    <span>Open Raw CDN URL</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
-                  </a>
-
                   <button
                     onClick={() => onNavigate('desk')}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-500 flex items-center space-x-1 cursor-pointer"
+                    className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center space-x-1 cursor-pointer"
                   >
-                    <span>Test on Live Wire</span>
+                    <span>Test on Live Desk</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -650,139 +614,155 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
       </section>
 
       {/* =========================================================================
-          SECTION 4: 4-COLUMN FEATURE GRID (Coco Alemana Performance Matrix)
+          SECTION 5: HACKATHON ARCHITECTURE & PRODUCTION READINESS BENTO
          ========================================================================= */}
-      <section id="features" className="py-24 sm:py-32 bg-white">
-        <div className="max-w-5xl mx-auto px-6">
+      <section className="py-24 border-t border-white/[0.08] bg-[#08090C]">
+        <div className="max-w-6xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
-              Move at wire speed with zero limits
+            <div className="inline-flex items-center space-x-1.5 text-xs font-mono font-semibold text-blue-400 uppercase tracking-wider mb-2">
+              <Zap className="w-3.5 h-3.5" />
+              <span>Production Architecture</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+              Engineered for broadcast wire speed
             </h2>
-            <p className="mt-4 text-base sm:text-lg text-slate-600">
-              Built for high-pressure editorial control rooms where seconds determine exclusive
-              coverage and copyright liability.
+            <p className="mt-3 text-sm text-slate-400 leading-relaxed font-normal">
+              Built on battle-tested Cloudinary APIs to solve the four critical vulnerabilities of breaking journalism:
+              latency, copyright risk, privacy non-compliance, and viral bandwidth bills.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* Feature 1 */}
-            <div className="flex flex-col">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 mb-4">
-                <Layers className="w-5 h-5 text-blue-600" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Bento 1: Zero Storage */}
+            <div className="p-6 rounded-2xl bg-[#0F1218] border border-white/[0.08] hover:border-blue-500/30 transition-all flex flex-col justify-between">
+              <div>
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 mb-4">
+                  <Layers className="w-4.5 h-4.5" />
+                </div>
+                <h4 className="text-sm font-bold text-white tracking-tight">
+                  Zero-Duplicate Storage
+                </h4>
+                <p className="mt-2 text-xs text-slate-400 leading-relaxed">
+                  Never duplicate assets. A single master origin is transformed on-the-fly into 16:9 TV, 9:16 reels, and 1:1 wire cards via deterministic URL chaining.
+                </p>
               </div>
-              <h4 className="text-base font-bold text-slate-900 tracking-tight">
-                Zero-Duplicate Storage
-              </h4>
-              <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                Save petabytes of storage. Single master origin transforms into linear, social, and
-                web crops dynamically via Cloudinary.
-              </p>
+              <div className="mt-4 pt-3 border-t border-white/[0.06] text-[10px] font-mono text-blue-400 font-semibold uppercase">
+                Cloudinary Transformations
+              </div>
             </div>
 
-            {/* Feature 2 */}
-            <div className="flex flex-col">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 mb-4">
-                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+            {/* Bento 2: Legal Copyright Waiver */}
+            <div className="p-6 rounded-2xl bg-[#0F1218] border border-white/[0.08] hover:border-emerald-500/30 transition-all flex flex-col justify-between">
+              <div>
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-4">
+                  <Lock className="w-4.5 h-4.5" />
+                </div>
+                <h4 className="text-sm font-bold text-white tracking-tight">
+                  1-Click Copyright Waiver
+                </h4>
+                <p className="mt-2 text-xs text-slate-400 leading-relaxed">
+                  Mobile intake mandates an irrevocable worldwide broadcast copyright license before ingestion, completely insulating syndication networks.
+                </p>
               </div>
-              <h4 className="text-base font-bold text-slate-900 tracking-tight">
-                1-Click Copyright Waiver
-              </h4>
-              <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                Eyewitness intake mandates an irrevocable worldwide broadcast copyright release
-                before ingestion, insulating syndicators.
-              </p>
+              <div className="mt-4 pt-3 border-t border-white/[0.06] text-[10px] font-mono text-emerald-400 font-semibold uppercase">
+                Legal Indemnification
+              </div>
             </div>
 
-            {/* Feature 3 */}
-            <div className="flex flex-col">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 mb-4">
-                <Globe className="w-5 h-5 text-indigo-600" />
+            {/* Bento 3: AI Safety & Rekognition */}
+            <div className="p-6 rounded-2xl bg-[#0F1218] border border-white/[0.08] hover:border-rose-500/30 transition-all flex flex-col justify-between">
+              <div>
+                <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-4">
+                  <ShieldAlert className="w-4.5 h-4.5" />
+                </div>
+                <h4 className="text-sm font-bold text-white tracking-tight">
+                  Automated Content Safety
+                </h4>
+                <p className="mt-2 text-xs text-slate-400 leading-relaxed">
+                  Raw EXIF hardware telemetry and Amazon Rekognition AI moderation filters quarantine graphic violence and NSFW content before reaching editorial review.
+                </p>
               </div>
-              <h4 className="text-base font-bold text-slate-900 tracking-tight">
-                Sub-Second Edge Delivery
-              </h4>
-              <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                Cloudinary’s multi-region CDN caches transformed derivatives globally for instant
-                wire syndication and fast affiliate downloads.
-              </p>
+              <div className="mt-4 pt-3 border-t border-white/[0.06] text-[10px] font-mono text-rose-400 font-semibold uppercase">
+                Zero-Trust Quarantine
+              </div>
             </div>
 
-            {/* Feature 4 */}
-            <div className="flex flex-col">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-800 mb-4">
-                <SlidersHorizontal className="w-5 h-5 text-rose-600" />
+            {/* Bento 4: Bandwidth Protection */}
+            <div className="p-6 rounded-2xl bg-[#0F1218] border border-white/[0.08] hover:border-purple-500/30 transition-all flex flex-col justify-between">
+              <div>
+                <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-4">
+                  <Download className="w-4.5 h-4.5" />
+                </div>
+                <h4 className="text-sm font-bold text-white tracking-tight">
+                  Bandwidth Bill Protection
+                </h4>
+                <p className="mt-2 text-xs text-slate-400 leading-relaxed">
+                  1-click full-resolution master downloads empower affiliates to ingest footage directly, safeguarding newsrooms against viral cloud egress bandwidth charges.
+                </p>
               </div>
-              <h4 className="text-base font-bold text-slate-900 tracking-tight">
-                6 Fixed News Desks
-              </h4>
-              <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-                Public Safety, Severe Weather, Politics & Civic, Transit & Infrastructure, Metro & Local, and General Wire.
-                Deterministic taxonomy with breaking urgency flags.
-              </p>
+              <div className="mt-4 pt-3 border-t border-white/[0.06] text-[10px] font-mono text-purple-400 font-semibold uppercase">
+                Cost Guardrail Engine
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* =========================================================================
-          SECTION: B2B STATION PRICING & PACKAGING (Coco Alemana Pricing Motif)
+          SECTION 6: STATION PRICING & LICENSING (Moody Dark Cards)
          ========================================================================= */}
-      <section id="pricing" className="py-24 sm:py-32 bg-[#F8F9FA] border-t border-slate-200/60">
-        <div className="max-w-5xl mx-auto px-6">
+      <section id="pricing" className="py-24 border-t border-white/[0.08] bg-[#0A0C10]">
+        <div className="max-w-6xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-slate-700 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-2xs">
+            <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-400 bg-white/[0.05] px-3 py-1 rounded-full border border-white/[0.1]">
               Station Packaging & Licensing
             </span>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mt-3">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-3">
               Engineered for broadcast newsrooms of every scale
             </h2>
-            <p className="mt-4 text-base sm:text-lg text-slate-600">
-              Simple pricing per broadcast market (DMA). Zero per-seat charges for rotating shift producers.
+            <p className="mt-3 text-sm text-slate-400">
+              Clear pricing per broadcast market (DMA). Zero per-seat charges for rotating control room producers.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch max-w-5xl mx-auto">
             {/* Tier 1: Local Station */}
-            <div className="bg-white rounded-2xl p-7 border border-slate-200/80 shadow-2xs flex flex-col justify-between">
+            <div className="bg-[#101319] rounded-2xl p-7 border border-white/[0.08] flex flex-col justify-between hover:border-white/20 transition-all">
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-bold text-slate-900 uppercase tracking-wider">Local Station</span>
-                  <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Single DMA</span>
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">Independent Station</span>
+                  <span className="text-[10px] font-mono text-slate-400 bg-white/[0.05] px-2 py-0.5 rounded border border-white/[0.08]">Single DMA</span>
                 </div>
                 <div className="flex items-baseline space-x-1 mb-4">
-                  <span className="text-4xl font-extrabold text-slate-900 tracking-tight">$1,800</span>
-                  <span className="text-sm text-slate-500 font-medium">/ month</span>
+                  <span className="text-4xl font-extrabold text-white tracking-tight">$1,800</span>
+                  <span className="text-xs text-slate-400 font-medium">/ month</span>
                 </div>
-                <p className="text-xs text-slate-600 mb-6 leading-relaxed">
-                  Ideal for standalone independent TV affiliates and metro digital desks needing fast eyewitness intake.
+                <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+                  Ideal for standalone TV affiliates and metro digital desks needing fast eyewitness intake.
                 </p>
-                <div className="space-y-3 pt-6 border-t border-slate-100 text-xs text-slate-700">
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
-                    <span>1 White-Label Station Tip Line (<code className="font-mono text-[11px] text-slate-500">tips.station.com</code>)</span>
+                <div className="space-y-3 pt-6 border-t border-white/[0.06] text-xs text-slate-300">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
+                    <span>White-Label Station Tip Line</span>
                   </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
-                    <span>Mandatory Broadcast Copyright Release Waiver</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
+                    <span>Irrevocable Copyright Release Waiver</span>
                   </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
-                    <span>Explicit API Face Privacy Redaction</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
+                    <span>Explicit API Face & OCR Redaction</span>
                   </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
-                    <span>Dynamic 16:9 Linear & 9:16 Social Packaging</span>
-                  </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
-                    <span>500 Cloudinary Broadcast CDN Hours</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
+                    <span>Dynamic 16:9 & 9:16 Packaging</span>
                   </div>
                 </div>
               </div>
               <div className="mt-8 pt-4">
                 <button
                   onClick={() => onNavigate('desk')}
-                  className="w-full py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold text-xs transition cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white font-semibold text-xs transition cursor-pointer border border-white/[0.1]"
                 >
                   Launch Station Demo
                 </button>
@@ -790,48 +770,48 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             </div>
 
             {/* Tier 2: Broadcast Group (Featured) */}
-            <div className="bg-[#1A1C20] text-white rounded-2xl p-7 border border-slate-700/80 shadow-md flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-200 border border-slate-700">
+            <div className="bg-[#131720] text-white rounded-2xl p-7 border-2 border-blue-500/50 shadow-2xl shadow-blue-500/10 flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-[10px] font-semibold uppercase tracking-wider text-blue-300 border border-blue-500/40">
                 Most Popular
               </div>
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-bold text-white uppercase tracking-wider">Station Group</span>
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Station Group</span>
                 </div>
                 <div className="flex items-baseline space-x-1 mb-4">
                   <span className="text-4xl font-extrabold text-white tracking-tight">$8,500</span>
-                  <span className="text-sm text-slate-400 font-medium">/ month</span>
+                  <span className="text-xs text-slate-400 font-medium">/ month</span>
                 </div>
                 <p className="text-xs text-slate-300 mb-6 leading-relaxed">
-                  For regional broadcast networks (Nexstar, Sinclair, Tegna) managing multi-market sister stations.
+                  For regional broadcast networks managing multi-market sister stations with shared wire pools.
                 </p>
-                <div className="space-y-3 pt-6 border-t border-slate-800 text-xs text-slate-300">
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
+                <div className="space-y-3 pt-6 border-t border-white/[0.1] text-xs text-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
                     <span>Up to 15 Broadcast Sister Stations</span>
                   </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
                     <span>Cross-Station Wire Sharing & Live Pool Feeds</span>
                   </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
                     <span>Custom Station Lower-Third Chyrons & Logos</span>
                   </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
-                    <span>Unlimited Dynamic URL Transformations</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                    <span>Spatiotemporal Geo-Anchor Engine</span>
                   </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
-                    <span>Priority 24/7 Breaking News Desk Support</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                    <span>Unlimited Dynamic URL Transformations</span>
                   </div>
                 </div>
               </div>
               <div className="mt-8 pt-4">
                 <button
                   onClick={() => onNavigate('desk')}
-                  className="w-full py-2.5 rounded-full bg-white hover:bg-slate-100 text-slate-900 font-semibold text-xs shadow-2xs transition cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 transition cursor-pointer"
                 >
                   Launch Group Demo
                 </button>
@@ -839,33 +819,33 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             </div>
 
             {/* Tier 3: Enterprise Network */}
-            <div className="bg-white rounded-2xl p-7 border border-slate-200/80 shadow-2xs flex flex-col justify-between">
+            <div className="bg-[#101319] rounded-2xl p-7 border border-white/[0.08] flex flex-col justify-between hover:border-white/20 transition-all">
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-bold text-slate-900 uppercase tracking-wider">Enterprise Network</span>
-                  <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">Custom SLA</span>
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider">National Network</span>
+                  <span className="text-[10px] font-mono text-slate-400 bg-white/[0.05] px-2 py-0.5 rounded border border-white/[0.08]">Custom SLA</span>
                 </div>
                 <div className="flex items-baseline space-x-1 mb-4">
-                  <span className="text-4xl font-extrabold text-slate-900 tracking-tight">Enterprise</span>
+                  <span className="text-4xl font-extrabold text-white tracking-tight">Enterprise</span>
                 </div>
-                <p className="text-xs text-slate-600 mb-6 leading-relaxed">
-                  For national wire services and conglomerates requiring direct broadcast playout and custom compliance.
+                <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+                  For national wire services requiring direct master playout downloads and custom legal indemnity.
                 </p>
-                <div className="space-y-3 pt-6 border-t border-slate-100 text-xs text-slate-700">
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
-                    <span>Dedicated Cloudinary Bring-Your-Own-Cloud (BYOC)</span>
+                <div className="space-y-3 pt-6 border-t border-white/[0.06] text-xs text-slate-300">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
+                    <span>Dedicated Bring-Your-Own-Cloud (BYOC)</span>
                   </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
-                    <span>1-Click Master Full-Resolution Playout Downloads</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
+                    <span>1-Click Full-Resolution Playout Downloads</span>
                   </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
-                    <span>C2PA Hardware Content Credentials Attestation</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
+                    <span>C2PA Hardware Content Credentials</span>
                   </div>
-                  <div className="flex items-start space-x-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0 mt-1.5" />
+                  <div className="flex items-center space-x-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
                     <span>Complete Legal Indemnification & Provenance Logs</span>
                   </div>
                 </div>
@@ -873,9 +853,9 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
               <div className="mt-8 pt-4">
                 <button
                   onClick={() => onNavigate('desk')}
-                  className="w-full py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white font-semibold text-xs transition cursor-pointer border border-white/[0.1]"
                 >
-                  Explore Enterprise Cockpit
+                  Contact Enterprise Team
                 </button>
               </div>
             </div>
@@ -884,84 +864,86 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
       </section>
 
       {/* =========================================================================
-          SECTION 5: FINAL CALL TO ACTION (Coco Alemana Closing Section)
+          FINAL HIGH-IMPACT CALL TO ACTION
          ========================================================================= */}
-      <section className="py-24 sm:py-32 bg-[#F8F9FA] border-t border-slate-200/60">
-        <div className="max-w-3xl mx-auto px-6 text-center">
+      <section className="py-24 border-t border-white/[0.08] bg-[#08090C] relative">
+        <div className="max-w-4xl mx-auto px-6 text-center">
           <div className="mb-6 flex justify-center">
-            <PressWireLogo size="2xl" variant="mark" />
+            <PressWireLogo size="2xl" variant="mark" theme="dark" />
           </div>
 
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-            PressWire
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white">
+            The wire speed advantage.
           </h2>
-          <p className="mt-3 text-base sm:text-lg text-slate-600">
-            The autonomous breaking newsroom engine.
+          <p className="mt-4 text-base text-slate-400 max-w-xl mx-auto leading-relaxed">
+            Move from breaking eyewitness uploads to television and social syndication in seconds.
+            Zero storage overhead. Zero copyright ambiguity.
           </p>
 
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             <button
-              onClick={() => onNavigate('submit')}
-              className="w-full sm:w-auto px-6 py-3 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
+              onClick={() => onNavigate('desk')}
+              className="w-full sm:w-auto px-7 py-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl shadow-blue-600/20 transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
             >
-              <UploadCloud className="w-4 h-4" />
-              <span>Submit a Tip</span>
+              <SlidersHorizontal className="w-4 h-4 text-white" />
+              <span>Launch Editorial Desk</span>
             </button>
 
             <button
-              onClick={() => onNavigate('desk')}
-              className="w-full sm:w-auto px-6 py-3 rounded-full bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/80 font-semibold text-sm shadow-2xs transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
+              onClick={() => onNavigate('submit')}
+              className="w-full sm:w-auto px-6 py-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/[0.12] font-semibold text-sm transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
             >
-              <SlidersHorizontal className="w-4 h-4 text-slate-500" />
-              <span>Open Editorial Desk</span>
+              <UploadCloud className="w-4 h-4 text-slate-400" />
+              <span>Submit Eyewitness Tip</span>
             </button>
           </div>
         </div>
       </section>
 
       {/* =========================================================================
-          FOOTER (Coco Alemana Minimal 3-Column Footer)
+          MOODY DARK FOOTER
          ========================================================================= */}
-      <footer className="bg-[#F8F9FA] border-t border-slate-200/60 py-12 text-xs text-slate-500">
-        <div className="max-w-5xl mx-auto px-6">
+      <footer className="bg-[#050608] border-t border-white/[0.08] py-12 text-xs text-slate-500">
+        <div className="max-w-6xl mx-auto px-6">
           <div className="mb-8">
-            <PressWireLogo size="md" variant="full" />
+            <PressWireLogo size="md" variant="full" theme="dark" />
           </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
             <div>
-              <div className="font-semibold text-slate-900 mb-3">Platform</div>
+              <div className="font-semibold text-slate-300 mb-3 uppercase tracking-wider text-[11px]">Platform</div>
               <ul className="space-y-2">
                 <li>
                   <button
                     onClick={() => onNavigate('desk')}
-                    className="hover:text-slate-900 cursor-pointer"
+                    className="hover:text-white cursor-pointer transition"
                   >
-                    Editorial Desk
+                    Editorial Control Desk
                   </button>
                 </li>
                 <li>
                   <button
                     onClick={() => onNavigate('submit')}
-                    className="hover:text-slate-900 cursor-pointer"
+                    className="hover:text-white cursor-pointer transition"
                   >
                     Public Tip Line
                   </button>
                 </li>
                 <li>
-                  <a href="#transformations" className="hover:text-slate-900">
-                    Cloudinary Pipeline
+                  <a href="#packaging" className="hover:text-white transition">
+                    Cloudinary Transformation Pipeline
                   </a>
                 </li>
                 <li>
-                  <a href="#provenance" className="hover:text-slate-900">
-                    EXIF Provenance Engine
+                  <a href="#geo-clustering" className="hover:text-white transition">
+                    Spatiotemporal Clustering
                   </a>
                 </li>
               </ul>
             </div>
 
             <div>
-              <div className="font-semibold text-slate-900 mb-3">6 Fixed News Desks</div>
+              <div className="font-semibold text-slate-300 mb-3 uppercase tracking-wider text-[11px]">6 Fixed News Desks</div>
               <ul className="space-y-2">
                 <li>Public Safety</li>
                 <li>Severe Weather</li>
@@ -973,35 +955,34 @@ export const BrandHome: React.FC<BrandHomeProps> = ({ onNavigate }) => {
             </div>
 
             <div>
-              <div className="font-semibold text-slate-900 mb-3">Legal & Provenance</div>
+              <div className="font-semibold text-slate-300 mb-3 uppercase tracking-wider text-[11px]">Legal & Provenance</div>
               <ul className="space-y-2">
                 <li>Irrevocable Broadcast Waiver</li>
                 <li>C2PA Content Credentials</li>
-                <li>Civilian Privacy Redaction</li>
-                <li>Terms of Syndication</li>
+                <li>Explicit API Face Redaction</li>
+                <li>Vehicle Plate OCR Protection</li>
               </ul>
             </div>
 
             <div>
-              <div className="font-semibold text-slate-900 mb-3">System Telemetry</div>
+              <div className="font-semibold text-slate-300 mb-3 uppercase tracking-wider text-[11px]">System Telemetry</div>
               <div className="space-y-2 text-[11px] font-mono">
-                <div className="flex items-center space-x-1.5 text-emerald-600 font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>CDN Nodes Operational</span>
+                <div className="flex items-center space-x-1.5 text-emerald-400 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>CDN Nodes Active</span>
                 </div>
                 <div>Storage Model: Zero-Duplicate</div>
-                <div>Engine: Cloudinary Media SDK</div>
-                <div>UTC Time Synced</div>
+                <div>Engine: Cloudinary Media API</div>
+                <div>Moderation: AWS Rekognition</div>
               </div>
             </div>
           </div>
 
-          <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
+          <div className="pt-6 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
             <div>
-              Copyright © {new Date().getFullYear()} PressWire Inc. Powered by Cloudinary. All rights
-              reserved.
+              PressWire — Autonomous Breaking Newsroom Engine. Powered by Cloudinary.
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 font-mono text-slate-400">
               <span>presswire.news</span>
               <span>•</span>
               <span>v1.2.0</span>
