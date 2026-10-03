@@ -9,7 +9,7 @@ This document outlines the core architectural bottlenecks, data durability liabi
 | Issue ID | Architectural Area | Problem Description | Severity | Target Resolution |
 | :--- | :--- | :--- | :---: | :--- |
 | **PW-01** | **Data Durability & Sync** | Ephemeral In-Memory `WIRE_STORE` causes total data loss on restart and desync across multiple ASGI workers. | ✅ **Resolved** | Resolved via Async SQLAlchemy 2.0 + SQLite WAL persistent store (`PersistentAssetStore`). Survives process restarts with zero-latency in-memory cache. |
-| **PW-02** | **Graphics & Syndication** | Generic burned-in lower-thirds are rejected by broadcast TV control rooms; clean feed vs. packaged social feeds are conflated. | ⚠️ **High** | Dual-Delivery Architecture: Clean Broadcast Master (with sidecar IPTC/JSON) + Branded Social/Digital Derivatives via Cloudinary template overlays. |
+| **PW-02** | **Graphics & Syndication** | Generic burned-in lower-thirds are rejected by broadcast TV control rooms; clean feed vs. packaged social feeds are conflated. | ✅ **Resolved** | Resolved via Dual-Delivery Engine: Clean Broadcast Master (`broadcast_16_9_clean`) without text + Station Themes / Custom PNG bug overlays (`broadcast_16_9_branded`) + IPTC Sidecar JSON (`/sidecar`). |
 | **PW-03** | **Real-Time Latency** | 10-second polling cycle (`setInterval`) causes ingest lag, missed breaking footage, and state overwrite jitter. | ✅ **Resolved** | Resolved via native Server-Sent Events (`WireBroadcaster` + `/stream`) delivering sub-200ms real-time event push to React desk with breaking wire notification toasts. |
 | **PW-04** | **Multi-Editor Concurrency** | Zero conflict resolution or optimistic locking; simultaneous editor saves cause silent overwrites. | ⚠️ **High** | Optimistic concurrency control via `version_id` / `ETag` headers and field-level patch updates. |
 | **PW-05** | **Cloud Bandwidth Egress** | Direct Cloudinary origin links shared in syndication expose platform accounts to runaway bandwidth billing. | ⚠️ **High** | 1-Click Master Downloads, expiring signed URLs, and CDN Origin Shielding. |
@@ -49,15 +49,23 @@ WIRE_STORE: Dict[str, MediaAssetResponse] = {}
 #### 1. The Root Cause
 Linear television networks and local affiliates operate multi-million dollar graphics engines (Vizrt, Chyron, Ross Xpression). They strictly reject burned-in generic lower-third banners with standard Arial fonts because they violate brand guidelines and collide with live control room graphics.
 
-#### 2. The Resolution Architecture
-Implement **Dual-Delivery Packaging**:
+#### 2. The Resolution Architecture (✅ Resolved)
+Implemented **Dual-Delivery & Broadcast Station Branding Engine**:
 1. **Clean Broadcast Master (`broadcast_16_9_clean`)**:
-   - `c_fill,ar_16:9,g_auto:subject` + selective face redaction.
-   - **Zero burned-in text or graphics.**
-   - Companion sidecar JSON metadata (`headline`, `byline`, `location`, `timestamp`) ready for the station's Character Generator.
-2. **Packaged Digital Deliverable (`social_9_16` / `web_16_9`)**:
-   - For web CMS, YouTube, Instagram Reels, and TikTok where immediate burned-in context is essential.
-   - Cloudinary custom transparent template overlays (`l_templates:<station_id>_strap,g_south,y_0`) and custom corporate font uploads (`l_text:<font_name>:<headline>`).
+   - `c_fill,ar_16:9,g_auto:subject` (or focal coordinates) + selective face redaction.
+   - **Zero burned-in text, lower thirds, or channel logos.**
+   - Tailored specifically for broadcast control rooms (MCR) to feed directly into Vizrt/Chyron character generators.
+2. **Packaged Digital Deliverables (`broadcast_16_9_branded`, `social_9_16`, `feed_1_1`)**:
+   - Station Graphics Profile selector (`Global Wire`, `Metro 24`, `Severe Alert`).
+   - Dynamic Custom Station Bug / Strap Upload (`POST /api/v1/editorial/branding/upload`) layering station PNG graphics via Cloudinary `l_<public_id>` relative overlays.
+3. **Broadcast Automation Sidecar JSON (`GET /api/v1/editorial/sidecar/{public_id}`)**:
+   - Delivers machine-readable companion IPTC metadata (`headline`, `incident_type`, `urgency`, `capture_time`, `upload_time`, `camera_make`, `camera_model`, `gps_latitude`, `gps_longitude`, `waiver_signed`, `c2pa_hardware_proof`, `clean_master_url`).
+4. **Newsroom Playout Controller UI (`ProvenanceCard.tsx`)**:
+   - Added Dual-Delivery segmented mode switch: `Clean MCR Feed` vs `Branded Digital`.
+   - 1-click station profile switcher + custom transparent bug upload dropzone with live preview.
+   - 1-click copy for clean 16:9 playout, branded 16:9 playout, and automation sidecar JSON.
+5. **Automated Verification**:
+   - `backend/tests/test_branding.py` verifies zero-text clean master feeds, station presets, custom PNG strap layering, and sidecar metadata.
 
 ---
 

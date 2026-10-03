@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
 from typing import List, Optional, Tuple, AsyncGenerator
 import asyncio
@@ -26,7 +26,10 @@ from app.models.schemas import (
     PackageDisbandRequest,
     BatchPackageAssignRequest,
     StoryPackageResponse,
-    FocalPointRequest
+    FocalPointRequest,
+    StationBrandingApplyRequest,
+    StationBrandingUploadResponse,
+    SidecarMetadataResponse
 )
 from app.services.redaction_service import RedactionService
 from app.services.packaging_service import PackagingService
@@ -222,7 +225,9 @@ async def update_redactions(req: RedactionUpdateRequest):
         version=version,
         focal_x=asset.focal_x,
         focal_y=asset.focal_y,
-        focal_gravity=asset.focal_gravity
+        focal_gravity=asset.focal_gravity,
+        brand_theme=asset.brand_theme or "global_wire",
+        custom_strap_id=asset.custom_strap_id
     )
 
     WIRE_STORE[req.public_id] = asset
@@ -253,7 +258,9 @@ async def update_focal_point(req: FocalPointRequest):
         version=version,
         focal_x=asset.focal_x,
         focal_y=asset.focal_y,
-        focal_gravity=asset.focal_gravity
+        focal_gravity=asset.focal_gravity,
+        brand_theme=asset.brand_theme or "global_wire",
+        custom_strap_id=asset.custom_strap_id
     )
 
     WIRE_STORE[req.public_id] = asset
@@ -334,7 +341,9 @@ async def update_metadata(req: MetadataUpdateRequest):
         resource_type=asset.resource_type,
         focal_x=asset.focal_x,
         focal_y=asset.focal_y,
-        focal_gravity=asset.focal_gravity
+        focal_gravity=asset.focal_gravity,
+        brand_theme=asset.brand_theme or "global_wire",
+        custom_strap_id=asset.custom_strap_id
     )
 
     WIRE_STORE[req.public_id] = asset
@@ -946,4 +955,117 @@ async def clear_all_assets():
         "cleared_count": count,
         "cleared_packages": pkg_count
     }
+
+@router.post("/branding/upload", response_model=StationBrandingUploadResponse)
+async def upload_station_branding(file: UploadFile = File(...)):
+    """
+    Uploads a custom station logo bug or transparent lower-third strap PNG
+    directly to Cloudinary for zero-storage broadcast layering.
+    """
+    content = await file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Empty branding file uploaded")
+
+    filename = (file.filename or "station_strap.png").lower()
+    if not any(filename.endswith(ext) for ext in [".png", ".webp", ".svg"]):
+        raise HTTPException(
+            status_code=400,
+            detail="Station branding overlays must be transparent PNG, WebP, or SVG graphics."
+        )
+
+    try:
+        import uuid
+        now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        branding_id = f"presswire/branding/strap_{now_ts}_{uuid.uuid4().hex[:6]}"
+        upload_res = cloudinary.uploader.upload(
+            content,
+            public_id=branding_id,
+            resource_type="image",
+            overwrite=True
+        )
+        return StationBrandingUploadResponse(
+            success=True,
+            public_id=upload_res.get("public_id", branding_id),
+            secure_url=upload_res.get("secure_url", ""),
+            width=upload_res.get("width"),
+            height=upload_res.get("height"),
+            format=upload_res.get("format", "png")
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload station branding graphic: {str(e)}")
+
+@router.post("/branding/apply", response_model=MediaAssetResponse)
+async def apply_station_branding(req: StationBrandingApplyRequest):
+    """
+    Applies a station brand theme or custom strap overlay to an asset (or all active wire assets),
+    dynamically re-generating syndication packaging URLs with Cloudinary layer overlays.
+    """
+    if req.public_id:
+        if req.public_id not in WIRE_STORE:
+            raise HTTPException(status_code=404, detail="Asset not found")
+        target_assets = [WIRE_STORE[req.public_id]]
+    else:
+        target_assets = list(WIRE_STORE.values())
+
+    if not target_assets:
+        raise HTTPException(status_code=404, detail="No assets on wire to brand")
+
+    for asset in target_assets:
+        asset.brand_theme = req.brand_theme
+        if req.custom_strap_id is not None:
+            asset.custom_strap_id = req.custom_strap_id if req.custom_strap_id.strip() else None
+
+        version = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        asset.syndication_urls = PackagingService.generate_broadcast_urls(
+            public_id=asset.public_id,
+            headline=asset.headline or "BREAKING NEWS",
+            pixelate_bystanders=asset.pixelate_bystanders,
+            resource_type=asset.resource_type,
+            version=version,
+            focal_x=asset.focal_x,
+            focal_y=asset.focal_y,
+            focal_gravity=asset.focal_gravity,
+            brand_theme=asset.brand_theme or "global_wire",
+            custom_strap_id=asset.custom_strap_id
+        )
+        WIRE_STORE[asset.public_id] = asset
+        broadcaster.broadcast("asset:updated", asset.model_dump())
+
+    return target_assets[0]
+
+@router.get("/sidecar/{public_id:path}", response_model=SidecarMetadataResponse)
+async def get_asset_sidecar(public_id: str):
+    """
+    Returns standardized machine-readable JSON sidecar metadata for broadcast automation
+    and television control room Character Generators (Vizrt, Chyron, Ross Xpression).
+    """
+    if public_id not in WIRE_STORE:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    asset = WIRE_STORE[public_id]
+    urls = asset.syndication_urls or {}
+
+    return SidecarMetadataResponse(
+        public_id=asset.public_id,
+        headline=asset.headline or "BREAKING NEWS",
+        incident_type=asset.incident_type,
+        urgency=asset.urgency,
+        capture_time=asset.telemetry.capture_time if asset.telemetry else None,
+        upload_time=asset.created_at,
+        camera_make=asset.telemetry.make if asset.telemetry else None,
+        camera_model=asset.telemetry.model if asset.telemetry else None,
+        gps_latitude=asset.telemetry.gps_latitude if asset.telemetry else None,
+        gps_longitude=asset.telemetry.gps_longitude if asset.telemetry else None,
+        waiver_signed=asset.telemetry.waiver_signed if asset.telemetry else True,
+        waiver_timestamp=asset.telemetry.waiver_timestamp if asset.telemetry else None,
+        submitter_ip=asset.telemetry.submitter_ip if asset.telemetry else None,
+        c2pa_hardware_proof=bool(asset.telemetry and asset.telemetry.make),
+        moderation_status=asset.moderation.status if asset.moderation else "approved",
+        clean_master_url=urls.get("clean_master", asset.secure_url),
+        broadcast_16_9_clean_url=urls.get("broadcast_16_9_clean", urls.get("broadcast_16_9", asset.secure_url)),
+        broadcast_16_9_branded_url=urls.get("broadcast_16_9_branded", urls.get("broadcast_16_9", asset.secure_url)),
+        social_9_16_url=urls.get("social_9_16", asset.secure_url),
+        feed_1_1_url=urls.get("feed_1_1", asset.secure_url)
+    )
+
 

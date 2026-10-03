@@ -62,6 +62,8 @@ class MediaAssetResponse(BaseModel):
     focal_x: Optional[int] = None
     focal_y: Optional[int] = None
     focal_gravity: Optional[str] = "auto:subject"
+    brand_theme: Optional[str] = "global_wire"
+    custom_strap_id: Optional[str] = None
     created_at: str
 
 class RedactionUpdateRequest(BaseModel):
@@ -190,4 +192,39 @@ class StoryPackageResponse(BaseModel):
     created_at: str
     asset_count: int = 0
     clustered_assets: int = 0
+
+class StationBrandingApplyRequest(BaseModel):
+    public_id: Optional[str] = None
+    brand_theme: str = "global_wire"  # "global_wire", "metro_24", "severe_wire", "custom"
+    custom_strap_id: Optional[str] = None
+
+class StationBrandingUploadResponse(BaseModel):
+    success: bool
+    public_id: str
+    secure_url: str
+    width: Optional[int] = None
+    height: Optional[int] = None
+    format: Optional[str] = None
+
+class SidecarMetadataResponse(BaseModel):
+    public_id: str
+    headline: str
+    incident_type: str
+    urgency: str
+    capture_time: Optional[str] = None
+    upload_time: str
+    camera_make: Optional[str] = None
+    camera_model: Optional[str] = None
+    gps_latitude: Optional[float] = None
+    gps_longitude: Optional[float] = None
+    waiver_signed: bool = True
+    waiver_timestamp: Optional[str] = None
+    submitter_ip: Optional[str] = None
+    c2pa_hardware_proof: bool = True
+    moderation_status: str = "approved"
+    clean_master_url: str
+    broadcast_16_9_clean_url: str
+    broadcast_16_9_branded_url: str
+    social_9_16_url: str
+    feed_1_1_url: str
 

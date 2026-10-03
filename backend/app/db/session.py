@@ -47,6 +47,15 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 async def init_db() -> None:
-    """Creates database tables if they do not exist."""
+    """Creates database tables if they do not exist and adds new columns if needed."""
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Migrate non-breaking columns for existing sqlite databases
+        for col_def in [
+            "ALTER TABLE media_assets ADD COLUMN brand_theme VARCHAR(50) DEFAULT 'global_wire'",
+            "ALTER TABLE media_assets ADD COLUMN custom_strap_id VARCHAR(255)"
+        ]:
+            try:
+                await conn.exec_driver_sql(col_def)
+            except Exception:
+                pass

@@ -51,10 +51,13 @@ export type MediaAsset = {
   syndication_urls: {
     broadcast_16_9?: string;
     broadcast_16_9_clean?: string;
+    broadcast_16_9_branded?: string;
     social_9_16?: string;
     feed_1_1?: string;
     clean_master?: string;
   };
+  brand_theme?: string;
+  custom_strap_id?: string | null;
   is_archived?: boolean;
   pixelate_bystanders?: boolean;
   duration?: number;

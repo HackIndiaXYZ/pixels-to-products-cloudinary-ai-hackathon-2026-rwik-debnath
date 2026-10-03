@@ -40,6 +40,8 @@ class AssetModel(Base):
     focal_x = Column(Integer, nullable=True)
     focal_y = Column(Integer, nullable=True)
     focal_gravity = Column(String(30), nullable=True, default="auto:subject")
+    brand_theme = Column(String(50), nullable=True, default="global_wire")
+    custom_strap_id = Column(String(255), nullable=True)
     created_at = Column(String(50), nullable=False, index=True)
 
     # Structured JSON fields
@@ -91,6 +93,8 @@ class AssetModel(Base):
             focal_x=asset.focal_x,
             focal_y=asset.focal_y,
             focal_gravity=asset.focal_gravity,
+            brand_theme=asset.brand_theme or "global_wire",
+            custom_strap_id=asset.custom_strap_id,
             created_at=asset.created_at,
             faces=faces_data,
             telemetry=telemetry_data,
@@ -144,6 +148,8 @@ class AssetModel(Base):
             focal_x=self.focal_x,
             focal_y=self.focal_y,
             focal_gravity=self.focal_gravity,
+            brand_theme=self.brand_theme or "global_wire",
+            custom_strap_id=self.custom_strap_id,
             created_at=self.created_at,
         )
 
