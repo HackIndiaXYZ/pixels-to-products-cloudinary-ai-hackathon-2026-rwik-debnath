@@ -3,7 +3,8 @@
 > **Cloudinary Hackathon Track**: **Track 1 · AI Media Pipelines (PS-01)**  
 > **Core Pipeline**: Autonomous intake, AI content moderation, facial detection & selective privacy redaction, spatiotemporal clustering, and zero-storage dynamic multi-format broadcast delivery powered by Cloudinary's AI capabilities.  
 > **Live Production App**: **[https://presswire-h306.onrender.com](https://presswire-h306.onrender.com)**  
-> **Public GitHub Repository**: [https://github.com/SLICKRWIK/presswire](https://github.com/SLICKRWIK/presswire)
+> **Submission Repository**: [https://github.com/HackIndiaXYZ/pixels-to-products-cloudinary-ai-hackathon-2026-rwik-debnath](https://github.com/HackIndiaXYZ/pixels-to-products-cloudinary-ai-hackathon-2026-rwik-debnath)  
+> **Development Mirror**: [https://github.com/SLICKRWIK/presswire](https://github.com/SLICKRWIK/presswire)
 
 ### 🌐 Live Production Links
 - 🚀 **Live Landing Page**: [presswire-h306.onrender.com/](https://presswire-h306.onrender.com/)
