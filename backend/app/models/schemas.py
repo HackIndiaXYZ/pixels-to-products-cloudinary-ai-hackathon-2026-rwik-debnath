@@ -9,7 +9,7 @@ class FaceCoordinate(BaseModel):
     h: int
     is_redacted: bool = True  # Default: bystanders are redacted
     label: Optional[str] = "Civilian / Bystander"
-    kind: Optional[str] = "face"  # "face", "license_plate", "pii_document"
+    kind: Optional[str] = "face"  # "face", "license_plate", "pii_document", "manual"
     detected_text: Optional[str] = None
 
 class TelemetryData(BaseModel):

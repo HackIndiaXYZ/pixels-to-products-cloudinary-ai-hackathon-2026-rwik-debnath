@@ -394,18 +394,26 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
         const h = Math.abs(drawCurrent.y - drawStart.y);
 
         if (w > 15 && h > 15) {
+          const clampedX = Math.max(0, Math.min(refWidth - 15, Math.round(x)));
+          const clampedY = Math.max(0, Math.min(refHeight - 15, Math.round(y)));
+          const clampedW = Math.min(refWidth - clampedX, Math.round(w));
+          const clampedH = Math.min(refHeight - clampedY, Math.round(h));
+
+          const manualCount = faces.filter((f) => f.kind === 'manual' || f.id?.startsWith('manual_')).length;
           const newBox: FaceCoordinate = {
             id: `manual_${Date.now()}`,
-            x: Math.round(x),
-            y: Math.round(y),
-            w: Math.round(w),
-            h: Math.round(h),
+            x: clampedX,
+            y: clampedY,
+            w: clampedW,
+            h: clampedH,
             is_redacted: true, // Default to Redacted Civilian
-            label: `Redaction #${faces.length + 1}`,
+            kind: 'manual',
+            label: `Redaction #${manualCount + 1}`,
           };
           const newFaces = [...faces, newBox];
           setFaces(newFaces);
           syncFacesToBackend(newFaces);
+          setSelectedFaceIndex(newFaces.length - 1);
         }
         setDrawStart(null);
         setDrawCurrent(null);
@@ -488,6 +496,49 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
     });
     syncFacesToBackend(newFaces);
   };
+
+  const handleUpdateBoxKind = (
+    index: number,
+    kind: 'manual' | 'license_plate' | 'pii_document' | 'face',
+    customLabel?: string
+  ) => {
+    const updated = [...faces];
+    const target = updated[index];
+    if (!target) return;
+    const newLabel =
+      customLabel ||
+      (kind === 'manual'
+        ? `Redaction #${index + 1}`
+        : kind === 'license_plate'
+        ? 'Vehicle Plate'
+        : kind === 'pii_document'
+        ? 'Document PII'
+        : `Face #${index + 1}`);
+    updated[index] = { ...target, kind, label: newLabel };
+    setFaces(updated);
+    syncFacesToBackend(updated);
+  };
+
+  const getBoxTagLabel = (f: FaceCoordinate, idx: number) => {
+    if (f.kind === 'license_plate') {
+      return f.detected_text ? `Plate: ${f.detected_text}` : (f.label || 'Vehicle Plate');
+    }
+    if (f.kind === 'pii_document') {
+      return f.label || 'Sensitive PII';
+    }
+    if (f.kind === 'manual' || f.id?.startsWith('manual_')) {
+      return f.label || `Redaction #${idx + 1}`;
+    }
+    if (f.label && f.label !== 'Civilian / Bystander' && f.label !== 'face') {
+      return f.label;
+    }
+    return `Face #${idx + 1}`;
+  };
+
+  const canvasImageSrc =
+    isBlurPreviewVisible && asset.syndication_urls?.clean_master
+      ? asset.syndication_urls.clean_master
+      : asset.secure_url;
 
   const handleApproveForWire = async () => {
     setSaving(true);
@@ -912,7 +963,10 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             {/* Zoom & Pan Transformation Container */}
             <div
               style={{
-                transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+                transform:
+                  zoom !== 1 || pan.x !== 0 || pan.y !== 0
+                    ? `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`
+                    : undefined,
                 transformOrigin: 'center center',
                 transition: isPanning ? 'none' : 'transform 0.08s ease-out',
               }}
@@ -928,7 +982,7 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
               >
                 <img
                   ref={imgRef}
-                  src={asset.secure_url}
+                  src={canvasImageSrc}
                   alt="Subject Triage"
                   onLoad={handleImageLoad}
                   className={`max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10 transition-all duration-300 ${
@@ -1042,45 +1096,87 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                           : isHovered
                           ? f.kind === 'license_plate'
                             ? 'border-amber-400 ring-1 ring-amber-400/40 shadow-md'
+                            : f.kind === 'manual'
+                            ? 'border-indigo-400 ring-1 ring-indigo-400/40 shadow-md'
+                            : f.kind === 'pii_document'
+                            ? 'border-rose-400 ring-1 ring-rose-400/40 shadow-md'
                             : 'border-rose-400 ring-1 ring-rose-400/40 shadow-md'
                           : f.kind === 'license_plate'
                           ? 'border-amber-400/90 shadow-xs'
+                          : f.kind === 'manual'
+                          ? 'border-indigo-400/90 shadow-xs'
+                          : f.kind === 'pii_document'
+                          ? 'border-rose-400/90 shadow-xs'
                           : 'border-rose-400/90 shadow-xs'
                       } ${
-                        isBlurPreviewVisible
-                          ? 'frosted-privacy-glass'
+                        !isBlurPreviewVisible
+                          ? 'bg-transparent'
+                          : syncStatus === 'syncing' && isSelected
+                          ? 'bg-blue-500/10'
                           : 'bg-transparent'
                       }`}
                     >
                       {/* High-Tech Viewfinder Corner Accents */}
                       <span className={`absolute -top-[1.5px] -left-[1.5px] w-2 h-2 border-t-2 border-l-2 pointer-events-none rounded-tl-xs ${
-                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : 'border-rose-500'
+                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : f.kind === 'manual' ? 'border-indigo-400' : f.kind === 'pii_document' ? 'border-rose-400' : 'border-rose-500'
                       }`} />
                       <span className={`absolute -top-[1.5px] -right-[1.5px] w-2 h-2 border-t-2 border-r-2 pointer-events-none rounded-tr-xs ${
-                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : 'border-rose-500'
+                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : f.kind === 'manual' ? 'border-indigo-400' : f.kind === 'pii_document' ? 'border-rose-400' : 'border-rose-500'
                       }`} />
                       <span className={`absolute -bottom-[1.5px] -left-[1.5px] w-2 h-2 border-b-2 border-l-2 pointer-events-none rounded-bl-xs ${
-                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : 'border-rose-500'
+                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : f.kind === 'manual' ? 'border-indigo-400' : f.kind === 'pii_document' ? 'border-rose-400' : 'border-rose-500'
                       }`} />
                       <span className={`absolute -bottom-[1.5px] -right-[1.5px] w-2 h-2 border-b-2 border-r-2 pointer-events-none rounded-br-xs ${
-                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : 'border-rose-500'
+                        isSelected ? 'border-blue-500' : f.kind === 'license_plate' ? 'border-amber-400' : f.kind === 'manual' ? 'border-indigo-400' : f.kind === 'pii_document' ? 'border-rose-400' : 'border-rose-500'
                       }`} />
 
-                      {/* Categorized Micro-Tag on Hover/Select */}
+                      {/* Categorized Micro-Tag & Type Selector on Hover/Select */}
                       {(isHovered || isSelected) && (
-                        <span className={`absolute -top-5 left-0 text-white text-[9px] font-mono font-medium px-1.5 py-0.5 rounded shadow-sm pointer-events-none tracking-wider select-none whitespace-nowrap z-30 ${
-                          f.kind === 'license_plate'
-                            ? 'bg-amber-600/95'
-                            : f.kind === 'pii_document'
-                            ? 'bg-rose-600/95'
-                            : 'bg-slate-900/90'
-                        }`}>
-                          {f.kind === 'license_plate'
-                            ? (f.detected_text ? `Plate: ${f.detected_text}` : 'Vehicle Plate')
-                            : f.kind === 'pii_document'
-                            ? (f.label || 'Sensitive PII')
-                            : `Face #${idx + 1}`}
-                        </span>
+                        <div
+                          className="absolute -top-6 left-0 flex items-center gap-1 z-30 select-none pointer-events-auto"
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <span className={`text-white text-[9px] font-mono font-medium px-1.5 py-0.5 rounded shadow-sm tracking-wider select-none whitespace-nowrap ${
+                            f.kind === 'license_plate'
+                              ? 'bg-amber-600/95'
+                              : f.kind === 'pii_document'
+                              ? 'bg-rose-600/95'
+                              : f.kind === 'manual'
+                              ? 'bg-indigo-600/95'
+                              : 'bg-slate-900/90'
+                          }`}>
+                            {getBoxTagLabel(f, idx)}
+                          </span>
+
+                          {isSelected && (
+                            <div className="flex items-center bg-slate-900/95 backdrop-blur-md rounded px-1 py-0.5 gap-0.5 border border-slate-700/80 shadow-md">
+                              {(
+                                [
+                                  { id: 'manual', label: 'Mask' },
+                                  { id: 'license_plate', label: 'Plate' },
+                                  { id: 'pii_document', label: 'PII' },
+                                  { id: 'face', label: 'Face' },
+                                ] as const
+                              ).map((item) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleUpdateBoxKind(idx, item.id);
+                                  }}
+                                  className={`text-[8px] font-mono px-1 py-0.5 rounded transition cursor-pointer ${
+                                    (f.kind || 'face') === item.id
+                                      ? 'bg-blue-600 text-white font-bold'
+                                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                                  }`}
+                                >
+                                  {item.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       {/* Discrete Remove Button at Top-Right Corner */}

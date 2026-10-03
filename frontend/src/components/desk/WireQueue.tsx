@@ -33,7 +33,7 @@ const SORT_OPTIONS: { id: SortOption; label: string; shortLabel: string }[] = [
   { id: 'newest', label: 'Newest Ingest', shortLabel: 'Newest' },
   { id: 'oldest', label: 'Oldest Ingest', shortLabel: 'Oldest' },
   { id: 'urgency', label: 'Urgency (Breaking)', shortLabel: 'Urgent' },
-  { id: 'faces', label: 'Triage Priority (Faces)', shortLabel: 'Faces' },
+  { id: 'faces', label: 'Triage Priority (Redactions)', shortLabel: 'Triage' },
 ];
 
 interface WireQueueProps {

@@ -6,7 +6,7 @@ export type FaceCoordinate = {
   h: number;
   is_redacted: boolean;
   label?: string;
-  kind?: 'face' | 'license_plate' | 'pii_document';
+  kind?: 'face' | 'license_plate' | 'pii_document' | 'manual';
   detected_text?: string;
 };
 
