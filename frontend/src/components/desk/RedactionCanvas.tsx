@@ -1047,23 +1047,47 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                   </div>
                 )}
 
-                {/* Clean Editorial Focal Target Reticle */}
-                {(isFocalMode || (asset.focal_x != null && asset.focal_y != null)) && displayDims.width > 0 && (() => {
+                {/* Clean Editorial Focal Target Reticle - strictly visible when Focal Tool is actively engaged */}
+                {isFocalMode && displayDims.width > 0 && (() => {
                   const focalX = asset.focal_x != null ? asset.focal_x : Math.round(refWidth / 2);
                   const focalY = asset.focal_y != null ? asset.focal_y : Math.round(refHeight / 2);
 
                   return (
-                    <div
-                      style={{
-                        left: `${focalX * scaleX}px`,
-                        top: `${focalY * scaleY}px`,
-                      }}
-                      className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none transition-all duration-150 z-30"
-                    >
-                      <div className="w-5 h-5 rounded-full border-2 border-white bg-white/20 flex items-center justify-center shadow-[0_0_6px_rgba(0,0,0,0.6)]">
-                        <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_2px_rgba(0,0,0,0.8)]" />
+                    <>
+                      <div
+                        style={{
+                          left: `${focalX * scaleX}px`,
+                          top: `${focalY * scaleY}px`,
+                        }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none transition-all duration-150 z-30"
+                      >
+                        <div className="w-6 h-6 rounded-full border-2 border-white bg-blue-600/30 flex items-center justify-center shadow-[0_0_8px_rgba(0,0,0,0.8)] animate-pulse">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_2px_rgba(0,0,0,0.8)]" />
+                        </div>
                       </div>
-                    </div>
+
+                      {/* Docked Focal Mode Floating Badge */}
+                      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 flex items-center space-x-2 px-3 py-1 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-full shadow-sm text-xs text-slate-700 animate-in fade-in duration-150 select-none whitespace-nowrap">
+                        <Crosshair className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="font-medium text-[11px] text-slate-700">
+                          Click image to set focal point
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateFocalPoint(Math.round(refWidth / 2), Math.round(refHeight / 2), 'center')}
+                          className="ml-1 px-2 py-0.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 rounded-full text-[10px] font-semibold transition cursor-pointer border border-slate-200/80"
+                        >
+                          Reset Center
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsFocalMode(false)}
+                          className="px-2 py-0.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-[10px] font-semibold transition cursor-pointer"
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </>
                   );
                 })()}
 
