@@ -18,8 +18,6 @@ PACKAGE_STORE: PersistentPackageStore = PersistentPackageStore()
 LAST_CLOUDINARY_ERROR: Optional[str] = None
 
 class IntakeService:
-    _rekognition_exhausted = True
-
     @staticmethod
     def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         """Computes great-circle distance between two GPS coordinates in kilometers."""
@@ -336,15 +334,6 @@ class IntakeService:
                         categories.append("Content Moderation Violation")
                 elif status_val == "pending" and mod_status != "quarantined":
                     mod_status = "action_required"
-
-        # Fallback moderation for when Cloudinary Rekognition addon reaches monthly 50-operation quota limit
-        if not mod_raw or not categories:
-            lower_file = (filename or "").lower()
-            lower_head = (headline or "").lower()
-            if "accident" in lower_file or "crash" in lower_head or "collision" in lower_head or "accident" in lower_head:
-                mod_status = "quarantined"
-                categories = ["Graphic Incident / Severe Accident", "Physical Trauma"]
-                max_confidence = 0.94
 
         # Determine wire review status
         if mod_status == "quarantined":

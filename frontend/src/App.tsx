@@ -19,10 +19,8 @@ export function App() {
   const [isDragOverCenter, setIsDragOverCenter] = useState(false);
   const centralFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Real-time Server-Sent Events (SSE) state & toast notifications
+  // Real-time Server-Sent Events (SSE) state
   const [sseConnected, setSseConnected] = useState(false);
-  const [liveToast, setLiveToast] = useState<{ id: string; headline: string; public_id: string } | null>(null);
-  const liveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Global hotkey: 'i' or 'I' toggles the Provenance/Export inspector drawer, 'Escape' closes it
   useEffect(() => {
@@ -185,17 +183,6 @@ export function App() {
               return [newAsset, ...prev];
             });
 
-            // Trigger sleek breaking wire alert notification
-            if (liveToastTimerRef.current) clearTimeout(liveToastTimerRef.current);
-            setLiveToast({
-              id: String(Date.now()),
-              headline: newAsset.headline || 'BREAKING WIRE MEDIA INGESTED',
-              public_id: newAsset.public_id,
-            });
-            liveToastTimerRef.current = setTimeout(() => {
-              setLiveToast(null);
-            }, 5000);
-
             fetchPackages();
           } catch (err) {
             console.error('[SSE] Failed parsing asset:ingested', err);
@@ -290,7 +277,6 @@ export function App() {
 
     return () => {
       if (es) es.close();
-      if (liveToastTimerRef.current) clearTimeout(liveToastTimerRef.current);
     };
   }, []);
 
@@ -747,36 +733,7 @@ export function App() {
         </div>
       </header>
 
-      {/* Transient Real-Time Breaking Wire Notification Toast */}
-      {liveToast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed top-14 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-700/80 animate-in fade-in slide-in-from-top-3 duration-200 cursor-pointer hover:bg-slate-800 transition-all max-w-sm"
-          onClick={() => {
-            const found = assets.find((a) => a.public_id === liveToast.public_id);
-            if (found) {
-              setSelectedAsset(found);
-              selectedIdRef.current = found.public_id;
-              setSelectedPackageId(null);
-            }
-            setLiveToast(null);
-          }}
-        >
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping flex-shrink-0" />
-          <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-semibold">
-              Incoming Wire Dispatch
-            </div>
-            <div className="text-xs font-medium text-slate-100 truncate">
-              {liveToast.headline}
-            </div>
-          </div>
-          <span className="text-[10px] font-mono text-slate-400 hover:text-white px-1.5 py-0.5 rounded border border-slate-700">
-            VIEW
-          </span>
-        </div>
-      )}
+
 
       {/* Main Studio Cockpit Workspace (Edge-to-Edge Full Bleed) */}
       <main className="flex-1 w-full p-3.5 flex flex-col min-h-0 overflow-hidden">
