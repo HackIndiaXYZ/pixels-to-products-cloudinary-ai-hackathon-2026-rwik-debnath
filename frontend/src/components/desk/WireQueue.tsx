@@ -21,6 +21,8 @@ import {
   Plus,
   FolderInput,
   Radio,
+  Loader2,
+  Clock,
 } from 'lucide-react';
 import { CATEGORY_LIST, getCategoryMeta } from '../../utils/categories';
 import { WireContextMenu } from './WireContextMenu';
@@ -593,9 +595,23 @@ export const WireQueue: React.FC<WireQueueProps> = ({
             )}
           </div>
 
-          {/* Bottom: Triage / Quarantine Status */}
+          {/* Bottom: Triage / Quarantine / Processing Status */}
           <div className="h-4 flex items-center justify-center">
-            {asset.review_status === 'quarantined' ? (
+            {asset.processing_status === 'processing' ? (
+              <span
+                className="flex items-center justify-center text-cyan-600 animate-spin"
+                title="Forensic Analysis In Progress"
+              >
+                <Loader2 className="w-2.5 h-2.5 stroke-[2.2]" />
+              </span>
+            ) : asset.processing_status === 'pending' ? (
+              <span
+                className="flex items-center justify-center text-slate-400"
+                title="Pending On-Demand Analysis (Click to inspect)"
+              >
+                <Clock className="w-2.5 h-2.5 stroke-[2]" />
+              </span>
+            ) : asset.review_status === 'quarantined' ? (
               <span
                 className="flex items-center justify-center text-rose-600"
                 title="Quarantined: Flagged by Content Safety"

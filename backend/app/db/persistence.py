@@ -58,6 +58,8 @@ def _ensure_tables():
             cursor.execute("ALTER TABLE media_assets ADD COLUMN brand_theme VARCHAR(50) DEFAULT 'global_wire';")
         if "custom_strap_id" not in existing_cols:
             cursor.execute("ALTER TABLE media_assets ADD COLUMN custom_strap_id VARCHAR(255);")
+        if "processing_status" not in existing_cols:
+            cursor.execute("ALTER TABLE media_assets ADD COLUMN processing_status VARCHAR(20) DEFAULT 'completed';")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS story_packages (
                 event_id VARCHAR PRIMARY KEY,
@@ -155,9 +157,9 @@ class PersistentAssetStore(collections.abc.MutableMapping):
                         public_id, asset_id, format, resource_type, width, height, bytes, secure_url,
                         review_status, incident_type, urgency, headline, pixelate_bystanders, is_archived,
                         duration, frame_rate, event_id, event_title, cluster_radius_km, package_window_hours,
-                        package_status, focal_x, focal_y, focal_gravity, brand_theme, custom_strap_id, created_at,
+                        package_status, focal_x, focal_y, focal_gravity, brand_theme, custom_strap_id, processing_status, created_at,
                         faces, telemetry, moderation, syndication_urls
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(public_id) DO UPDATE SET
                         asset_id=excluded.asset_id,
                         format=excluded.format,
@@ -184,6 +186,7 @@ class PersistentAssetStore(collections.abc.MutableMapping):
                         focal_gravity=excluded.focal_gravity,
                         brand_theme=excluded.brand_theme,
                         custom_strap_id=excluded.custom_strap_id,
+                        processing_status=excluded.processing_status,
                         created_at=excluded.created_at,
                         faces=excluded.faces,
                         telemetry=excluded.telemetry,
@@ -195,7 +198,8 @@ class PersistentAssetStore(collections.abc.MutableMapping):
                     asset.headline, int(asset.pixelate_bystanders), int(asset.is_archived), asset.duration,
                     asset.frame_rate, asset.event_id, asset.event_title, asset.cluster_radius_km,
                     asset.package_window_hours, asset.package_status, asset.focal_x, asset.focal_y,
-                    asset.focal_gravity, asset.brand_theme or "global_wire", asset.custom_strap_id, asset.created_at,
+                    asset.focal_gravity, asset.brand_theme or "global_wire", asset.custom_strap_id,
+                    getattr(asset, "processing_status", "completed") or "completed", asset.created_at,
                     faces_json, telemetry_json, moderation_json, syndication_json
                 ))
                 conn.commit()

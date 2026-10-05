@@ -146,8 +146,25 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       setHoveredFaceIndex(null);
       setZoom(1.0);
       setPan({ x: 0, y: 0 });
+    } else if (!dragFace && !drawStart) {
+      // Synchronize faces when asset prop is updated dynamically (e.g. background OCR completes)
+      setFaces((prevFaces) => {
+        const incoming = asset.faces || [];
+        const currentKeys = prevFaces
+          .map((f) => `${f.id || ''}_${f.x}_${f.y}_${f.w}_${f.h}_${f.kind || ''}_${f.is_redacted}`)
+          .join('|');
+        const incomingKeys = incoming
+          .map((f) => `${f.id || ''}_${f.x}_${f.y}_${f.w}_${f.h}_${f.kind || ''}_${f.is_redacted}`)
+          .join('|');
+        if (currentKeys !== incomingKeys) {
+          totalDetectedFacesRef.current = incoming.length;
+          setSelectedFaceIndex((prev) => (prev !== null && prev >= incoming.length ? null : prev));
+          return incoming;
+        }
+        return prevFaces;
+      });
     }
-  }, [asset.public_id, asset.width, asset.height, asset.faces]);
+  }, [asset.public_id, asset.width, asset.height, asset.faces, dragFace, drawStart]);
 
   const handleUpdateFocalPoint = async (
     targetX: number | null,
@@ -720,14 +737,18 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
             <button
               type="button"
               onClick={handleApproveForWire}
-              disabled={saving}
+              disabled={saving || asset.processing_status === 'processing' || asset.processing_status === 'pending'}
               className="h-8 px-3 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 shadow-xs hover:shadow transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95 disabled:opacity-50 whitespace-nowrap"
-              title="Approve all redactions and clear for wire broadcast"
+              title={
+                asset.processing_status === 'processing'
+                  ? 'Forensic scan in progress...'
+                  : 'Approve all redactions and clear for wire broadcast'
+              }
             >
-              {saving ? (
+              {saving || asset.processing_status === 'processing' ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-white/90" />
-                  <span>Approving...</span>
+                  <span>{asset.processing_status === 'processing' ? 'Scanning...' : 'Approving...'}</span>
                 </>
               ) : (
                 <span>Approve Dispatch</span>
@@ -1029,6 +1050,33 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                   }`}
                   draggable={false}
                 />
+
+                {/* On-Demand Forensic Radar Scan HUD (Minimalist, icon-driven) */}
+                {(asset.processing_status === 'processing' || asset.processing_status === 'pending') && (
+                  <>
+                    {/* Animated Scanning Laser Line */}
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-lg z-30">
+                      <div
+                        className="w-full h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_14px_rgba(34,211,238,0.9)] opacity-85"
+                        style={{
+                          animation: 'radarSweep 2.2s ease-in-out infinite alternate',
+                        }}
+                      />
+                    </div>
+
+                    {/* Minimal Corner Reticles */}
+                    <div className="absolute top-2 left-2 w-3.5 h-3.5 border-t-2 border-l-2 border-cyan-400 pointer-events-none z-30" />
+                    <div className="absolute top-2 right-2 w-3.5 h-3.5 border-t-2 border-r-2 border-cyan-400 pointer-events-none z-30" />
+                    <div className="absolute bottom-2 left-2 w-3.5 h-3.5 border-b-2 border-l-2 border-cyan-400 pointer-events-none z-30" />
+                    <div className="absolute bottom-2 right-2 w-3.5 h-3.5 border-b-2 border-r-2 border-cyan-400 pointer-events-none z-30" />
+
+                    {/* Sleek Minimal Corner Badge */}
+                    <div className="absolute bottom-3 left-3 z-40 flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-slate-950/80 backdrop-blur-md border border-cyan-500/40 text-cyan-300 shadow-md select-none pointer-events-none">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                      <span className="font-mono text-[10px] tracking-wider uppercase">Scanning</span>
+                    </div>
+                  </>
+                )}
 
                 {/* Minimal Light Quarantine Audit Pill */}
                 {asset.review_status === 'quarantined' && (

@@ -70,6 +70,7 @@ export type MediaAsset = {
   focal_x?: number;
   focal_y?: number;
   focal_gravity?: string;
+  processing_status?: 'pending' | 'processing' | 'completed' | 'failed';
   created_at: string;
 };
 

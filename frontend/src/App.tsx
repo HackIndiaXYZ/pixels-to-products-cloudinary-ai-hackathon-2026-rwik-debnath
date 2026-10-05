@@ -540,6 +540,23 @@ export function App() {
     }
   };
 
+  const handleSelectAsset = (a: MediaAsset) => {
+    setSelectedAsset(a);
+    selectedIdRef.current = a.public_id;
+    setSelectedPackageId(null);
+
+    // If asset is pending analysis, fire on-demand priority processing
+    if (a.processing_status === 'pending') {
+      const processingAsset: MediaAsset = { ...a, processing_status: 'processing' };
+      setSelectedAsset(processingAsset);
+      setAssets((prev) => prev.map((item) => (item.public_id === a.public_id ? processingAsset : item)));
+
+      fetch(`/api/v1/editorial/process/${encodeURIComponent(a.public_id)}`, {
+        method: 'POST',
+      }).catch((err) => console.error('Failed to trigger priority processing:', err));
+    }
+  };
+
   const handleSelectPackage = (packageId: string) => {
     setSelectedPackageId(packageId);
     // If the currently selected asset already belongs to this package (e.g. bottom card), preserve it!
@@ -549,8 +566,7 @@ export function App() {
         // If user already had a card selected from another story, switch to this package's lead take
         const firstAsset = assets.find((a) => a.event_id === packageId);
         if (firstAsset) {
-          setSelectedAsset(firstAsset);
-          selectedIdRef.current = firstAsset.public_id;
+          handleSelectAsset(firstAsset);
         } else {
           setSelectedAsset(null);
           selectedIdRef.current = null;
@@ -771,11 +787,7 @@ export function App() {
               packages={packages}
               selectedId={selectedAsset?.public_id || null}
               selectedPackageId={selectedPackageId}
-              onSelect={(a) => {
-                setSelectedAsset(a);
-                selectedIdRef.current = a.public_id;
-                setSelectedPackageId(null);
-              }}
+              onSelect={handleSelectAsset}
               onSelectPackage={handleSelectPackage}
               onDeleteSingle={handleDeleteSingle}
               onDeleteBatch={handleDeleteBatch}
@@ -797,10 +809,7 @@ export function App() {
               <RedactionCanvas
                 asset={selectedAsset}
                 allAssets={assets}
-                onSelectAsset={(a) => {
-                  setSelectedAsset(a);
-                  selectedIdRef.current = a.public_id;
-                }}
+                onSelectAsset={handleSelectAsset}
                 onUpdateSuccess={handleUpdateAsset}
                 onDeleteAsset={handleDeleteSingle}
                 onToggleInspector={() => setShowInspector((prev) => !prev)}

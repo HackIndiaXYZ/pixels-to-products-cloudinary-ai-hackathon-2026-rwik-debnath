@@ -86,13 +86,13 @@ async def simulate_batch_intake(request: Request):
 
     specs = [
         {
-            "file": "modi_1.jpg",
+            "file": "modi_1.jpg" if os.path.exists(os.path.join(base_dir, "modi_1.jpg")) else "pm_angle_1.jpg",
             "headline": "PM Modi Addresses Public Rally in West Bengal",
             "incident_type": "politics_civic",
             "urgency": "breaking"
         },
         {
-            "file": "modi_2.jpg",
+            "file": "modi_2.jpg" if os.path.exists(os.path.join(base_dir, "modi_2.jpg")) else "pm_angle_2.jpg",
             "headline": "Eyewitness Angle: PM Convoy Arrives at Brigade Ground",
             "incident_type": "politics_civic",
             "urgency": "breaking"

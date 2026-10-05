@@ -24,6 +24,20 @@
   }
 }
 
+@keyframes radarSweep {
+  0% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(520px);
+    opacity: 0.3;
+  }
+}
+
 .animate-phrase-in {
   animation: phraseFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

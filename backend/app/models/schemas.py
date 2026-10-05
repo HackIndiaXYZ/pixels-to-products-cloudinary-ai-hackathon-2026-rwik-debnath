@@ -64,7 +64,15 @@ class MediaAssetResponse(BaseModel):
     focal_gravity: Optional[str] = "auto:subject"
     brand_theme: Optional[str] = "global_wire"
     custom_strap_id: Optional[str] = None
+    processing_status: str = "completed"  # "pending", "processing", "completed", "failed"
     created_at: str
+
+class ProcessAssetResponse(BaseModel):
+    success: bool
+    public_id: str
+    processing_status: str
+    message: Optional[str] = None
+    asset: Optional[MediaAssetResponse] = None
 
 class RedactionUpdateRequest(BaseModel):
     public_id: str

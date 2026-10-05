@@ -206,22 +206,14 @@ class IntakeService:
             }
         }
 
-        # Attempt actual Cloudinary upload
+        # Cache raw upload bytes for on-demand forensic OCR scan
+        from app.services.processing_service import save_upload_bytes_cache
+        save_upload_bytes_cache(public_id, file_bytes)
+
+        # Attempt actual Cloudinary upload (fast single round-trip with metadata and basic faces)
         try:
             import asyncio
             res = await asyncio.to_thread(cloudinary.uploader.upload, file_bytes, **upload_options)
-            # Run Rekognition moderation check explicitly so delivery URL is NEVER blocked with 404
-            if not getattr(IntakeService, "_rekognition_exhausted", False):
-                try:
-                    mod_exp = await asyncio.to_thread(cloudinary.uploader.explicit, res["public_id"], type="upload", moderation="aws_rek")
-                    if "moderation" in mod_exp:
-                        res["moderation"] = mod_exp["moderation"]
-                except Exception as mod_err:
-                    err_msg = str(mod_err)
-                    if "Rate Limit Exceeded" in err_msg or "Limit of 50" in err_msg:
-                        IntakeService._rekognition_exhausted = True
-                    import logging
-                    logging.warning(f"[Cloudinary] Explicit moderation check skipped: {mod_err}")
         except Exception as e:
             global LAST_CLOUDINARY_ERROR
             LAST_CLOUDINARY_ERROR = f"{type(e).__name__}: {str(e)}"
@@ -266,31 +258,6 @@ class IntakeService:
                 kind="face"
             ))
 
-        # Scan for sensitive scene text (Indian vehicle plates, PAN/Aadhaar/Phone)
-        has_ocr_boxes = False
-        if resource_type != "video" and incident_type != "severe_weather":
-            try:
-                import asyncio
-                from app.services.ocr_service import OCRService
-                ocr_regions = await asyncio.to_thread(OCRService.scan_for_sensitive_regions, file_bytes)
-                for ocr_idx, reg in enumerate(ocr_regions):
-                    faces_list.append(FaceCoordinate(
-                        id=f"ocr_{ocr_idx}",
-                        x=reg["x"],
-                        y=reg["y"],
-                        w=reg["w"],
-                        h=reg["h"],
-                        is_redacted=True,
-                        label=reg["label"],
-                        kind=reg["kind"],
-                        detected_text=reg.get("detected_text")
-                    ))
-                if ocr_regions:
-                    has_ocr_boxes = True
-            except Exception as ocr_err:
-                import logging
-                logging.warning(f"[IntakeService] OCR scene scan bypassed: {ocr_err}")
-
         # Extract telemetry
         raw_meta = res.get("image_metadata", {})
         telemetry = cls._parse_telemetry(raw_meta, now)
@@ -302,70 +269,8 @@ class IntakeService:
             telemetry.gps_longitude = simulated_lng
             telemetry.has_gps = True
 
-        # Moderation check (Amazon Rekognition or fallback)
-        mod_status = "approved"
-        mod_raw = res.get("moderation", [])
-        categories: list[str] = []
-        max_confidence: Optional[float] = None
-
-        if mod_raw:
-            # Cloudinary moderation is a list of moderation entries
-            for entry in mod_raw:
-                if not isinstance(entry, dict):
-                    continue
-                status_val = entry.get("status", "approved")
-                # Parse Rekognition response labels if available
-                response_data = entry.get("response", {})
-                if isinstance(response_data, dict):
-                    mod_labels = response_data.get("moderation_labels", [])
-                    for label_item in mod_labels:
-                        name = label_item.get("name")
-                        conf = label_item.get("confidence")
-                        if name and name not in categories:
-                            categories.append(name)
-                        if conf is not None:
-                            conf_val = float(conf) / 100.0 if float(conf) > 1.0 else float(conf)
-                            if max_confidence is None or conf_val > max_confidence:
-                                max_confidence = round(conf_val, 2)
-
-                if status_val == "rejected":
-                    mod_status = "quarantined"
-                    if not categories:
-                        categories.append("Content Moderation Violation")
-                elif status_val == "pending" and mod_status != "quarantined":
-                    mod_status = "action_required"
-
-        # Determine wire review status
-        if mod_status == "quarantined":
-            review_status = "quarantined"
-            # If Cloudinary marked the asset rejected, its default policy blocks CDN delivery (404).
-            # We override moderation_status to approved on the Cloudinary resource level so that
-            # authenticated newsroom editors can inspect the image in /desk, while PressWire maintains
-            # the internal quarantine status and frosted safety shield in the UI.
-            if mod_raw:
-                try:
-                    import asyncio
-                    await asyncio.to_thread(cloudinary.api.update, res["public_id"], moderation_status="approved")
-                    await asyncio.to_thread(cloudinary.uploader.explicit, res["public_id"], type="upload", invalidate=True)
-                except Exception as e:
-                    import logging
-                    logging.warning(f"[Cloudinary] Failed to unlock quarantined delivery for newsroom review: {e}")
-        elif faces_list:
-            review_status = "action_required"  # Needs privacy triage
-        else:
-            review_status = "approved"
-
-        # If OCR detected sensitive license plates or PII, register explicit face_coordinates immediately
-        if has_ocr_boxes:
-            try:
-                import asyncio
-                from app.services.redaction_service import RedactionService
-                red_coords = [[f.x, f.y, f.w, f.h] for f in faces_list if f.is_redacted]
-                if red_coords:
-                    await asyncio.to_thread(RedactionService.update_selective_faces, res["public_id"], red_coords)
-            except Exception as red_err:
-                import logging
-                logging.warning(f"[IntakeService] Initial explicit OCR coordinates registration bypassed: {red_err}")
+        # Initial review status (default pending privacy review if faces present)
+        review_status = "action_required" if faces_list else "approved"
 
         # Generate live dynamic syndication packaging URLs
         syndication_urls = PackagingService.generate_broadcast_urls(
@@ -395,7 +300,7 @@ class IntakeService:
             secure_url=res.get("secure_url"),
             faces=faces_list,
             telemetry=telemetry,
-            moderation=ModerationResult(status=mod_status, confidence=max_confidence, categories=categories),
+            moderation=ModerationResult(status="approved", confidence=None, categories=[]),
             review_status=review_status,
             incident_type=incident_type,
             urgency=urgency,
@@ -406,6 +311,7 @@ class IntakeService:
             event_id=event_id,
             event_title=event_title,
             pixelate_bystanders=True,
+            processing_status="pending",
             created_at=now.isoformat()
         )
 

@@ -19,6 +19,7 @@ import {
   Upload,
   Smartphone,
   LayoutGrid,
+  Loader2,
 } from 'lucide-react';
 import {
   CATEGORY_LIST,
@@ -401,26 +402,37 @@ export const ProvenanceCard: React.FC<ProvenanceCardProps> = ({
         </span>
 
         <div className="flex items-center space-x-2 shrink-0">
-          {/* Review Status */}
+          {/* Review / Processing Status */}
           <div
             className={`flex items-center space-x-1.5 text-xs font-semibold select-none cursor-default ${
-              reviewStatus === 'approved'
+              asset.processing_status === 'processing'
+                ? 'text-cyan-600'
+                : reviewStatus === 'approved'
                 ? 'text-emerald-600'
                 : reviewStatus === 'quarantined'
                 ? 'text-rose-600'
                 : 'text-amber-600'
             }`}
           >
-            {reviewStatus === 'approved' && <ShieldCheck className="w-3.5 h-3.5" />}
-            {reviewStatus === 'quarantined' && <ShieldAlert className="w-3.5 h-3.5" />}
-            {reviewStatus === 'action_required' && <CircleAlert className="w-3.5 h-3.5" />}
-            <span>
-              {reviewStatus === 'approved'
-                ? 'Ready for Wire'
-                : reviewStatus === 'quarantined'
-                ? 'Quarantined'
-                : 'Needs Triage'}
-            </span>
+            {asset.processing_status === 'processing' ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-600" />
+                <span>Scanning...</span>
+              </>
+            ) : (
+              <>
+                {reviewStatus === 'approved' && <ShieldCheck className="w-3.5 h-3.5" />}
+                {reviewStatus === 'quarantined' && <ShieldAlert className="w-3.5 h-3.5" />}
+                {reviewStatus === 'action_required' && <CircleAlert className="w-3.5 h-3.5" />}
+                <span>
+                  {reviewStatus === 'approved'
+                    ? 'Ready for Wire'
+                    : reviewStatus === 'quarantined'
+                    ? 'Quarantined'
+                    : 'Needs Triage'}
+                </span>
+              </>
+            )}
           </div>
 
           {onClose && (

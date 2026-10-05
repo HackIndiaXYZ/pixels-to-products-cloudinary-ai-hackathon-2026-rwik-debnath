@@ -55,3 +55,13 @@ data/*.webp
 data/*.jfif
 !data/assets/
 !data/assets/**
+
+# Temporary Scratch, Upload Cache & Intermediate Audio
+scratch/
+data/uploads_cache/
+data/webiste_assets/
+data/website_assets/
+data/audio/
+
+# Internal Documentation
+docs/ 

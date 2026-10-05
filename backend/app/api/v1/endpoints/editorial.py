@@ -114,6 +114,16 @@ async def get_asset_details(public_id: str):
         raise HTTPException(status_code=404, detail="Asset not found on wire")
     return WIRE_STORE[public_id]
 
+@router.post("/process/{public_id:path}")
+async def process_asset_priority(public_id: str):
+    """
+    Triggers priority on-demand deep forensic processing (RapidOCR, Rekognition moderation, explicit coordinates).
+    Preempts any currently running analysis to guarantee bounded memory and CPU utilization.
+    """
+    from app.services.processing_service import ProcessingManager
+    res = await ProcessingManager.start_priority_processing(public_id)
+    return res
+
 @router.delete("/asset/{public_id:path}", response_model=DeleteResponse)
 async def delete_asset(public_id: str):
     """
