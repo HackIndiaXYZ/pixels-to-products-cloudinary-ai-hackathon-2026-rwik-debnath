@@ -240,6 +240,13 @@ class ProcessingManager:
                         )
                         if mod_status == "quarantined":
                             asset.review_status = "quarantined"
+                            # Cloudinary CDN by default returns HTTP 404 for assets rejected by moderation.
+                            # We approve the asset delivery access mode in Cloudinary so that newsroom editors can
+                            # audit/inspect it behind PressWire's frosted quarantine shield without encountering a 404 broken image.
+                            try:
+                                await asyncio.to_thread(cloudinary.api.update, asset.public_id, moderation_status="approved")
+                            except Exception as unblock_err:
+                                logger.warning(f"[ProcessingManager] Could not update moderation_status to approved: {unblock_err}")
                 except asyncio.CancelledError:
                     raise
                 except Exception as mod_err:

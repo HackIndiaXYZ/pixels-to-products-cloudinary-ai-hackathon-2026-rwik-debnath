@@ -1035,21 +1035,41 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                   displayDims.width === 0 ? 'min-w-[320px] min-h-[220px]' : ''
                 } ${isDrawingMode || isFocalMode ? 'cursor-crosshair' : ''}`}
               >
-                <img
-                  ref={imgRef}
-                  src={canvasImageSrc}
-                  alt="Subject Triage"
-                  onLoad={handleImageLoad}
-                  onError={() => {
-                    if (!hasImageError) setHasImageError(true);
-                  }}
-                  className={`max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10 transition-all duration-300 ${
-                    asset.review_status === 'quarantined' && !isQuarantineRevealed
-                      ? 'blur-lg opacity-85'
-                      : ''
-                  }`}
-                  draggable={false}
-                />
+                {hasImageError && asset.review_status === 'quarantined' ? (
+                  <div className="w-[460px] h-[300px] max-w-full bg-slate-900/90 rounded-xl border border-rose-500/40 flex flex-col items-center justify-center p-6 text-center shadow-2xl backdrop-blur-md select-none">
+                    <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center mb-3">
+                      <ShieldAlert className="w-6 h-6 text-rose-500" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-white tracking-wide uppercase font-mono">
+                      Quarantined Content
+                    </h3>
+                    <p className="text-xs text-rose-300 mt-1 max-w-xs">
+                      {asset.moderation?.categories && asset.moderation.categories.length > 0
+                        ? `Flagged for ${asset.moderation.categories.join(', ')}`
+                        : 'Graphic material isolated from public wire syndication'}
+                    </p>
+                    <div className="mt-3 text-[10px] font-mono text-slate-400">
+                      Cloudinary Moderation Gate · Delivery Protected
+                    </div>
+                  </div>
+                ) : (
+                  <img
+                    ref={imgRef}
+                    src={canvasImageSrc}
+                    alt="Subject Triage"
+                    onLoad={handleImageLoad}
+                    onError={() => {
+                      if (!hasImageError) setHasImageError(true);
+                    }}
+                    className={`max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10 transition-all duration-300 ${
+                      (asset.review_status === 'quarantined' && !isQuarantineRevealed) ||
+                      (asset.processing_status === 'processing' || asset.processing_status === 'pending')
+                        ? 'blur-lg opacity-85'
+                        : ''
+                    }`}
+                    draggable={false}
+                  />
+                )}
 
                 {/* On-Demand Forensic Radar Scan HUD (Minimalist, icon-driven) */}
                 {(asset.processing_status === 'processing' || asset.processing_status === 'pending') && (
