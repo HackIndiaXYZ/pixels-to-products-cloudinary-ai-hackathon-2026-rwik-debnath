@@ -569,6 +569,10 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
       ? asset.syndication_urls.clean_master
       : asset.secure_url;
 
+  const isShielded =
+    (asset.review_status === 'quarantined' && !isQuarantineRevealed) ||
+    (asset.processing_status === 'processing' || asset.processing_status === 'pending');
+
   const handleApproveForWire = async () => {
     setSaving(true);
     try {
@@ -1061,14 +1065,28 @@ export const RedactionCanvas: React.FC<RedactionCanvasProps> = ({
                     onError={() => {
                       if (!hasImageError) setHasImageError(true);
                     }}
+                    style={{
+                      filter: isShielded ? 'blur(36px)' : undefined,
+                    }}
                     className={`max-h-[520px] w-auto object-contain block pointer-events-none select-none rounded-lg shadow-2xl ring-1 ring-slate-900/10 transition-all duration-300 ${
-                      (asset.review_status === 'quarantined' && !isQuarantineRevealed) ||
-                      (asset.processing_status === 'processing' || asset.processing_status === 'pending')
-                        ? 'blur-lg opacity-85'
-                        : ''
+                      isShielded ? 'opacity-85' : ''
                     }`}
                     draggable={false}
                   />
+                )}
+
+                {/* Guaranteed Frosted Privacy Shield during Scanning or Quarantine */}
+                {isShielded && (
+                  <div className="absolute inset-0 rounded-lg backdrop-blur-2xl bg-slate-950/40 pointer-events-none z-20 flex flex-col items-center justify-center transition-all duration-300 overflow-hidden">
+                    {(asset.processing_status === 'processing' || asset.processing_status === 'pending') && (
+                      <div className="flex flex-col items-center space-y-2 select-none">
+                        <Loader2 className="w-6 h-6 animate-spin text-cyan-400 drop-shadow-md" />
+                        <span className="font-mono text-[11px] uppercase tracking-widest text-cyan-200 font-semibold drop-shadow">
+                          Forensic Safety Scan
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {/* On-Demand Forensic Radar Scan HUD (Minimalist, icon-driven) */}

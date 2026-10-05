@@ -495,7 +495,15 @@ export const WireQueue: React.FC<WireQueueProps> = ({
             <img
               src={thumbUrl}
               alt=""
-              className="w-full h-full object-cover"
+              style={{
+                filter:
+                  asset.review_status === 'quarantined' ||
+                  asset.processing_status === 'processing' ||
+                  asset.processing_status === 'pending'
+                    ? 'blur(6px)'
+                    : undefined,
+              }}
+              className="w-full h-full object-cover transition-all"
               loading="lazy"
               onError={(e) => {
                 if (asset.secure_url && e.currentTarget.src !== asset.secure_url) {
