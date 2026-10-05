@@ -52,42 +52,45 @@ During major crises, natural disasters, and breaking civic emergencies, televisi
 flowchart TD
     subgraph INTAKE ["1. Citizen & Field Intake"]
         A["Eyewitness Photo / Video"] --> B["Intake Portal (/submit)"]
-        B -->|1-Click Broadcast Waiver| C["Cloudinary Upload API"]
+        B -->|"1-Click Broadcast Waiver"| C["Cloudinary Upload API"]
     end
 
     subgraph CLOUDINARY_INGEST ["2. Cloudinary Native Ingestion"]
-        C -->|faces: true| D["Facial Detection Matrix"]
-        C -->|image_metadata: true| E["EXIF Hardware & Sensor GPS"]
-        C -->|moderation: 'aws_rek'| F["Autonomous AI Safety Scan"]
-        C -->|context: {headline, waiver}| G["Structured Asset Context"]
+        C -->|"faces: true"| D["Facial Detection Matrix"]
+        C -->|"image_metadata: true"| E["EXIF Hardware & Sensor GPS"]
+        C -->|"moderation: aws_rek"| F["Autonomous AI Safety Scan"]
+        C -->|"context: headline, waiver"| G["Structured Asset Context"]
     end
 
     subgraph WIRE_DESK ["3. Real-Time Editorial Cockpit (/desk)"]
-        D & E & F & G -->|Sub-Second Ingestion| H["Server-Sent Events (<200ms)"]
+        D --> H["Server-Sent Events (<200ms)"]
+        E --> H
+        F --> H
+        G --> H
         H --> I["Editorial Wire Queue"]
         I --> J{"Moderation Gate"}
-        J -->|Violations Detected| K["Frosted Quarantine Shield"]
-        J -->|Clean Media| L["Interactive Triage Canvas"]
+        J -->|"Violations Detected"| K["Frosted Quarantine Shield"]
+        J -->|"Clean Media"| L["Interactive Triage Canvas"]
     end
 
     subgraph FORENSICS ["4. Progressive Forensic Engine"]
-        L -->|On-Demand Selection| M["Priority Forensic Worker"]
-        M -->|PaddleOCR| N["License Plates & Identity PII"]
-        M -->|Preemption Protocol| O["Halt Background Idle Scans"]
-        N -->|Append Sensitive Boxes| L
+        L -->|"On-Demand Selection"| M["Priority Forensic Worker"]
+        M -->|"PaddleOCR"| N["License Plates & Identity PII"]
+        M -->|"Preemption Protocol"| O["Halt Background Idle Scans"]
+        N -->|"Append Sensitive Boxes"| L
     end
 
     subgraph REDACTION ["5. Selective Privacy Redaction"]
-        L -->|Editor Triage: Civilian vs Public Figure| P["Selective Coordinate Filter"]
-        P -->|face_coordinates=[...]| Q["Cloudinary Explicit API"]
+        L -->|"Editor Triage: Civilian vs Public Figure"| P["Selective Coordinate Filter"]
+        P -->|"Explicit API: face_coordinates"| Q["Cloudinary Explicit API"]
     end
 
     subgraph PACKAGING ["6. Zero-Storage Dynamic Packaging Engine"]
         Q --> R["Deterministic URL Chaining"]
-        R --> S["16:9 Linear Broadcast Master\nc_fill,ar_16:9,g_auto:subject,e_pixelate_faces:10"]
-        R --> T["9:16 Social Reel / Story\nc_fill,ar_9:16,g_auto:subject,b_auto:predominant,e_pixelate_faces:10"]
-        R --> U["1:1 Wire Micro-Card\nc_fill,ar_1:1,g_auto:subject,e_pixelate_faces:10,f_auto,q_auto"]
-        R --> V["6-Second Autonomous Highlight Clip\ne_preview:duration_6:max_seg_3"]
+        R --> S["16:9 Linear Broadcast Master"]
+        R --> T["9:16 Social Reel / Story"]
+        R --> U["1:1 Wire Micro-Card"]
+        R --> V["6-Second Autonomous Video Highlight"]
     end
 
     classDef primary fill:#2563eb,stroke:#1d4ed8,color:#fff;
