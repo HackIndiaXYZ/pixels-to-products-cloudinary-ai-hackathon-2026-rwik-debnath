@@ -36,11 +36,11 @@
 
 ## 🎯 The Breaking Newsroom Dilemma
 
-During major crises, natural disasters, and breaking civic emergencies, television newsrooms are inundated with hundreds of uncurated eyewitness photos and videos. Editorial and legal teams face three critical operational bottlenecks:
+During major crises, natural disasters, and breaking civic emergencies, television newsrooms are inundated with hundreds of uncurated eyewitness photos and breaking takes. Editorial and legal teams face three critical operational bottlenecks:
 
 1. **Content Moderation & Graphic Violence Liability**: Unscreened citizen uploads frequently contain graphic violence, hate symbols, or trauma imagery that cannot be exposed to junior editorial staff without prior quarantine.
 2. **Privacy, Bystander & PII Liability (DPDP / GDPR)**: Broadcast regulations mandate blurring innocent bystanders, vehicle license registration plates, and citizen identity documents (e.g. Aadhaar, PAN) while keeping elected public figures, spokespeople, and journalists in razor-sharp focus.
-3. **Multi-Format Storage & Rendering Explosion**: Formatting the same source footage for 16:9 linear television, 9:16 vertical reels (Shorts / TikTok / Instagram), 1:1 social cards, and 6-second autonomous highlight reels traditionally requires manual re-encoding and duplicate cloud uploads, multiplying cloud storage bills and rendering latencies.
+3. **Multi-Format Storage & Rendering Explosion**: Formatting the same source photo for 16:9 linear television, 9:16 vertical reels (Shorts / TikTok / Instagram), and 1:1 wire feed cards traditionally requires manual re-cropping, duplicate renders, and multiple uploads, multiplying cloud storage bills and editorial latency.
 
 **PressWire solves this** by providing an autonomous, end-to-end AI media intake and broadcast packaging pipeline powered natively by **Cloudinary**. Media enters via a secure citizen portal, undergoes sub-second ingestion, progressive forensic scanning, and selective privacy redaction, and delivers instant, broadcast-ready packages across every platform format with **zero duplicate storage**.
 
@@ -51,7 +51,7 @@ During major crises, natural disasters, and breaking civic emergencies, televisi
 ```mermaid
 flowchart TD
     subgraph INTAKE ["1. Citizen & Field Intake"]
-        A["Eyewitness Photo / Video"] --> B["Intake Portal (/submit)"]
+        A["Eyewitness Photo Take"] --> B["Intake Portal (/submit)"]
         B -->|"1-Click Broadcast Waiver"| C["Cloudinary Upload API"]
     end
 
@@ -90,7 +90,7 @@ flowchart TD
         R --> S["16:9 Linear Broadcast Master"]
         R --> T["9:16 Social Reel / Story"]
         R --> U["1:1 Wire Micro-Card"]
-        R --> V["6-Second Autonomous Video Highlight"]
+        R --> V["Full-Res Clean Master"]
     end
 
     classDef primary fill:#2563eb,stroke:#1d4ed8,color:#fff;
@@ -135,7 +135,7 @@ flowchart TD
   - **16:9 Linear Broadcast Master**: Subject-aware broadcast playout (`c_fill,ar_16:9,g_auto:subject,e_pixelate_faces:10,f_auto,q_auto`). Supports 1-click toggling between Clean Master and Branded Feed.
   - **9:16 Social Reel / Story**: Content-aware vertical formatting with predominant color blur-fill padding (`c_fill,ar_9:16,g_auto:subject,b_auto:predominant,e_pixelate_faces:10`).
   - **1:1 Wire Micro-Card**: Compressed WebP/AVIF square feed thumbnail (`c_fill,ar_1:1,g_auto:subject,e_pixelate_faces:10,f_auto,q_auto`).
-  - **6-Second Video Highlight Preview**: Autonomous clip summarization (`e_preview:duration_6:max_seg_3`).
+  - **Full-Resolution Clean Master**: Unconstrained high-resolution original aspect ratio delivery with selective privacy pixelation applied (`e_pixelate_faces:10,f_auto,q_auto`).
 - **1-Click Master Downloads**: Direct playout download packaging (`fl_attachment`) protects broadcast networks from viral CDN egress spikes.
 
 ### 4. 📍 Spatiotemporal Geo-Anchor & Multi-Angle Clustering
@@ -155,7 +155,7 @@ flowchart TD
 
 ## 🏆 Cloudinary AI Capabilities & Rubric Matrix
 
-PressWire is built from the ground up to leverage Cloudinary's native image and video processing primitives:
+PressWire is built from the ground up to leverage Cloudinary's native image processing and delivery primitives:
 
 | Cloudinary Primitive | Transformation Syntax / Parameter | Architectural Purpose in PressWire | Source Implementation |
 | :--- | :--- | :--- | :--- |
@@ -167,7 +167,7 @@ PressWire is built from the ground up to leverage Cloudinary's native image and 
 | **Content-Aware Cropping** | `c_fill,ar_16:9,g_auto:subject` | AI subject saliency detection for linear television playout without manual keyframing. | [`backend/app/services/packaging_service.py`](backend/app/services/packaging_service.py) |
 | **Smart Background Fill** | `b_auto:predominant` | Auto-detects predominant color palette to blur-fill vertical 9:16 mobile feeds. | [`backend/app/services/packaging_service.py`](backend/app/services/packaging_service.py) |
 | **Optimized Delivery** | `f_auto,q_auto` | Delivers optimal format (WebP/AVIF) and perceptual quality at minimum file size. | [`backend/app/services/packaging_service.py`](backend/app/services/packaging_service.py) |
-| **Autonomous Previews** | `e_preview:duration_6:max_seg_3` | Generates 6-second dynamic highlight reels from source video without server-side rendering. | [`backend/app/services/packaging_service.py`](backend/app/services/packaging_service.py) |
+| **Station Bug Watermark** | `overlay: clean_strap_id, g_north_east` | Renders custom station watermark bugs onto television playout feeds. | [`backend/app/services/packaging_service.py`](backend/app/services/packaging_service.py) |
 | **Dynamic Overlays** | `l_text:Arial_28_bold:<headline>,g_south_west` | Renders dynamic lower-third broadcast straps onto television playout feeds. | [`backend/app/services/packaging_service.py`](backend/app/services/packaging_service.py) |
 | **Search API** | `expression="tags:presswire AND status:approved"` | Sub-second Lucene queries filtering across editorial desks and moderation states. | [`backend/app/services/search_service.py`](backend/app/services/search_service.py) |
 
@@ -179,7 +179,7 @@ Experience the autonomous pipeline end-to-end on the live production deployment:
 
 1. **Step 1: Ingest Breaking Media (`/submit`)**
    - Open **[presswire-h306.onrender.com/submit](https://presswire-h306.onrender.com/submit)** on your browser or mobile phone.
-   - Click the **"5 Takes (Batch Simulation)"** button or upload your own photo/video.
+   - Click the **"5 Takes (Batch Simulation)"** button or upload your own breaking photo.
    - Notice the mandatory **irrevocable broadcast copyright release** and the instantaneous upload response (<800ms).
 2. **Step 2: Real-Time Wire Arrival (`/desk`)**
    - Navigate to **[presswire-h306.onrender.com/desk](https://presswire-h306.onrender.com/desk)**.
